@@ -1,0 +1,44 @@
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/common/Card';
+
+export default function RulesPage() {
+  return (
+    <div className="space-y-lg">
+      <div>
+        <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">Rules</h1>
+        <p className="text-neutral-600 dark:text-neutral-400 mt-xs">
+          Payment policies and restrictions
+        </p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Budget Rules</CardTitle>
+          <CardDescription>Spending limits per time period</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-neutral-600 dark:text-neutral-400">No budget rules configured yet.</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Merchant Rules</CardTitle>
+          <CardDescription>Approved merchants list</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-neutral-600 dark:text-neutral-400">No merchant restrictions configured yet.</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Expiration Rules</CardTitle>
+          <CardDescription>Vault expiration policies</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-neutral-600 dark:text-neutral-400">No expiration rules configured yet.</p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

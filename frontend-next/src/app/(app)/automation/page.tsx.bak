@@ -1,0 +1,26 @@
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/common/Card';
+
+export default function AutomationPage() {
+  return (
+    <div className="space-y-lg">
+      <div>
+        <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">Automation</h1>
+        <p className="text-neutral-600 dark:text-neutral-400 mt-xs">
+          Schedule automated tasks and payments
+        </p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>No tasks scheduled</CardTitle>
+          <CardDescription>Coming in Phase 4 (awaiting TaskScheduler contract)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-neutral-600 dark:text-neutral-400">
+            Task scheduling features will be available once the TaskScheduler contract is deployed.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

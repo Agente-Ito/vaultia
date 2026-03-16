@@ -1,0 +1,10 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "LSP6ExecuteRelayCallModule",
+  "sourceName": "@lukso/lsp6-contracts/contracts/LSP6Modules/LSP6ExecuteRelayCallModule.sol",
+  "abi": [],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

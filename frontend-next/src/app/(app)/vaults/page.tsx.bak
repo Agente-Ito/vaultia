@@ -1,0 +1,37 @@
+import Link from 'next/link';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/common/Card';
+import { Button } from '@/components/common/Button';
+
+export default function VaultsPage() {
+  return (
+    <div className="space-y-lg">
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">Vaults</h1>
+          <p className="text-neutral-600 dark:text-neutral-400 mt-xs">
+            Manage your financial vaults and spending policies
+          </p>
+        </div>
+        <Link href="/vaults/create">
+          <Button>Create Vault</Button>
+        </Link>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>No vaults yet</CardTitle>
+          <CardDescription>Create your first vault to get started</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-neutral-600 dark:text-neutral-400 mb-md">
+            Vaults are financial containers where agents can execute payments with pre-defined rules
+            (budgets, merchant restrictions, expiration dates).
+          </p>
+          <Link href="/vaults/create">
+            <Button variant="primary">Get Started</Button>
+          </Link>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

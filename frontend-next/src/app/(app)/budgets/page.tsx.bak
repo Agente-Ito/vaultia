@@ -1,0 +1,26 @@
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/common/Card';
+
+export default function BudgetsPage() {
+  return (
+    <div className="space-y-lg">
+      <div>
+        <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">Budgets</h1>
+        <p className="text-neutral-600 dark:text-neutral-400 mt-xs">
+          Hierarchical budget pools and spending
+        </p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Budget hierarchy</CardTitle>
+          <CardDescription>Coming in Phase 6 (awaiting SharedBudgetPool contract)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-neutral-600 dark:text-neutral-400">
+            Budget hierarchy visualization will be available once the SharedBudgetPool contract is deployed.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

@@ -1,0 +1,150 @@
+'use client';
+export const dynamic = 'force-dynamic';
+
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/common/Card';
+import { Button } from '@/components/common/Button';
+import { Alert, AlertTitle, AlertDescription } from '@/components/common/Alert';
+
+export default function CreateVaultPage() {
+  const [label, setLabel] = useState('My Vault');
+  const [budget, setBudget] = useState('0.5');
+  const [period, setPeriod] = useState('1');
+  const [expiration, setExpiration] = useState('0');
+  const [agents, setAgents] = useState('');
+  const [merchants, setMerchants] = useState('');
+  const [status, setStatus] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const onSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setLoading(true);
+    try {
+      setStatus('Deploying vault...');
+
+      const agentList = agents.split(',').map((a) => a.trim()).filter(Boolean);
+      const merchantList = merchants.split(',').map((a) => a.trim()).filter(Boolean);
+
+      // Placeholder - actual implementation will use registry contract
+      console.log({
+        label,
+        budget,
+        period,
+        expiration,
+        agents: agentList,
+        merchants: merchantList,
+      });
+
+      setStatus('Ready to deploy! (Phase 2 will implement actual deployment)');
+    } catch (err: any) {
+      setStatus('Error: ' + (err.message || String(err)));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-lg max-w-2xl">
+      <div>
+        <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">Create Vault</h1>
+        <p className="text-neutral-600 dark:text-neutral-400 mt-xs">
+          Set up a new financial vault with spending rules
+        </p>
+      </div>
+
+      <Alert variant="info">
+        <AlertTitle>Phase 1 - UI Shell Complete</AlertTitle>
+        <AlertDescription>
+          The form is styled but not yet connected to smart contracts. Phase 2 will implement the actual deployVault() call.
+        </AlertDescription>
+      </Alert>
+
+      <Card>
+        <CardContent>
+          <form onSubmit={onSubmit} className="space-y-md">
+            <div>
+              <label className="label">Vault Label</label>
+              <input
+                className="input"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                placeholder="e.g., Groceries Vault"
+              />
+            </div>
+
+            <div>
+              <label className="label">Budget (LYX)</label>
+              <input
+                className="input"
+                type="number"
+                step="0.1"
+                value={budget}
+                onChange={(e) => setBudget(e.target.value)}
+                placeholder="0.5"
+              />
+            </div>
+
+            <div>
+              <label className="label">Budget Period</label>
+              <select className="input" value={period} onChange={(e) => setPeriod(e.target.value)}>
+                <option value="0">Daily</option>
+                <option value="1">Weekly</option>
+                <option value="2">Monthly</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="label">Expiration (Unix timestamp, 0 = no expiry)</label>
+              <input
+                className="input"
+                type="number"
+                value={expiration}
+                onChange={(e) => setExpiration(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+
+            <div>
+              <label className="label">Agents (comma-separated addresses)</label>
+              <input
+                className="input"
+                value={agents}
+                onChange={(e) => setAgents(e.target.value)}
+                placeholder="0x1234..., 0x5678..."
+              />
+            </div>
+
+            <div>
+              <label className="label">Merchants (comma-separated addresses)</label>
+              <input
+                className="input"
+                value={merchants}
+                onChange={(e) => setMerchants(e.target.value)}
+                placeholder="0xabcd..., 0xef01..."
+              />
+            </div>
+
+            <div className="flex gap-md pt-lg">
+              <Button type="submit" variant="primary" disabled={loading}>
+                {loading ? 'Deploying...' : 'Deploy Vault'}
+              </Button>
+              <Link href="/vaults">
+                <Button variant="secondary">Cancel</Button>
+              </Link>
+            </div>
+
+            {status && (
+              <Alert variant={status.includes('Error') ? 'error' : 'success'}>
+                <AlertTitle>{status.includes('Error') ? 'Error' : 'Status'}</AlertTitle>
+                <AlertDescription>{status}</AlertDescription>
+              </Alert>
+            )}
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

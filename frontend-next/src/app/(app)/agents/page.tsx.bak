@@ -1,0 +1,26 @@
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/common/Card';
+
+export default function AgentsPage() {
+  return (
+    <div className="space-y-lg">
+      <div>
+        <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">Agents</h1>
+        <p className="text-neutral-600 dark:text-neutral-400 mt-xs">
+          Manage AI agents and their capabilities
+        </p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>No agents configured</CardTitle>
+          <CardDescription>Coming in Phase 4 (awaiting AgentCoordinator contract)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-neutral-600 dark:text-neutral-400">
+            Agent management features will be available once the AgentCoordinator contract is deployed.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

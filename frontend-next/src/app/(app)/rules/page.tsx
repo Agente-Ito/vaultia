@@ -1,0 +1,192 @@
+'use client';
+export const dynamic = 'force-dynamic';
+
+import { useState } from 'react';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/common/Card';
+import { Badge } from '@/components/common/Badge';
+import { useWeb3 } from '@/context/Web3Context';
+import { useVaults } from '@/hooks/useVaults';
+import { useVault } from '@/hooks/useVault';
+import Link from 'next/link';
+import { Skeleton } from '@/components/common/Skeleton';
+import { Button } from '@/components/common/Button';
+import { Alert, AlertDescription } from '@/components/common/Alert';
+
+function PolicyCard({ title, badge, children }: { title: string; badge?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">{title}</CardTitle>
+          {badge}
+        </div>
+      </CardHeader>
+      <CardContent>{children}</CardContent>
+    </Card>
+  );
+}
+
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex justify-between items-center py-xs border-b border-neutral-100 dark:border-neutral-700 last:border-0 text-sm">
+      <span className="text-neutral-500 dark:text-neutral-400">{label}</span>
+      <span className="font-medium text-neutral-900 dark:text-neutral-50 text-right">{value}</span>
+    </div>
+  );
+}
+
+function VaultPolicies({ safeAddress }: { safeAddress: string }) {
+  const { detail, loading, error } = useVault(safeAddress);
+
+  if (loading) return (
+    <div className="space-y-md">
+      <div className="space-y-sm p-md border border-neutral-200 dark:border-neutral-700 rounded-md">
+        <Skeleton className="h-5 w-32" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-3/4" />
+        <Skeleton className="h-2 w-full mt-sm" />
+      </div>
+    </div>
+  );
+  if (error) return <p className="text-danger text-sm py-md">Error: {error}</p>;
+  if (!detail) return null;
+
+  const { policySummary } = detail;
+  const hasBudget = !!policySummary.budget;
+  const hasMerchants = !!policySummary.merchants;
+  const hasExpiry = !!policySummary.expiration && policySummary.expiration !== '0';
+
+  if (!hasBudget && !hasMerchants && !hasExpiry) {
+    return <p className="text-neutral-500 text-sm py-md">No policies found for this vault.</p>;
+  }
+
+  return (
+    <div className="space-y-md">
+      {!!policySummary.warnings?.length && (
+        <Alert variant="warning">
+          <AlertDescription>{policySummary.warnings.join(' ')}</AlertDescription>
+        </Alert>
+      )}
+
+      {hasBudget && (
+        <PolicyCard title="Budget Policy" badge={<Badge variant="primary">Active</Badge>}>
+          <Row label="Max budget" value={`${policySummary.budget} LYX`} />
+          <Row label="Spent this period" value={`${policySummary.spent ?? '0'} LYX`} />
+          {policySummary.periodStart && (
+            <Row label="Period started" value={policySummary.periodStart} />
+          )}
+          <div className="mt-sm">
+            <div className="flex justify-between text-xs text-neutral-500 mb-xs">
+              <span>Spent</span>
+              <span>{policySummary.spent ?? '0'} / {policySummary.budget} LYX</span>
+            </div>
+            <div className="w-full bg-neutral-100 dark:bg-neutral-700 rounded-full h-2">
+              <div
+                className="bg-primary h-2 rounded-full transition-all"
+                style={{
+                  width: `${Math.min(
+                    100,
+                    (parseFloat(policySummary.spent ?? '0') / parseFloat(policySummary.budget!)) * 100
+                  )}%`,
+                }}
+              />
+            </div>
+          </div>
+        </PolicyCard>
+      )}
+
+      {hasMerchants && (
+        <PolicyCard title="Merchant Policy" badge={<Badge variant="warning">Whitelist</Badge>}>
+          {policySummary.merchants!.length === 0 ? (
+            <p className="text-sm text-neutral-500">No merchants in whitelist.</p>
+          ) : (
+            <div className="space-y-xs">
+              {policySummary.merchants!.map((m) => (
+                <p key={m} className="font-mono text-xs text-neutral-700 dark:text-neutral-300 break-all">
+                  {m}
+                </p>
+              ))}
+              <p className="text-xs text-neutral-500 mt-xs">{policySummary.merchants!.length} address(es) whitelisted</p>
+            </div>
+          )}
+        </PolicyCard>
+      )}
+
+      {hasExpiry && (
+        <PolicyCard title="Expiration Policy" badge={<Badge variant="neutral">Time-limited</Badge>}>
+          <Row
+            label="Expires"
+            value={new Date(Number(policySummary.expiration) * 1000).toLocaleString()}
+          />
+          <Row
+            label="Status"
+            value={
+              Number(policySummary.expiration) * 1000 > Date.now()
+                ? <span className="text-success">Active</span>
+                : <span className="text-danger">Expired</span>
+            }
+          />
+        </PolicyCard>
+      )}
+    </div>
+  );
+}
+
+export default function RulesPage() {
+  const { registry, account, isConnected } = useWeb3();
+  const { vaults, loading: vaultsLoading } = useVaults(registry, account);
+  const [selectedSafe, setSelectedSafe] = useState<string>('');
+
+  return (
+    <div className="space-y-lg">
+      <div>
+        <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">Rules</h1>
+        <p className="text-neutral-600 dark:text-neutral-400 mt-xs">
+          Payment policies enforced per vault
+        </p>
+      </div>
+
+      {!isConnected && (
+        <Alert variant="info">
+          <AlertDescription>Connect your wallet to inspect vault policies.</AlertDescription>
+        </Alert>
+      )}
+
+      {isConnected && !vaultsLoading && vaults.length === 0 && (
+        <Card>
+          <CardContent>
+            <p className="text-neutral-600 dark:text-neutral-400 mb-md">No vaults found. Create one first.</p>
+            <Link href="/vaults/create"><Button variant="primary">Create Vault</Button></Link>
+          </CardContent>
+        </Card>
+      )}
+
+      {isConnected && vaults.length > 0 && (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle>Select Vault</CardTitle>
+              <CardDescription>Choose a vault to inspect its policies</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <select
+                className="input"
+                value={selectedSafe}
+                onChange={(e) => setSelectedSafe(e.target.value)}
+              >
+                <option value="">— select a vault —</option>
+                {vaults.map((v) => (
+                  <option key={v.safe} value={v.safe}>
+                    {v.label || 'Unnamed Vault'} ({v.safe.slice(0, 8)}…{v.safe.slice(-6)})
+                  </option>
+                ))}
+              </select>
+            </CardContent>
+          </Card>
+
+          {selectedSafe && <VaultPolicies safeAddress={selectedSafe} />}
+        </>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,77 @@
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/common/Card';
+
+export default function DashboardPage() {
+  return (
+    <div className="space-y-lg">
+      <div>
+        <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">Dashboard</h1>
+        <p className="text-neutral-600 dark:text-neutral-400 mt-xs">
+          Welcome to your Financial Operating System
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-md">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Total Assets</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">0.00 LYX</p>
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-xs">Across all vaults</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Active Vaults</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">0</p>
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-xs">Active now</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Agents</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">0</p>
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-xs">Configured</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Rules</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">0</p>
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-xs">Payment policies</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Getting Started</CardTitle>
+          <CardDescription>Set up your first vault</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-md">
+            <p className="text-neutral-600 dark:text-neutral-400">
+              Welcome to the AI Financial Operating System! Here are your next steps:
+            </p>
+            <ol className="list-decimal list-inside space-y-sm text-neutral-600 dark:text-neutral-400">
+              <li>Connect your wallet (use the button in the top-right)</li>
+              <li>Create a vault in the Vaults section</li>
+              <li>Set spending rules and budgets</li>
+              <li>Register agents to manage your vault</li>
+              <li>Monitor all activity in real-time</li>
+            </ol>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
