@@ -46,7 +46,12 @@ contract ExpirationPolicy is IPolicy, Ownable {
         );
     }
 
-    /// @notice Update the expiration timestamp. Set to 0 to remove expiry.
+    /// @notice Update the expiration timestamp.
+    /// @dev Setting to 0 removes the expiration entirely — the vault will never expire
+    ///      after that call, regardless of what was set before. This power rests solely
+    ///      with the vault owner; ensure the owner address is a secure multisig or EOA.
+    ///      There is no minimum expiration enforced here — callers can set any future or
+    ///      past value (past values cause immediate block of all payments).
     function setExpiration(uint256 _expiration) external onlyOwner {
         expiration = _expiration;
         emit ExpirationUpdated(_expiration);

@@ -3,13 +3,14 @@ pragma solidity ^0.8.20;
 
 import {IPolicy} from "./policies/IPolicy.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 /// @title PolicyEngine
 /// @notice Executes a chain of IPolicy contracts. All must pass for a payment to proceed.
 ///         FIX #9: restricted to the linked AgentSafe — prevents external callers
 ///         from draining BudgetPolicy.spent by calling validate() directly.
 ///         FIX #17: MAX_POLICIES = 20 prevents gas DoS via unbounded policy loop.
-contract PolicyEngine is Ownable {
+contract PolicyEngine is Ownable, ReentrancyGuard {
     /// @dev Only the linked AgentSafe can call validate()
     address public immutable safe;
 
@@ -127,6 +128,11 @@ contract PolicyEngine is Ownable {
     ///      EMERGENCY: If simulationActive is ever stuck (unexpected proxy edge case),
     ///      the owner can call emergencyResetSimulation() to unblock the function.
     ///
+    ///      FRONTEND NOTE: If a simulation transaction fails unexpectedly (e.g. during
+    ///      gas estimation), call emergencyResetSimulation() to clear the simulationActive
+    ///      flag before retrying. This is a safety valve for edge cases not caught by
+    ///      the low-level .call() pattern.
+    ///
     ///      Caller restriction: accepts calls from the linked safe OR from any address
     ///      when used as an off-chain preview (eth_call spoofs msg.sender = address(0)).
     ///      On-chain callers that are NOT the safe get a dry-run with no side-effects
@@ -145,7 +151,7 @@ contract PolicyEngine is Ownable {
         address to,
         uint256 amount,
         bytes calldata data
-    ) external returns (address blockingPolicy, string memory reason) {
+    ) external nonReentrant returns (address blockingPolicy, string memory reason) {
         require(!simulationActive, "PE: simulation reentrant");
         simulationActive = true;
 

@@ -31,6 +31,11 @@ interface ILSP7 {
 ///      - `_execute()` is internal in LSP9VaultCore — called directly, no self-call gas overhead.
 ///      - PolicyEngine.validate() is called BEFORE `_execute()` (CEI order correct).
 ///      - Events emitted AFTER `_execute()` (FIX #27: event only fires on success).
+///
+/// @dev LSP1 DELEGATE WARNING: LSP9Vault inherits universalReceiver(), which forwards calls to
+///      any registered LSP1UniversalReceiverDelegate. If such a delegate is set in ERC725Y storage,
+///      incoming LSP7 token transfers will trigger it. Ensure delegates are audited before adding;
+///      they can interact with this contract's state and affect policy enforcement flows.
 contract AgentSafe is LSP9Vault, ReentrancyGuard {
 
     address public vaultKeyManager;
@@ -61,6 +66,9 @@ contract AgentSafe is LSP9Vault, ReentrancyGuard {
     /// @notice Emitted when the PolicyEngine is set (FIX #22)
     event PolicyEngineSet(address indexed pe);
 
+    /// @notice Emitted when the ExecutionController is updated or cleared.
+    event ExecutionControllerUpdated(address indexed newEC);
+
     modifier onlyViaKeyManager() {
         require(vaultKeyManager != address(0), "AS: KM not set");
         require(
@@ -83,11 +91,14 @@ contract AgentSafe is LSP9Vault, ReentrancyGuard {
         _setData(AVP_KEY_MANAGER, abi.encode(km));
     }
 
-    /// @notice Link an optional ExecutionController (middleware). One-time set.
-    function setExecutionController(address ec) external onlyOwner {
-        require(executionController == address(0), "AS: EC already set");
-        require(ec.code.length > 0, "AS: EC must be a contract");
-        executionController = ec;
+    /// @notice Update or clear the ExecutionController (middleware).
+    /// @dev Callable by the owner at any time — allows rotating to an updated EC implementation
+    ///      without redeploying the vault. Set to address(0) to remove the EC entirely
+    ///      (agents will use direct KM paths only). The new EC must be a deployed contract.
+    function setExecutionController(address newEC) external onlyOwner {
+        require(newEC == address(0) || newEC.code.length > 0, "AS: EC must be a contract");
+        executionController = newEC;
+        emit ExecutionControllerUpdated(newEC);
     }
 
     /// @notice Link the PolicyEngine to this safe. One-time set.
@@ -113,6 +124,12 @@ contract AgentSafe is LSP9Vault, ReentrancyGuard {
     //
     // Owner calls go through super.execute() (onlyOwner check preserved).
 
+    /// @dev Computed at compile time: bytes4(keccak256("transfer(address,address,uint256,bool,bytes)"))
+    ///      Same value as 0x760d9bba — using the expression makes the derivation auditable
+    ///      and guards against future accidental value changes.
+    bytes4 private constant LSP7_TRANSFER_SELECTOR =
+        bytes4(keccak256("transfer(address,address,uint256,bool,bytes)"));
+
     function execute(
         uint256 operationType,
         address target,
@@ -122,11 +139,7 @@ contract AgentSafe is LSP9Vault, ReentrancyGuard {
         if (msg.sender == vaultKeyManager) {
             require(policyEngine != address(0), "AS: PE not set");
 
-            // LSP7 transfer selector: bytes4(keccak256("transfer(address,address,uint256,bool,bytes)"))
-            // Derived: cast4(keccak256("transfer(address,address,uint256,bool,bytes)")) == 0x760d9bba
-            bytes4 lsp7TransferSel = bytes4(0x760d9bba);
-
-            if (data.length >= 4 && bytes4(data) == lsp7TransferSel && value == 0) {
+            if (data.length >= 4 && bytes4(data) == LSP7_TRANSFER_SELECTOR && value == 0) {
                 // ── Token path: decode LSP7 transfer, validate with actual token address ──
                 bytes memory rawParams = new bytes(data.length - 4);
                 for (uint256 i = 0; i < data.length - 4; i++) rawParams[i] = data[i + 4];

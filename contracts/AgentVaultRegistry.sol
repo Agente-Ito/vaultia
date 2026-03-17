@@ -38,6 +38,18 @@ contract AgentVaultRegistry is Ownable {
     ///      Source: https://github.com/lukso-network/LIPs/blob/main/LSPs/LSP-6-KeyManager.md
     bytes10 private constant LSP6_PERMISSIONS_PREFIX = bytes10(0x4b80742de2bf82acb363);
 
+    /// @dev LSP2 Array key for AddressPermissions[].
+    ///      = keccak256("AddressPermissions[]") = 0xdf30dba06db6a30e65354d9a64c609861f089545ca58c6b4dbe31a5f338cb0e3
+    ///      Stores the number of registered controllers (uint128). Writing this key
+    ///      alongside per-index element keys makes controllers visible to erc725-inspect
+    ///      and other LSP6-aware tooling.
+    bytes32 private constant AP_ARRAY_KEY =
+        0xdf30dba06db6a30e65354d9a64c609861f089545ca58c6b4dbe31a5f338cb0e3;
+
+    /// @dev First 16 bytes of AP_ARRAY_KEY — combined with bytes16(uint128(index)) to form
+    ///      individual element keys per the LSP2 Array element key standard.
+    bytes16 private constant AP_ARRAY_KEY_PREFIX = 0xdf30dba06db6a30e65354d9a64c60986;
+
     constructor() Ownable() {}
 
     /// @notice Grant or revoke permission to call deployVaultOnBehalf.
@@ -91,6 +103,35 @@ contract AgentVaultRegistry is Ownable {
         address[] merchants;
         string label;
     }
+
+    // ─── Internal helpers ─────────────────────────────────────────────────────
+
+    /// @dev Append a controller to AddressPermissions[] in the safe's ERC725Y storage.
+    ///      Implements the LSP2 Array element key standard so LSP6 tooling (erc725-inspect,
+    ///      LUKSO extension) can enumerate all controllers without off-chain indexers.
+    ///
+    ///      Element key = AP_ARRAY_KEY_PREFIX (16 bytes) + uint128(index) as bytes16.
+    ///      Array length key = AP_ARRAY_KEY, value = abi.encodePacked(uint128(index + 1)).
+    ///
+    ///      MUST be called with sequential index values starting at 0 for each new safe,
+    ///      because this function always writes the length as (index + 1).
+    ///
+    /// @param safe       The AgentSafe being configured (factory is owner at call time)
+    /// @param controller The controller address to append
+    /// @param index      Zero-based position within the array (0 = first controller)
+    function _appendToAddressPermissionsArray(
+        AgentSafe safe,
+        address controller,
+        uint128 index
+    ) private {
+        // Element key: first 16 bytes of the array hash + 16-byte big-endian index
+        bytes32 elementKey = bytes32(abi.encodePacked(AP_ARRAY_KEY_PREFIX, bytes16(index)));
+        safe.setData(elementKey, abi.encodePacked(bytes20(controller)));
+        // Array length stored as packed uint128 (16 bytes, big-endian)
+        safe.setData(AP_ARRAY_KEY, abi.encodePacked(uint128(index + 1)));
+    }
+
+    // ─── Deployment ───────────────────────────────────────────────────────────
 
     function deployVault(DeployParams calldata p) external returns (VaultRecord memory record) {
         // FIX #20: limit agents array to prevent gas exhaustion in this loop
@@ -151,11 +192,13 @@ contract AgentVaultRegistry is Ownable {
             for (uint256 i = 0; i < p.agents.length; i++) {
                 agentBudgetPolicy.setAgentBudget(p.agents[i], p.agentBudgets[i]);
             }
+            // Sync period boundaries with BudgetPolicy to prevent inter-policy drift.
+            // Both policies must share the same period start so per-agent and vault-level
+            // budgets reset at identical moments. Must be called before transferOwnership.
+            agentBudgetPolicy.syncPeriodStart(budgetPolicy.periodStart());
             pe.addPolicy(address(agentBudgetPolicy));
             agentBudgetPolicy.transferOwnership(msg.sender);
         }
-
-        // 7. Link PolicyEngine to Safe (factory is still owner)
         safe.setPolicyEngine(address(pe));
 
         // 8. Deploy LSP6 KeyManager targeting this safe
@@ -177,6 +220,9 @@ contract AgentVaultRegistry is Ownable {
             )),
             abi.encodePacked(superPerm)
         );
+        // Register owner in AddressPermissions[] so LSP6 tooling (erc725-inspect) sees all controllers
+        uint128 apIdx = 0;
+        _appendToAddressPermissionsArray(safe, msg.sender, apIdx++);
 
         // 11. Write permissions for each agent
         //     Agents use ERC725X.execute through the KM (the LUKSO standard call path):
@@ -202,6 +248,7 @@ contract AgentVaultRegistry is Ownable {
                 )),
                 abi.encodePacked(agentPerm)
             );
+            _appendToAddressPermissionsArray(safe, agentAddr, apIdx++);
         }
 
         // 12. Transfer ownership to user (LSP14 two-step — user calls acceptOwnership() next)
@@ -294,6 +341,8 @@ contract AgentVaultRegistry is Ownable {
             for (uint256 i = 0; i < p.agents.length; i++) {
                 agentBudgetPolicy.setAgentBudget(p.agents[i], p.agentBudgets[i]);
             }
+            // Sync period boundaries with BudgetPolicy to prevent inter-policy drift
+            agentBudgetPolicy.syncPeriodStart(budgetPolicy.periodStart());
             pe.addPolicy(address(agentBudgetPolicy));
             agentBudgetPolicy.transferOwnership(owner);  // Transfer to actual owner, not msg.sender
         }
@@ -317,6 +366,9 @@ contract AgentVaultRegistry is Ownable {
             )),
             abi.encodePacked(superPerm)
         );
+        // Register owner in AddressPermissions[] for LSP6 tooling compatibility
+        uint128 apIdx = 0;
+        _appendToAddressPermissionsArray(safe, owner, apIdx++);
 
         // 11. Write permissions for each agent
         bytes32 agentPerm = bytes32(uint256(0x0000000000000000000000000000000000000000000000000000000000000500));
@@ -331,6 +383,7 @@ contract AgentVaultRegistry is Ownable {
                 )),
                 abi.encodePacked(agentPerm)
             );
+            _appendToAddressPermissionsArray(safe, agentAddr, apIdx++);
         }
 
         // 12. Transfer ownership to the provided owner address

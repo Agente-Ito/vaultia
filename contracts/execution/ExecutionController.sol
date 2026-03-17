@@ -76,6 +76,9 @@ contract ExecutionController is Ownable, ReentrancyGuard {
     /// @dev Max calls per block per agent (rate limiting)
     uint256 public maxCallsPerBlock = 10;
 
+    /// @dev Per-agent override for max calls per block. 0 means use the global maxCallsPerBlock.
+    mapping(address => uint256) public agentMaxCallsPerBlock;
+
     /// @dev Track calls in current block
     mapping(address => uint256) public callsInBlock;
     mapping(address => uint256) public lastBlockNumber;
@@ -105,6 +108,7 @@ contract ExecutionController is Ownable, ReentrancyGuard {
     );
 
     event RateLimitUpdated(uint256 newLimit);
+    event AgentMaxCallsSet(address indexed agent, uint256 limit);
     event AuditHookSet(address indexed hook);
     /// @dev Emitted when the audit hook is called but reverts. Execution still proceeds.
     event AuditHookFailed(address indexed hook, address indexed agent, address indexed to, uint256 amount);
@@ -132,6 +136,15 @@ contract ExecutionController is Ownable, ReentrancyGuard {
     function setMaxCallsPerBlock(uint256 newLimit) external onlyOwner {
         maxCallsPerBlock = newLimit;
         emit RateLimitUpdated(newLimit);
+    }
+
+    /// @notice Set a per-agent call limit for this block. Overrides the global maxCallsPerBlock.
+    /// @dev Set to 0 to fall back to the global limit. Useful for high-frequency agents
+    ///      (higher limit) or untrusted agents (lower limit) without affecting others.
+    function setAgentMaxCallsPerBlock(address agent, uint256 limit) external onlyOwner {
+        require(agent != address(0), "EC: zero agent");
+        agentMaxCallsPerBlock[agent] = limit;
+        emit AgentMaxCallsSet(agent, limit);
     }
 
     function setAuditHook(address hook) external onlyOwner {
@@ -232,7 +245,9 @@ contract ExecutionController is Ownable, ReentrancyGuard {
 
         // Increment and check
         callsInBlock[agent]++;
-        require(callsInBlock[agent] <= maxCallsPerBlock, "EC: rate limit exceeded");
+        // Use per-agent override if set; fall back to global limit
+        uint256 limit = agentMaxCallsPerBlock[agent] != 0 ? agentMaxCallsPerBlock[agent] : maxCallsPerBlock;
+        require(callsInBlock[agent] <= limit, "EC: rate limit exceeded");
     }
 
     /// @notice Call audit hook if configured (low-level to avoid reverting on hook failure).

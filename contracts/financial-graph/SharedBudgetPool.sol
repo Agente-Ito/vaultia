@@ -243,15 +243,20 @@ contract SharedBudgetPool is Ownable, ReentrancyGuard {
     // INTERNAL HELPERS
     // ═════════════════════════════════════════════════════════════════════
 
-    /// @notice Reset pool period if time has elapsed
+    /// @notice Reset pool period if time has elapsed.
+    /// @dev Uses drift-corrected advance (same pattern as BudgetPolicy) so the start boundary
+    ///      is always a multiple of periodDuration from the original start, preventing cumulative
+    ///      drift when keepers are late. Consistent with BudgetPolicy._maybeResetPeriod().
     function _maybeResetPeriod(bytes32 poolId) internal {
         Pool storage pool = pools[poolId];
         uint256 periodDuration = _getPeriodDuration(pool.period);
 
         if (block.timestamp >= pool.periodStart + periodDuration) {
             pool.spent = 0;
-            pool.periodStart = block.timestamp;
-            emit PeriodReset(poolId, block.timestamp);
+            // Advance by full period multiples to avoid drift from late transactions.
+            uint256 elapsed = block.timestamp - pool.periodStart;
+            pool.periodStart += (elapsed / periodDuration) * periodDuration;
+            emit PeriodReset(poolId, pool.periodStart);
         }
     }
 

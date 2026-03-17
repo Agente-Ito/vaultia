@@ -64,6 +64,10 @@ contract TaskScheduler is Ownable, ReentrancyGuard {
     /// @notice All task IDs (for enumeration)
     bytes32[] public allTaskIds;
 
+    /// @dev Index of each taskId in allTaskIds — enables O(1) swap-and-pop removal in deleteTask().
+    ///      Only valid when tasks[taskId].createdAt != 0.
+    mapping(bytes32 => uint256) private _taskIdIndex;
+
     /// @notice Minimum interval for TIMESTAMP-triggered tasks (prevents keeper spam)
     uint256 public constant MIN_TIMESTAMP_INTERVAL = 60; // 1 minute
 
@@ -93,6 +97,7 @@ contract TaskScheduler is Ownable, ReentrancyGuard {
     event TaskEnabled(bytes32 indexed taskId);
     event TaskDisabled(bytes32 indexed taskId);
     event TaskUpdated(bytes32 indexed taskId, uint256 newNextExecution, uint256 newInterval);
+    event TaskDeleted(bytes32 indexed taskId);
     event KeeperWhitelistChanged(bool enabled);
     event KeeperAdded(address indexed keeper);
     event KeeperRemoved(address indexed keeper);
@@ -173,6 +178,7 @@ contract TaskScheduler is Ownable, ReentrancyGuard {
         });
 
         allTaskIds.push(taskId);
+        _taskIdIndex[taskId] = allTaskIds.length - 1;
         emit TaskCreated(taskId, vault, keyManager, triggerType, nextExecution, interval);
 
         return taskId;
@@ -190,6 +196,30 @@ contract TaskScheduler is Ownable, ReentrancyGuard {
         require(tasks[taskId].createdAt != 0, "TS: task not found");
         tasks[taskId].enabled = false;
         emit TaskDisabled(taskId);
+    }
+
+    /// @notice Permanently delete a task and remove it from the enumeration array.
+    /// @dev Uses swap-and-pop on allTaskIds for O(1) removal. The order of allTaskIds
+    ///      is NOT preserved after deletion — off-chain consumers must not rely on index
+    ///      stability. Use disableTask() if you want a reversible soft-remove instead.
+    ///      Clears all task storage; the taskId cannot be recovered or reused.
+    function deleteTask(bytes32 taskId) external onlyOwner {
+        require(tasks[taskId].createdAt != 0, "TS: task not found");
+
+        // Swap-and-pop: move the last element to the deleted slot
+        uint256 removeIdx = _taskIdIndex[taskId];
+        uint256 lastIdx = allTaskIds.length - 1;
+        if (removeIdx != lastIdx) {
+            bytes32 lastId = allTaskIds[lastIdx];
+            allTaskIds[removeIdx] = lastId;
+            _taskIdIndex[lastId] = removeIdx;
+        }
+        allTaskIds.pop();
+
+        delete _taskIdIndex[taskId];
+        delete tasks[taskId];
+
+        emit TaskDeleted(taskId);
     }
 
     /// @notice Update a task's execution time and/or interval

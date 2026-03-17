@@ -25,6 +25,9 @@ contract MerchantPolicy is IPolicy, Ownable {
 
     event MerchantAdded(address indexed merchant);
     event MerchantRemoved(address indexed merchant);
+    /// @dev Emitted when addMerchants() skips an already-registered address.
+    ///      Skipping (rather than reverting) allows batch calls that may contain duplicates to succeed.
+    event MerchantSkipped(address indexed merchant);
 
     /// @param initialOwner  Factory address (temp owner; transferred to user after setup)
     /// @param _policyEngine The PolicyEngine that calls validate() on this policy
@@ -46,6 +49,9 @@ contract MerchantPolicy is IPolicy, Ownable {
     }
 
     /// @notice Add one or more merchants. FIX #5: batch capped at 100, total at 200.
+    /// @dev Duplicate addresses are silently skipped — not reverted — so batch calls
+    ///      containing already-registered merchants succeed. A MerchantSkipped event
+    ///      is emitted per duplicate for on-chain transparency.
     function addMerchants(address[] calldata merchants) external onlyOwner {
         require(merchants.length <= 100, "MP: batch too large");
         require(merchantList.length + merchants.length <= MAX_MERCHANTS, "MP: list full");
@@ -56,6 +62,8 @@ contract MerchantPolicy is IPolicy, Ownable {
                 isMerchant[merchants[i]] = true;
                 merchantList.push(merchants[i]);
                 emit MerchantAdded(merchants[i]);
+            } else {
+                emit MerchantSkipped(merchants[i]);
             }
         }
     }
