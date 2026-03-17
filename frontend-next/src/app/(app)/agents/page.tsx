@@ -7,6 +7,7 @@ import { AgentCard } from '@/components/agents/AgentCard';
 import { AgentRulesDrawer } from '@/components/agents/AgentRulesDrawer';
 import type { AgentRecord } from '@/components/agents/types';
 import { useI18n } from '@/context/I18nContext';
+import { useContacts } from '@/hooks/useContacts';
 
 // ─── Mock data — replace with AgentCoordinator contract reads ─────────────────
 
@@ -52,17 +53,24 @@ const MOCK_AGENTS: AgentRecord[] = [
   },
 ];
 
-const FILTER_OPTIONS = ['Todos', 'Activos', 'Pausados'];
+type FilterKey = 'all' | 'active' | 'paused';
 
 export default function AgentsPage() {
   const [agents, setAgents] = useState<AgentRecord[]>(MOCK_AGENTS);
-  const [filter, setFilter] = useState('Todos');
+  const [filter, setFilter] = useState<FilterKey>('all');
   const [editingAgent, setEditingAgent] = useState<AgentRecord | null>(null);
   const { t } = useI18n();
+  const { findContact } = useContacts();
+
+  const FILTER_OPTIONS: { key: FilterKey; label: string }[] = [
+    { key: 'all',    label: t('agents.filter.all')    },
+    { key: 'active', label: t('agents.filter.active') },
+    { key: 'paused', label: t('agents.filter.paused') },
+  ];
 
   const filtered = agents.filter((a) => {
-    if (filter === 'Activos') return a.active;
-    if (filter === 'Pausados') return !a.active;
+    if (filter === 'active') return a.active;
+    if (filter === 'paused') return !a.active;
     return true;
   });
 
@@ -86,25 +94,27 @@ export default function AgentsPage() {
             {agents.length} {t('agents.list.count')}
           </p>
         </div>
-        <Button size="sm">+ Agregar agente</Button>
+        <Button size="sm">{t('agents.add')}</Button>
       </div>
 
       {/* Filter bar */}
       <div className="flex items-center gap-2">
-        {FILTER_OPTIONS.map((opt) => (
+        {FILTER_OPTIONS.map(({ key, label }) => (
           <button
-            key={opt}
-            onClick={() => setFilter(opt)}
+            key={key}
+            onClick={() => setFilter(key)}
             className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              filter === opt
+              filter === key
                 ? 'bg-primary-500 text-white'
                 : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 dark:bg-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-600'
             }`}
           >
-            {opt}
+            {label}
           </button>
         ))}
-        <span className="ml-auto text-xs text-neutral-400">{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
+        <span className="ml-auto text-xs text-neutral-400">
+          {filtered.length} {t('agents.results')}
+        </span>
       </div>
 
       {/* Grid */}
@@ -115,14 +125,19 @@ export default function AgentsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filtered.map((agent) => (
-            <AgentCard
-              key={agent.address}
-              agent={agent}
-              onEdit={() => setEditingAgent(agent)}
-              onToggle={() => handleToggle(agent.address)}
-            />
-          ))}
+          {filtered.map((agent) => {
+            const contact = findContact(agent.address);
+            return (
+              <AgentCard
+                key={agent.address}
+                agent={agent}
+                contactName={contact?.name}
+                contactAvatarUrl={contact?.avatarUrl}
+                onEdit={() => setEditingAgent(agent)}
+                onToggle={() => handleToggle(agent.address)}
+              />
+            );
+          })}
         </div>
       )}
 

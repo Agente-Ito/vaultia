@@ -11,6 +11,7 @@ import { getSafeContract } from '@/lib/web3/contracts';
 import { getProvider } from '@/lib/web3/provider';
 import { Alert, AlertDescription } from '@/components/common/Alert';
 import { useI18n } from '@/context/I18nContext';
+import { useContacts, CATEGORY_META } from '@/hooks/useContacts';
 
 interface AgentEvent { type: 'LYX' | 'TOKEN'; to: string; token?: string; amount: string; txHash: string; blockNumber: number; }
 interface SafePaymentLog {
@@ -122,6 +123,7 @@ export default function ActivityPage() {
     };
   }, [vaults]);
 
+  const { findContact } = useContacts();
   const isAnyLoading = vaultsLoading || loading;
 
   return (
@@ -167,48 +169,61 @@ export default function ActivityPage() {
 
           {events.length > 0 && (
             <div className="space-y-2">
-              {events.map((ev, i) => (
-                <div key={`${ev.txHash}-${i}`} className="flex items-start gap-3">
-                  {/* Timeline icon + connector */}
-                  <div className="flex flex-col items-center flex-shrink-0">
-                    <div className="w-8 h-8 rounded-full bg-neutral-100 dark:bg-neutral-700 flex items-center justify-center text-base">
-                      {ev.type === 'LYX' ? '⚡' : '🪙'}
-                    </div>
-                    {i < events.length - 1 && (
-                      <div className="w-px h-4 bg-neutral-200 dark:bg-neutral-700 mt-1" />
-                    )}
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 pb-1">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <div>
-                        <span className="text-sm font-medium text-neutral-900 dark:text-neutral-50">
-                          {parseFloat(ev.amount).toFixed(4)} {ev.type === 'LYX' ? 'LYX' : 'tokens'} → {short(ev.to)}
-                        </span>
-                        <span className="text-xs text-neutral-400 ml-1.5">• {ev.vaultLabel}</span>
+              {events.map((ev, i) => {
+                const toContact = findContact(ev.to);
+                const toLabel = toContact?.name
+                  ? `${CATEGORY_META[toContact.category].emoji} ${toContact.name}`
+                  : short(ev.to);
+                return (
+                  <div key={`${ev.txHash}-${i}`} className="flex items-start gap-3">
+                    {/* Timeline icon + connector */}
+                    <div className="flex flex-col items-center flex-shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-neutral-100 dark:bg-neutral-700 flex items-center justify-center text-base">
+                        {ev.type === 'LYX' ? '⚡' : '🪙'}
                       </div>
-                      <a
-                        href={`https://explorer.execution.${chainId === 42 ? 'mainnet' : 'testnet'}.lukso.network/tx/${ev.txHash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-primary hover:underline flex-shrink-0"
-                      >
-                        {t('activity.view')}
-                      </a>
-                    </div>
-                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      <span className="text-xs text-neutral-400">Block {ev.blockNumber}</span>
-                      <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-50 text-green-600 dark:bg-green-900/40 dark:text-green-300">
-                        {t('timeline.status.completed')}
-                      </span>
-                      {ev.type === 'TOKEN' && ev.token && (
-                        <span className="text-xs font-mono text-neutral-400">{short(ev.token)}</span>
+                      {i < events.length - 1 && (
+                        <div className="w-px h-4 bg-neutral-200 dark:bg-neutral-700 mt-1" />
                       )}
                     </div>
+
+                    {/* Content */}
+                    <div className="flex-1 pb-1">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <div>
+                          <span className="text-sm font-medium text-neutral-900 dark:text-neutral-50">
+                            {parseFloat(ev.amount).toFixed(4)} {ev.type === 'LYX' ? 'LYX' : 'tokens'}
+                            {' → '}
+                            <span className={toContact ? 'text-primary-600 dark:text-primary-400' : ''}>
+                              {toLabel}
+                            </span>
+                          </span>
+                          <span className="text-xs text-neutral-400 ml-1.5">• {ev.vaultLabel}</span>
+                        </div>
+                        <a
+                          href={`https://explorer.execution.${chainId === 42 ? 'mainnet' : 'testnet'}.lukso.network/tx/${ev.txHash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-primary hover:underline flex-shrink-0"
+                        >
+                          {t('activity.view')}
+                        </a>
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span className="text-xs text-neutral-400">Block {ev.blockNumber}</span>
+                        <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-50 text-green-600 dark:bg-green-900/40 dark:text-green-300">
+                          {t('timeline.status.completed')}
+                        </span>
+                        {toContact && (
+                          <span className="text-xs font-mono text-neutral-400">{short(ev.to)}</span>
+                        )}
+                        {ev.type === 'TOKEN' && ev.token && (
+                          <span className="text-xs font-mono text-neutral-400">{short(ev.token)}</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

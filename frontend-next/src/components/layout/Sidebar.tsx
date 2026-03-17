@@ -17,6 +17,7 @@ const CORE_ITEMS: NavItem[] = [
   { href: '/vaults',     labelKey: 'nav.vaults',     icon: '🔐' },
   { href: '/rules',      labelKey: 'nav.rules',      icon: '🛡️' },
   { href: '/activity',   labelKey: 'nav.activity',   icon: '📈' },
+  { href: '/profiles',   labelKey: 'nav.profiles',   icon: '👥' },
 ];
 
 const PRO_ITEMS: NavItem[] = [

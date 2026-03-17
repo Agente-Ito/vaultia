@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/common/Skeleton';
 import { Button } from '@/components/common/Button';
 import { Alert, AlertDescription } from '@/components/common/Alert';
 import { useI18n } from '@/context/I18nContext';
+import { useContacts } from '@/hooks/useContacts';
 
 function PolicyCard({ title, badge, children }: { title: string; badge?: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -39,6 +40,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 function VaultPolicies({ safeAddress }: { safeAddress: string }) {
   const { detail, loading, error } = useVault(safeAddress);
   const { t } = useI18n();
+  const { findContact } = useContacts();
 
   if (loading) return (
     <div className="space-y-md">
@@ -106,11 +108,22 @@ function VaultPolicies({ safeAddress }: { safeAddress: string }) {
             <p className="text-sm text-neutral-500">{t('rules.merchants.none')}</p>
           ) : (
             <div className="space-y-xs">
-              {policySummary.merchants!.map((m) => (
-                <p key={m} className="font-mono text-xs text-neutral-700 dark:text-neutral-300 break-all">
-                  {m}
-                </p>
-              ))}
+              {policySummary.merchants!.map((m) => {
+                const contact = findContact(m);
+                return (
+                  <div key={m} className="flex items-center gap-2">
+                    {contact?.name && (
+                      <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300 flex items-center gap-1">
+                        <span>{contact.avatarUrl ? '🖼️' : '👤'}</span>
+                        {contact.name}
+                      </span>
+                    )}
+                    <p className="font-mono text-xs text-neutral-400 dark:text-neutral-500 break-all">
+                      {m}
+                    </p>
+                  </div>
+                );
+              })}
               <p className="text-xs text-neutral-500 mt-xs">{policySummary.merchants!.length} {t('rules.merchants.count')}</p>
             </div>
           )}

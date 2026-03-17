@@ -8,6 +8,7 @@ import { ethers } from 'ethers';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/common/Alert';
+import { ProfilePicker } from '@/components/profiles/ProfilePicker';
 import { useWeb3 } from '@/context/Web3Context';
 import { useI18n } from '@/context/I18nContext';
 import { cn } from '@/lib/utils/cn';
@@ -184,6 +185,9 @@ export default function CreateVaultPage() {
   const [activeTemplate, setActiveTemplate]       = useState<string | null>(null);
   const [stepTouched, setStepTouched]             = useState<Record<number, boolean>>({});
 
+  // Picker modal
+  const [pickerOpen, setPickerOpen]               = useState<'agents' | 'merchants' | null>(null);
+
   // Derived
   const rawAgentList   = agents.split(',').map((a) => a.trim()).filter(Boolean);
   const merchantCount  = merchants.split(',').map((m) => m.trim()).filter(Boolean).length;
@@ -210,6 +214,23 @@ export default function CreateVaultPage() {
     setActiveTemplate(cfg.id);
     setStepTouched({});
     setStep(1);
+  };
+
+  /** Merge picker-selected addresses into an existing comma-separated string */
+  const mergeAddresses = (existing: string, incoming: string[]) => {
+    const current = existing.split(',').map((a) => a.trim()).filter(Boolean).map((a) => a.toLowerCase());
+    const toAdd = incoming.filter((a) => !current.includes(a.toLowerCase()));
+    const parts = existing.trim() ? [existing.trim(), ...toAdd] : toAdd;
+    return parts.join(', ');
+  };
+
+  const handleAgentsPicked = (addresses: string[]) => {
+    setAgents((prev) => mergeAddresses(prev, addresses));
+    setAgentBudgetMap({});
+  };
+
+  const handleMerchantsPicked = (addresses: string[]) => {
+    setMerchants((prev) => mergeAddresses(prev, addresses));
   };
 
   const handleStep1Next = () => {
@@ -504,7 +525,16 @@ export default function CreateVaultPage() {
                   </div>
 
                   <div>
-                    <label className="label">{t('create.field.merchants')}</label>
+                    <div className="flex items-center justify-between mb-xs">
+                      <label className="label !mb-0">{t('create.field.merchants')}</label>
+                      <button
+                        type="button"
+                        onClick={() => setPickerOpen('merchants')}
+                        className="text-xs font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400 flex items-center gap-1"
+                      >
+                        <span>👥</span> {t('picker.browse')}
+                      </button>
+                    </div>
                     <input
                       className="input"
                       value={merchants}
@@ -545,7 +575,16 @@ export default function CreateVaultPage() {
                     </Alert>
 
                     <div>
-                      <label className="label">{t('create.field.agents')}</label>
+                      <div className="flex items-center justify-between mb-xs">
+                        <label className="label !mb-0">{t('create.field.agents')}</label>
+                        <button
+                          type="button"
+                          onClick={() => setPickerOpen('agents')}
+                          className="text-xs font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400 flex items-center gap-1"
+                        >
+                          <span>👥</span> {t('picker.browse')}
+                        </button>
+                      </div>
                       <input
                         className="input"
                         value={agents}
@@ -633,6 +672,22 @@ export default function CreateVaultPage() {
           />
         </div>
       </div>
+
+      {/* Profile picker modals */}
+      <ProfilePicker
+        isOpen={pickerOpen === 'agents'}
+        onClose={() => setPickerOpen(null)}
+        onConfirm={handleAgentsPicked}
+        mode="agents"
+        preSelected={rawAgentList}
+      />
+      <ProfilePicker
+        isOpen={pickerOpen === 'merchants'}
+        onClose={() => setPickerOpen(null)}
+        onConfirm={handleMerchantsPicked}
+        mode="merchants"
+        preSelected={merchants.split(',').map((m) => m.trim()).filter(Boolean)}
+      />
     </div>
   );
 }

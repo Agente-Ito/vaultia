@@ -6,6 +6,8 @@ import { getRegistryContract, RegistryContract } from '@/lib/web3/contracts';
 
 const REGISTRY_ADDRESS = process.env.NEXT_PUBLIC_REGISTRY_ADDRESS ?? '';
 
+// ─── Provider detection ───────────────────────────────────────────────────────
+
 type EthereumProvider = ethers.Eip1193Provider & {
   on(event: 'accountsChanged', listener: (accounts: string[]) => void): void;
   on(event: 'chainChanged', listener: () => void): void;
@@ -15,15 +17,22 @@ type EthereumProvider = ethers.Eip1193Provider & {
 
 type BrowserWindow = Window & {
   ethereum?: EthereumProvider;
+  lukso?: EthereumProvider;   // LUKSO Universal Profile Browser Extension
 };
 
-function getEthereumProvider() {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
-  return (window as BrowserWindow).ethereum ?? null;
+/**
+ * Prefer window.lukso (UP Extension) over window.ethereum (MetaMask).
+ * Returns the provider and whether it is a Universal Profile provider.
+ */
+function getInjectedProvider(): { provider: EthereumProvider; isUP: boolean } | null {
+  if (typeof window === 'undefined') return null;
+  const w = window as BrowserWindow;
+  if (w.lukso)    return { provider: w.lukso,    isUP: true  };
+  if (w.ethereum) return { provider: w.ethereum, isUP: false };
+  return null;
 }
+
+// ─── Context type ─────────────────────────────────────────────────────────────
 
 interface Web3ContextType {
   account: string | null;
@@ -33,110 +42,137 @@ interface Web3ContextType {
   isConnected: boolean;
   isRegistryConfigured: boolean;
   isWrongChain: boolean;
+  /** True when connected via the LUKSO UP Browser Extension */
+  isUniversalProfile: boolean;
+  /** True when window.lukso is available (extension installed) */
+  hasUPExtension: boolean;
   connect: () => Promise<void>;
 }
 
 const Web3Context = createContext<Web3ContextType | undefined>(undefined);
 
-export function Web3Provider({ children }: { children: React.ReactNode }) {
-  const SUPPORTED_CHAIN_IDS = [4201, 42]; // LUKSO Testnet and Mainnet
+// ─── Provider ─────────────────────────────────────────────────────────────────
 
-  const [account, setAccount] = useState<string | null>(null);
-  const [chainId, setChainId] = useState<number | null>(null);
-  const [signer, setSigner] = useState<JsonRpcSigner | null>(null);
-  const [registry, setRegistry] = useState<RegistryContract | null>(null);
+export function Web3Provider({ children }: { children: React.ReactNode }) {
+  const SUPPORTED_CHAIN_IDS = [4201, 42];
+
+  const [account, setAccount]                     = useState<string | null>(null);
+  const [chainId, setChainId]                     = useState<number | null>(null);
+  const [signer, setSigner]                       = useState<JsonRpcSigner | null>(null);
+  const [registry, setRegistry]                   = useState<RegistryContract | null>(null);
+  const [isUniversalProfile, setIsUniversalProfile] = useState(false);
+  const [hasUPExtension, setHasUPExtension]       = useState(false);
 
   const buildRegistry = useCallback((providerOrSigner: ethers.Provider | JsonRpcSigner) => {
     if (!REGISTRY_ADDRESS) return null;
     return getRegistryContract(REGISTRY_ADDRESS, providerOrSigner);
   }, []);
 
+  // Detect UP extension availability (client-side only)
   useEffect(() => {
-    const ethereum = getEthereumProvider();
-    if (!ethereum) return;
+    setHasUPExtension(!!((window as BrowserWindow).lukso));
+  }, []);
+
+  // Restore isUniversalProfile from session storage on mount
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem('up-is-universal-profile');
+      if (stored === 'true') setIsUniversalProfile(true);
+    } catch { /* ignore */ }
+  }, []);
+
+  // Subscribe to provider events and auto-connect if already approved
+  useEffect(() => {
+    const detected = getInjectedProvider();
+    if (!detected) return;
+    const { provider, isUP } = detected;
 
     const init = async () => {
       try {
-        const provider = new BrowserProvider(ethereum);
-        const network = await provider.getNetwork();
+        const ethersProvider = new BrowserProvider(provider);
+        const network = await ethersProvider.getNetwork();
         setChainId(Number(network.chainId));
 
-        const accounts = await provider.listAccounts();
+        const accounts = await ethersProvider.listAccounts();
         if (accounts.length > 0) {
-          const s = await provider.getSigner();
-          setAccount(await s.getAddress());
+          const s = await ethersProvider.getSigner();
+          const addr = await s.getAddress();
+          setAccount(addr);
           setSigner(s);
           setRegistry(buildRegistry(s));
+          setIsUniversalProfile(isUP);
+          sessionStorage.setItem('up-is-universal-profile', String(isUP));
         } else {
-          setRegistry(buildRegistry(provider));
+          setRegistry(buildRegistry(ethersProvider));
         }
       } catch (e) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('[Web3] init error:', e);
-        }
+        if (process.env.NODE_ENV === 'development') console.error('[Web3] init error:', e);
       }
     };
 
     init();
 
     const onAccountsChanged = async (accounts: string[]) => {
-      const provider = new BrowserProvider(ethereum);
+      const ethersProvider = new BrowserProvider(provider);
       if (accounts.length === 0) {
         setAccount(null);
         setSigner(null);
-        setRegistry(buildRegistry(provider));
+        setIsUniversalProfile(false);
+        sessionStorage.removeItem('up-is-universal-profile');
+        setRegistry(buildRegistry(ethersProvider));
       } else {
-        const s = await provider.getSigner();
+        const s = await ethersProvider.getSigner();
         setAccount(accounts[0]);
         setSigner(s);
         setRegistry(buildRegistry(s));
+        setIsUniversalProfile(isUP);
+        sessionStorage.setItem('up-is-universal-profile', String(isUP));
       }
     };
 
     const onChainChanged = async () => {
-      // Re-init web3 state on chain switch without reloading the page.
-      // This preserves form state, scroll position, and React component tree.
       try {
-        const provider = new BrowserProvider(ethereum);
-        const network = await provider.getNetwork();
+        const ethersProvider = new BrowserProvider(provider);
+        const network = await ethersProvider.getNetwork();
         setChainId(Number(network.chainId));
-        const accounts = await provider.listAccounts();
+        const accounts = await ethersProvider.listAccounts();
         if (accounts.length > 0) {
-          const s = await provider.getSigner();
+          const s = await ethersProvider.getSigner();
           setAccount(await s.getAddress());
           setSigner(s);
           setRegistry(buildRegistry(s));
         } else {
           setAccount(null);
           setSigner(null);
-          setRegistry(buildRegistry(provider));
+          setRegistry(buildRegistry(ethersProvider));
         }
       } catch (e) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('[Web3] chain change error:', e);
-        }
+        if (process.env.NODE_ENV === 'development') console.error('[Web3] chain change error:', e);
       }
     };
 
-    ethereum.on('accountsChanged', onAccountsChanged);
-    ethereum.on('chainChanged', onChainChanged);
+    provider.on('accountsChanged', onAccountsChanged);
+    provider.on('chainChanged', onChainChanged);
     return () => {
-      ethereum.removeListener('accountsChanged', onAccountsChanged);
-      ethereum.removeListener('chainChanged', onChainChanged);
+      provider.removeListener('accountsChanged', onAccountsChanged);
+      provider.removeListener('chainChanged', onChainChanged);
     };
   }, [buildRegistry]);
 
   const connect = async () => {
-    const ethereum = getEthereumProvider();
-    if (!ethereum) throw new Error('No wallet detected');
-    const provider = new BrowserProvider(ethereum);
-    await provider.send('eth_requestAccounts', []);
-    const s = await provider.getSigner();
-    const network = await provider.getNetwork();
+    const detected = getInjectedProvider();
+    if (!detected) throw new Error('No wallet detected');
+    const { provider, isUP } = detected;
+    const ethersProvider = new BrowserProvider(provider);
+    await ethersProvider.send('eth_requestAccounts', []);
+    const s = await ethersProvider.getSigner();
+    const network = await ethersProvider.getNetwork();
     setAccount(await s.getAddress());
     setChainId(Number(network.chainId));
     setSigner(s);
     setRegistry(buildRegistry(s));
+    setIsUniversalProfile(isUP);
+    sessionStorage.setItem('up-is-universal-profile', String(isUP));
   };
 
   return (
@@ -145,6 +181,8 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
       isConnected: !!account,
       isRegistryConfigured: !!REGISTRY_ADDRESS,
       isWrongChain: !!account && !!chainId && !SUPPORTED_CHAIN_IDS.includes(chainId),
+      isUniversalProfile,
+      hasUPExtension,
       connect,
     }}>
       {children}
