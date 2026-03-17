@@ -6,6 +6,7 @@ import { Button } from '@/components/common/Button';
 import { AgentCard } from '@/components/agents/AgentCard';
 import { AgentRulesDrawer } from '@/components/agents/AgentRulesDrawer';
 import type { AgentRecord } from '@/components/agents/types';
+import { useI18n } from '@/context/I18nContext';
 
 // ─── Mock data — replace with AgentCoordinator contract reads ─────────────────
 
@@ -57,6 +58,7 @@ export default function AgentsPage() {
   const [agents, setAgents] = useState<AgentRecord[]>(MOCK_AGENTS);
   const [filter, setFilter] = useState('Todos');
   const [editingAgent, setEditingAgent] = useState<AgentRecord | null>(null);
+  const { t } = useI18n();
 
   const filtered = agents.filter((a) => {
     if (filter === 'Activos') return a.active;
@@ -79,9 +81,9 @@ export default function AgentsPage() {
       {/* Header */}
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">Mis Agentes IA</h1>
+          <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{t('agents.title')}</h1>
           <p className="text-neutral-500 dark:text-neutral-400 mt-1 text-sm">
-            {agents.length} agente{agents.length !== 1 ? 's' : ''} registrado{agents.length !== 1 ? 's' : ''}
+            {agents.length} {t('agents.list.count')}
           </p>
         </div>
         <Button size="sm">+ Agregar agente</Button>
@@ -109,7 +111,7 @@ export default function AgentsPage() {
       {filtered.length === 0 ? (
         <div className="text-center py-16 space-y-2">
           <p className="text-3xl">🤖</p>
-          <p className="text-sm text-neutral-500">No hay agentes en esta categoría</p>
+          <p className="text-sm text-neutral-500">{t('agents.list.empty')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">

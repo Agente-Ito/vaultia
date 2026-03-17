@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils/cn';
+import { useI18n } from '@/context/I18nContext';
 
 export interface TaskRecord {
   id: string;
@@ -18,12 +19,12 @@ export interface TaskRecord {
   currency?: string;
 }
 
-function groupByDate(tasks: TaskRecord[]): { dateLabel: string; items: TaskRecord[] }[] {
+function groupByDate(tasks: TaskRecord[], locale: string): { dateLabel: string; items: TaskRecord[] }[] {
   const groups: Record<string, TaskRecord[]> = {};
   const sorted = [...tasks].sort((a, b) => a.nextExecution.getTime() - b.nextExecution.getTime());
 
   sorted.forEach((t) => {
-    const key = t.nextExecution.toLocaleDateString('es-MX', {
+    const key = t.nextExecution.toLocaleDateString(locale === 'es' ? 'es-MX' : 'en-US', {
       day: 'numeric',
       month: 'short',
       year: t.nextExecution.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
@@ -40,16 +41,18 @@ interface TaskTimelineProps {
 }
 
 export function TaskTimeline({ tasks, onToggle }: TaskTimelineProps) {
+  const { t, locale } = useI18n();
+
   if (tasks.length === 0) {
     return (
       <div className="text-center py-12 space-y-2">
         <p className="text-3xl">⏰</p>
-        <p className="text-sm text-neutral-500">No hay tareas programadas</p>
+        <p className="text-sm text-neutral-500">{t('automation.empty')}</p>
       </div>
     );
   }
 
-  const groups = groupByDate(tasks);
+  const groups = groupByDate(tasks, locale);
 
   return (
     <div className="space-y-6">
@@ -100,7 +103,7 @@ export function TaskTimeline({ tasks, onToggle }: TaskTimelineProps) {
                     <span className="text-xs text-neutral-400">{task.intervalLabel}</span>
                     {task.triggerType === 'block' && (
                       <span className="text-xs bg-blue-50 text-blue-500 dark:bg-blue-900/30 px-1.5 py-0.5 rounded-full">
-                        On-chain
+                        {t('automation.task.on_chain')}
                       </span>
                     )}
                   </div>
@@ -113,7 +116,7 @@ export function TaskTimeline({ tasks, onToggle }: TaskTimelineProps) {
                     ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300'
                     : 'bg-neutral-100 text-neutral-400 dark:bg-neutral-800'
                 )}>
-                  {task.enabled ? 'Programado' : 'Deshabilitado'}
+                  {task.enabled ? t('automation.task.scheduled') : t('automation.task.disabled')}
                 </span>
 
                 {/* Toggle */}
@@ -125,7 +128,7 @@ export function TaskTimeline({ tasks, onToggle }: TaskTimelineProps) {
                       ? 'bg-red-50 text-red-400 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40'
                       : 'bg-green-50 text-green-500 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/40'
                   )}
-                  aria-label={task.enabled ? 'Deshabilitar' : 'Habilitar'}
+                  aria-label={task.enabled ? t('automation.task.disable') : t('automation.task.enable')}
                 >
                   {task.enabled ? '⏸' : '▶'}
                 </button>

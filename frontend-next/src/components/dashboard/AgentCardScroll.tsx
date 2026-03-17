@@ -3,6 +3,7 @@
 import React from 'react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils/cn';
+import { useI18n } from '@/context/I18nContext';
 
 export interface AgentMiniRecord {
   address: string;
@@ -20,6 +21,7 @@ interface AgentMiniCardProps {
 }
 
 function AgentMiniCard({ agent, onClick }: AgentMiniCardProps) {
+  const { t } = useI18n();
   return (
     <button
       onClick={onClick}
@@ -38,12 +40,12 @@ function AgentMiniCard({ agent, onClick }: AgentMiniCardProps) {
       </div>
       {agent.active ? (
         <p className="text-xs text-neutral-500">
-          <span className="font-medium text-neutral-800 dark:text-neutral-200">${agent.spentToday}</span> gastados hoy
+          <span className="font-medium text-neutral-800 dark:text-neutral-200">${agent.spentToday}</span> {t('agent_scroll.spent_today')}
         </p>
       ) : agent.nextPayment ? (
-        <p className="text-xs text-neutral-500">Próximo: <span className="font-medium">{agent.nextPayment}</span></p>
+        <p className="text-xs text-neutral-500">{t('agent_scroll.next_payment')}: <span className="font-medium">{agent.nextPayment}</span></p>
       ) : (
-        <p className="text-xs text-neutral-400">Sin actividad reciente</p>
+        <p className="text-xs text-neutral-400">{t('agent_scroll.no_activity')}</p>
       )}
     </button>
   );
@@ -56,10 +58,11 @@ interface AgentCardScrollProps {
 }
 
 export function AgentCardScroll({ agents, onAgentClick, onAddAgent }: AgentCardScrollProps) {
+  const { t } = useI18n();
   return (
     <div>
       <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
-        Mis Agentes IA
+        {t('agent_scroll.title')}
       </h3>
       <ScrollArea className="w-full whitespace-nowrap">
         <div className="flex gap-3 pb-3">
@@ -76,7 +79,7 @@ export function AgentCardScroll({ agents, onAgentClick, onAddAgent }: AgentCardS
               className="flex-shrink-0 w-44 rounded-xl border-2 border-dashed border-neutral-300 dark:border-neutral-600 p-3 text-sm text-neutral-400 hover:border-primary-300 hover:text-primary-500 transition-all flex items-center justify-center gap-1.5"
             >
               <span>+</span>
-              <span>Nuevo agente</span>
+              <span>{t('agent_scroll.new_agent')}</span>
             </button>
           )}
         </div>

@@ -1,48 +1,62 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { ethers } from 'ethers';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/common/Button';
+import { Alert, AlertDescription } from '@/components/common/Alert';
 import { cn } from '@/lib/utils/cn';
 import { useOnboarding, type UseCase } from '@/context/OnboardingContext';
+import { useWeb3 } from '@/context/Web3Context';
+import { useI18n } from '@/context/I18nContext';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getErrorMessage(error: unknown): string {
+  if (typeof error === 'object' && error !== null) {
+    const e = error as { reason?: unknown; message?: unknown };
+    if (typeof e.reason === 'string' && e.reason) return e.reason;
+    if (typeof e.message === 'string' && e.message) return e.message;
+  }
+  return String(error);
+}
+
+const PERIOD_MAP: Record<'daily' | 'weekly' | 'monthly', number> = {
+  daily: 0,
+  weekly: 1,
+  monthly: 2,
+};
+
+// ─── Static use-case data (ids and emojis only; strings resolved via t()) ─────
+
+const USE_CASE_DATA: { id: UseCase; emoji: string }[] = [
+  { id: 'family', emoji: '🏠' },
+  { id: 'daily',  emoji: '🛒' },
+  { id: 'defi',   emoji: '📈' },
+];
+
+// ─── Static period data (values only; labels resolved via t()) ────────────────
+
+const PERIOD_VALUES = ['daily', 'weekly', 'monthly'] as const;
 
 // ─── Step 1: Use-case selection ───────────────────────────────────────────────
 
-const USE_CASES: { id: UseCase; emoji: string; title: string; description: string }[] = [
-  {
-    id: 'family',
-    emoji: '🏠',
-    title: 'Presupuesto Familiar',
-    description: 'Crea la estructura jerárquica de gastos del hogar automáticamente.',
-  },
-  {
-    id: 'daily',
-    emoji: '🛒',
-    title: 'Gastos Diarios con Bots',
-    description: 'IA pagan supermercado, restaurantes y suscripciones por ti.',
-  },
-  {
-    id: 'defi',
-    emoji: '📈',
-    title: 'Estrategia DeFi Automática',
-    description: 'Rebalanceo y yield cada hora con bots autónomos.',
-  },
-];
-
 function Step1({ onSelect }: { onSelect: (uc: UseCase) => void }) {
+  const { t } = useI18n();
   return (
     <div className="p-6 space-y-6">
       <div>
         <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-50">
-          ¿Para qué quieres usar tu bóveda inteligente?
+          {t('onboarding.step1.title')}
         </h2>
         <p className="text-sm text-neutral-500 mt-1">
-          Elige el caso de uso que mejor describe tu situación — podrás ajustarlo después.
+          {t('onboarding.step1.subtitle')}
         </p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {USE_CASES.map((uc) => (
+        {USE_CASE_DATA.map((uc) => (
           <button
             key={uc.id}
             onClick={() => onSelect(uc.id)}
@@ -50,13 +64,13 @@ function Step1({ onSelect }: { onSelect: (uc: UseCase) => void }) {
           >
             <span className="text-3xl">{uc.emoji}</span>
             <h3 className="mt-2 font-semibold text-neutral-900 dark:text-neutral-50 text-sm">
-              {uc.title}
+              {t(`onboarding.usecase.${uc.id}.title`)}
             </h3>
             <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 leading-relaxed">
-              {uc.description}
+              {t(`onboarding.usecase.${uc.id}.desc`)}
             </p>
             <span className="mt-3 inline-block text-xs font-medium text-primary-500 group-hover:translate-x-0.5 transition-transform">
-              Elegir →
+              {t('onboarding.step1.select')}
             </span>
           </button>
         ))}
@@ -70,33 +84,34 @@ function Step1({ onSelect }: { onSelect: (uc: UseCase) => void }) {
 const EMOJIS = ['💰', '🏠', '🛒', '📈', '🎯', '✈️', '🏥', '🎓', '🎵', '⚡'];
 
 function Step2() {
+  const { t } = useI18n();
   const { vaultName, vaultEmoji, setVaultName, setVaultEmoji } = useOnboarding();
   return (
     <div className="p-6 space-y-6">
       <div>
         <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-50">
-          Nombra tu primera bóveda
+          {t('onboarding.step2.title')}
         </h2>
         <p className="text-sm text-neutral-500 mt-1">
-          Dale un nombre y un ícono para identificarla fácilmente.
+          {t('onboarding.step2.subtitle')}
         </p>
       </div>
       <div className="space-y-4">
         <div>
           <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 block mb-1">
-            Nombre de la bóveda
+            {t('onboarding.step2.name_label')}
           </label>
           <input
             type="text"
             value={vaultName}
             onChange={(e) => setVaultName(e.target.value)}
-            placeholder="Ej. Presupuesto Familiar 2026"
+            placeholder={t('onboarding.step2.name_placeholder')}
             className="w-full h-10 rounded-md border border-neutral-300 px-3 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-50"
           />
         </div>
         <div>
           <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 block mb-2">
-            Ícono
+            {t('onboarding.step2.icon_label')}
           </label>
           <div className="flex flex-wrap gap-2">
             {EMOJIS.map((e) => (
@@ -122,58 +137,55 @@ function Step2() {
 
 // ─── Step 3: Root budget ──────────────────────────────────────────────────────
 
-const PERIODS = [
-  { value: 'daily', label: 'Diario' },
-  { value: 'weekly', label: 'Semanal' },
-  { value: 'monthly', label: 'Mensual' },
-] as const;
-
 function Step3() {
+  const { t } = useI18n();
   const { rootBudget, budgetPeriod, setRootBudget, setBudgetPeriod } = useOnboarding();
   return (
     <div className="p-6 space-y-6">
       <div>
         <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-50">
-          Define tu presupuesto raíz
+          {t('onboarding.step3.title')}
         </h2>
         <p className="text-sm text-neutral-500 mt-1">
-          Este será el límite máximo de toda la jerarquía de gastos.
+          {t('onboarding.step3.subtitle')}
         </p>
       </div>
       <div className="space-y-4">
         <div>
           <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 block mb-1">
-            Monto máximo
+            {t('onboarding.step3.amount_label')}
           </label>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-sm font-medium">$</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-sm font-medium">
+              LYX
+            </span>
             <input
               type="number"
               value={rootBudget}
               onChange={(e) => setRootBudget(e.target.value)}
               min="0"
-              step="100"
-              className="w-full h-10 rounded-md border border-neutral-300 pl-7 pr-3 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-50"
+              step="0.1"
+              className="w-full h-10 rounded-md border border-neutral-300 pl-12 pr-3 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-50"
             />
           </div>
         </div>
         <div>
           <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 block mb-2">
-            Período de renovación
+            {t('onboarding.step3.period_label')}
           </label>
           <div className="flex gap-2">
-            {PERIODS.map((p) => (
+            {PERIOD_VALUES.map((value) => (
               <button
-                key={p.value}
-                onClick={() => setBudgetPeriod(p.value)}
+                key={value}
+                onClick={() => setBudgetPeriod(value)}
                 className={cn(
                   'flex-1 py-2 rounded-lg border-2 text-sm font-medium transition-all',
-                  budgetPeriod === p.value
+                  budgetPeriod === value
                     ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-neutral-700 dark:text-primary-300'
                     : 'border-neutral-200 text-neutral-600 hover:border-primary-300 dark:border-neutral-700 dark:text-neutral-400'
                 )}
               >
-                {p.label}
+                {t(`onboarding.step3.period.${value}`)}
               </button>
             ))}
           </div>
@@ -183,61 +195,100 @@ function Step3() {
   );
 }
 
-// ─── Step 4: Done ─────────────────────────────────────────────────────────────
+// ─── Step 4: Summary + deploy ─────────────────────────────────────────────────
 
-function Step4() {
+function Step4({ deploying, deployError }: { deploying: boolean; deployError: string | null }) {
+  const { t } = useI18n();
   const { vaultEmoji, vaultName, rootBudget, budgetPeriod, useCase } = useOnboarding();
-  const ucLabel = USE_CASES.find((u) => u.id === useCase);
-  const periodLabel = PERIODS.find((p) => p.value === budgetPeriod)?.label ?? '';
+  const { isConnected, isRegistryConfigured } = useWeb3();
+
+  const ucTitle = useCase ? t(`onboarding.usecase.${useCase}.title`) : '—';
+  const periodLabel = t(`onboarding.step3.period.${budgetPeriod}`);
+
   return (
     <div className="p-6 space-y-6">
       <div className="text-center space-y-2">
         <div className="text-5xl">{vaultEmoji}</div>
         <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-50">
-          ¡Todo listo!
+          {t('onboarding.step4.title')}
         </h2>
         <p className="text-sm text-neutral-500">
-          Tu bóveda inteligente está configurada y lista para usar.
+          {t('onboarding.step4.subtitle')}
         </p>
       </div>
+
       <div className="rounded-xl bg-neutral-50 dark:bg-neutral-700/50 p-4 space-y-2 text-sm">
         <div className="flex justify-between">
-          <span className="text-neutral-500">Caso de uso</span>
-          <span className="font-medium text-neutral-900 dark:text-neutral-50">{ucLabel?.title ?? '—'}</span>
+          <span className="text-neutral-500">{t('onboarding.step4.use_case')}</span>
+          <span className="font-medium text-neutral-900 dark:text-neutral-50">{ucTitle}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-neutral-500">Bóveda</span>
-          <span className="font-medium text-neutral-900 dark:text-neutral-50">{vaultName || 'Sin nombre'}</span>
+          <span className="text-neutral-500">{t('onboarding.step4.vault')}</span>
+          <span className="font-medium text-neutral-900 dark:text-neutral-50">{vaultName || t('onboarding.step4.no_name')}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-neutral-500">Presupuesto raíz</span>
-          <span className="font-medium text-neutral-900 dark:text-neutral-50">${rootBudget} / {periodLabel}</span>
+          <span className="text-neutral-500">{t('onboarding.step4.budget')}</span>
+          <span className="font-medium text-neutral-900 dark:text-neutral-50">
+            {rootBudget} LYX / {periodLabel}
+          </span>
         </div>
       </div>
-      <p className="text-xs text-neutral-400 text-center">
-        Podrás ajustar todos estos valores desde el panel de Presupuestos.
-      </p>
+
+      {!isRegistryConfigured && (
+        <Alert variant="warning">
+          <AlertDescription>
+            {t('onboarding.registry_not_configured')}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {isRegistryConfigured && !isConnected && (
+        <Alert variant="warning">
+          <AlertDescription>
+            {t('onboarding.connect_wallet')}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {deployError && (
+        <Alert variant="error">
+          <AlertDescription>{deployError}</AlertDescription>
+        </Alert>
+      )}
+
+      {deploying && (
+        <p className="text-sm text-center text-neutral-500 animate-pulse">
+          {t('onboarding.step4.deploying')}
+        </p>
+      )}
     </div>
   );
 }
 
 // ─── Main modal ───────────────────────────────────────────────────────────────
 
-const STEP_LABELS = [
-  'Caso de uso',
-  'Tu bóveda',
-  'Presupuesto',
-  'Resumen',
-];
-
 export function OnboardingModal() {
+  const router = useRouter();
+  const { t } = useI18n();
   const {
     step, visible, dismissed,
     close, next, back, finish, dismissPermanently,
     setUseCase,
+    vaultName, rootBudget, budgetPeriod,
   } = useOnboarding();
 
+  const { registry, signer, isConnected, isRegistryConfigured } = useWeb3();
+
   const [neverShow, setNeverShow] = React.useState(false);
+  const [deploying, setDeploying] = useState(false);
+  const [deployError, setDeployError] = useState<string | null>(null);
+
+  const stepLabels = [
+    t('onboarding.step_labels.0'),
+    t('onboarding.step_labels.1'),
+    t('onboarding.step_labels.2'),
+    t('onboarding.step_labels.3'),
+  ];
 
   const handleClose = () => {
     if (neverShow) dismissPermanently();
@@ -249,7 +300,40 @@ export function OnboardingModal() {
     next();
   };
 
-  const progressValue = ((step + 1) / STEP_LABELS.length) * 100;
+  const handleDeploy = async () => {
+    if (!isRegistryConfigured || !registry || !signer) {
+      setDeployError(t('onboarding.connect_wallet'));
+      return;
+    }
+
+    setDeploying(true);
+    setDeployError(null);
+
+    try {
+      const tx = await registry.deployVault({
+        budget: ethers.parseEther(rootBudget || '0'),
+        period: PERIOD_MAP[budgetPeriod],
+        budgetToken: ethers.ZeroAddress,
+        expiration: BigInt(0),
+        agents: [],
+        agentBudgets: [],
+        merchants: [],
+        label: vaultName || 'My Vault',
+      });
+
+      await tx.wait();
+      finish();
+      router.push('/vaults');
+    } catch (err: unknown) {
+      setDeployError(getErrorMessage(err));
+    } finally {
+      setDeploying(false);
+    }
+  };
+
+  const progressValue = ((step + 1) / stepLabels.length) * 100;
+  const isLastStep = step === stepLabels.length - 1;
+  const canDeploy = isConnected && isRegistryConfigured && !deploying;
 
   if (dismissed) return null;
 
@@ -259,10 +343,10 @@ export function OnboardingModal() {
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-0">
           <div className="flex items-center gap-2">
-            <span className="text-lg font-bold text-neutral-900 dark:text-neutral-50">💰 Bóvedas IA</span>
+            <span className="text-lg font-bold text-neutral-900 dark:text-neutral-50">💰 {t('onboarding.app_name')}</span>
           </div>
           <span className="text-xs text-neutral-400 font-medium">
-            {step + 1} / {STEP_LABELS.length}
+            {step + 1} / {stepLabels.length}
           </span>
         </div>
 
@@ -270,7 +354,7 @@ export function OnboardingModal() {
         <div className="px-6 pt-3">
           <Progress value={progressValue} className="h-1.5" />
           <div className="flex gap-2 mt-2">
-            {STEP_LABELS.map((label, i) => (
+            {stepLabels.map((label, i) => (
               <span
                 key={label}
                 className={cn(
@@ -289,7 +373,7 @@ export function OnboardingModal() {
           {step === 0 && <Step1 onSelect={handleUseCaseSelect} />}
           {step === 1 && <Step2 />}
           {step === 2 && <Step3 />}
-          {step === 3 && <Step4 />}
+          {step === 3 && <Step4 deploying={deploying} deployError={deployError} />}
         </div>
 
         {/* Footer */}
@@ -303,24 +387,31 @@ export function OnboardingModal() {
                   onChange={(e) => setNeverShow(e.target.checked)}
                   className="rounded border-neutral-300 text-primary-500 focus:ring-primary-500"
                 />
-                <span className="text-xs text-neutral-500">No mostrar esta guía de nuevo</span>
+                <span className="text-xs text-neutral-500">{t('onboarding.footer.never_show')}</span>
               </label>
             )}
             <div className="flex items-center justify-between gap-3">
-              <Button variant="secondary" size="sm" onClick={back}>
-                ← Volver
+              <Button variant="secondary" size="sm" onClick={back} disabled={deploying}>
+                {t('onboarding.btn.back')}
               </Button>
               <div className="flex gap-2">
-                <Button variant="ghost" size="sm" onClick={handleClose}>
-                  Saltar
-                </Button>
-                {step < STEP_LABELS.length - 1 ? (
+                {!isLastStep && (
+                  <Button variant="ghost" size="sm" onClick={handleClose}>
+                    {t('onboarding.btn.skip')}
+                  </Button>
+                )}
+                {!isLastStep ? (
                   <Button size="sm" onClick={next}>
-                    Siguiente →
+                    {t('onboarding.btn.next')}
                   </Button>
                 ) : (
-                  <Button size="sm" variant="success" onClick={finish}>
-                    ¡Empezar! 🚀
+                  <Button
+                    size="sm"
+                    variant="success"
+                    onClick={handleDeploy}
+                    disabled={!canDeploy}
+                  >
+                    {deploying ? t('onboarding.btn.deploying') : t('onboarding.btn.start')}
                   </Button>
                 )}
               </div>

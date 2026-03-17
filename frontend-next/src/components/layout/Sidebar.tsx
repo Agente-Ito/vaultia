@@ -4,27 +4,88 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useMode } from '@/context/ModeContext';
+import { useI18n } from '@/context/I18nContext';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { cn } from '@/lib/utils/cn';
 
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: '📊' },
-  { href: '/vaults', label: 'Vaults', icon: '🔐' },
-  { href: '/rules', label: 'Rules', icon: '🛡️' },
-  { href: '/activity', label: 'Activity', icon: '📈' },
-  { href: '/agents', label: 'Agents', icon: '🤖', advanced: true },
-  { href: '/automation', label: 'Automation', icon: '⏰', advanced: true },
-  { href: '/budgets', label: 'Budgets', icon: '💰', advanced: true },
-  { href: '/settings', label: 'Settings', icon: '⚙️' },
+// ─── Nav structure ────────────────────────────────────────────────────────────
+
+type NavItem = { href: string; labelKey: string; icon: string };
+
+const CORE_ITEMS: NavItem[] = [
+  { href: '/dashboard',  labelKey: 'nav.dashboard',  icon: '📊' },
+  { href: '/vaults',     labelKey: 'nav.vaults',     icon: '🔐' },
+  { href: '/rules',      labelKey: 'nav.rules',      icon: '🛡️' },
+  { href: '/activity',   labelKey: 'nav.activity',   icon: '📈' },
 ];
+
+const PRO_ITEMS: NavItem[] = [
+  { href: '/agents',     labelKey: 'nav.agents',     icon: '🤖' },
+  { href: '/automation', labelKey: 'nav.automation', icon: '⏰' },
+  { href: '/budgets',    labelKey: 'nav.budgets',    icon: '💰' },
+];
+
+const BOTTOM_ITEMS: NavItem[] = [
+  { href: '/settings',   labelKey: 'nav.settings',   icon: '⚙️' },
+];
+
+// ─── Single nav link ──────────────────────────────────────────────────────────
+
+function NavLink({
+  item,
+  isActive,
+  onClose,
+}: {
+  item: NavItem;
+  isActive: boolean;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <Link
+      href={item.href}
+      onClick={onClose}
+      aria-current={isActive ? 'page' : undefined}
+      className={cn(
+        'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors relative',
+        isActive
+          ? 'bg-primary-600 text-white'
+          : 'text-neutral-300 hover:text-white hover:bg-neutral-800'
+      )}
+    >
+      {/* Active indicator bar */}
+      {isActive && (
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-white rounded-r-full" />
+      )}
+      <span className="text-base" aria-hidden="true">{item.icon}</span>
+      <span>{t(item.labelKey as Parameters<typeof t>[0])}</span>
+    </Link>
+  );
+}
+
+// ─── Section divider ──────────────────────────────────────────────────────────
+
+function SectionDivider({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2 px-3 pt-4 pb-1">
+      <span className="text-xs font-semibold uppercase tracking-widest text-neutral-500">
+        {label}
+      </span>
+      <div className="flex-1 h-px bg-neutral-800" />
+    </div>
+  );
+}
+
+// ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const pathname = usePathname();
   const { isAdvanced } = useMode();
+  const { t } = useI18n();
   const { completed, dismissed, open: openOnboarding } = useOnboarding();
 
-  // Filter nav items based on mode
-  const visibleItems = navItems.filter((item) => !item.advanced || isAdvanced);
+  const isActive = (href: string) =>
+    pathname === href || pathname.startsWith(href + '/');
 
   return (
     <>
@@ -36,67 +97,60 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar panel */}
       <div
         className={cn(
-          'fixed inset-y-0 left-0 z-30 w-64 bg-neutral-900 text-neutral-50 border-r border-neutral-800 overflow-y-auto transition-transform duration-300 md:relative md:translate-x-0 md:w-64',
+          'fixed inset-y-0 left-0 z-30 w-64 bg-neutral-900 text-neutral-50 flex flex-col border-r border-neutral-800 overflow-y-auto transition-transform duration-300 md:relative md:translate-x-0 md:w-64',
           isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
-        {/* Sidebar header */}
-        <div className="p-lg border-b border-neutral-800">
-          <h1 className="text-xl font-bold text-white">
-            💰 AI Finance OS
+        {/* Header */}
+        <div className="px-5 py-5 border-b border-neutral-800 flex-shrink-0">
+          <h1 className="text-lg font-bold text-white tracking-tight">
+            💰 {t('nav.app_name')}
           </h1>
-          <p className="text-xs text-neutral-400 mt-xs">
-            {isAdvanced ? 'Advanced Mode' : 'Simple Mode'}
+          <p className="text-xs text-neutral-400 mt-0.5">
+            {t(isAdvanced ? 'nav.advanced_mode' : 'nav.simple_mode')}
           </p>
         </div>
 
         {/* Navigation */}
-        <nav className="space-y-xs p-md">
-          {visibleItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+        <nav className="flex-1 px-3 py-3 space-y-0.5">
+          {/* Core section */}
+          {CORE_ITEMS.map((item) => (
+            <NavLink key={item.href} item={item} isActive={isActive(item.href)} onClose={onClose} />
+          ))}
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={onClose}
-                aria-current={isActive ? 'page' : undefined}
-                className={cn(
-                  'flex items-center gap-md px-md py-xs rounded-md text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-primary text-white'
-                    : 'text-neutral-300 hover:text-white hover:bg-neutral-800'
-                )}
-              >
-                <span className="text-lg" aria-hidden="true">{item.icon}</span>
-                {item.label}
-                {item.advanced && (
-                  <span className="ml-auto text-xs bg-blue-600 px-xs py-xs rounded">
-                    Pro
-                  </span>
-                )}
-              </Link>
-            );
-          })}
+          {/* Pro section — only visible in advanced mode */}
+          {isAdvanced && (
+            <>
+              <SectionDivider label={t('nav.section.pro')} />
+              {PRO_ITEMS.map((item) => (
+                <NavLink key={item.href} item={item} isActive={isActive(item.href)} onClose={onClose} />
+              ))}
+            </>
+          )}
+
+          {/* Bottom items */}
+          <div className="pt-3 border-t border-neutral-800 mt-3 space-y-0.5">
+            {BOTTOM_ITEMS.map((item) => (
+              <NavLink key={item.href} item={item} isActive={isActive(item.href)} onClose={onClose} />
+            ))}
+          </div>
         </nav>
 
-        {/* Sidebar footer */}
-        <div className="absolute bottom-0 left-0 right-0 p-md border-t border-neutral-800 bg-neutral-950">
+        {/* Footer */}
+        <div className="px-4 py-3 border-t border-neutral-800 bg-neutral-950 flex-shrink-0 space-y-2">
           {!completed && !dismissed && (
             <button
               onClick={() => { openOnboarding(); onClose(); }}
-              className="w-full flex items-center gap-2 text-xs text-yellow-400 hover:text-yellow-300 mb-2 transition-colors"
+              className="w-full flex items-center gap-2 text-xs text-yellow-400 hover:text-yellow-300 transition-colors"
             >
               <span>⚡</span>
-              <span>Completar configuración</span>
+              <span>{t('nav.setup_cta')}</span>
             </button>
           )}
-          <p className="text-xs text-neutral-400">
-            LUKSO Testnet 4201
-          </p>
+          <p className="text-xs text-neutral-500">{t('nav.network')}</p>
         </div>
       </div>
     </>

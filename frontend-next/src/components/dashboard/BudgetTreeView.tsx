@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils/cn';
+import { useI18n } from '@/context/I18nContext';
 
 export interface BudgetNode {
   id: string;
@@ -21,6 +22,7 @@ interface BudgetTreeNodeProps {
 }
 
 function SpendBar({ spent, total, colorClass }: { spent: number; total: number; colorClass: string }) {
+  const { t } = useI18n();
   const pct = total > 0 ? Math.min((spent / total) * 100, 100) : 0;
   const isOverBudget = spent > total;
   return (
@@ -33,7 +35,7 @@ function SpendBar({ spent, total, colorClass }: { spent: number; total: number; 
       </div>
       <div className="flex justify-between text-xs text-neutral-500 dark:text-neutral-400">
         <span className={cn(isOverBudget && 'text-red-500 font-medium')}>
-          ${spent.toLocaleString()} gastado
+          ${spent.toLocaleString()} {t('budget_tree.spent')}
         </span>
         <span>${total.toLocaleString()}</span>
       </div>
@@ -55,9 +57,17 @@ export function BudgetTreeNode({
   onSelect,
   selectedId,
 }: BudgetTreeNodeProps) {
+  const { t } = useI18n();
   const [expanded, setExpanded] = useState(depth < 2);
   const hasChildren = node.children && node.children.length > 0;
   const isSelected = selectedId === node.id;
+
+  const periodLabel =
+    node.period === 'monthly'
+      ? t('budget_tree.period.monthly')
+      : node.period === 'weekly'
+      ? t('budget_tree.period.weekly')
+      : t('budget_tree.period.daily');
 
   return (
     <div className={cn('select-none', depth > 0 && 'ml-4 border-l border-neutral-200 dark:border-neutral-700 pl-3')}>
@@ -101,7 +111,7 @@ export function BudgetTreeNode({
               {node.label}
             </span>
             <span className="text-xs text-neutral-400 flex-shrink-0">
-              {node.period === 'monthly' ? '/mes' : node.period === 'weekly' ? '/sem' : '/día'}
+              {periodLabel}
             </span>
           </div>
           <SpendBar
@@ -140,17 +150,19 @@ interface BudgetTreeViewProps {
 }
 
 export function BudgetTreeView({ nodes, onSelect, selectedId, onAddCategory }: BudgetTreeViewProps) {
+  const { t } = useI18n();
+
   if (nodes.length === 0) {
     return (
       <div className="text-center py-10 space-y-2">
         <p className="text-2xl">🌱</p>
-        <p className="text-sm text-neutral-500">No hay categorías de presupuesto aún.</p>
+        <p className="text-sm text-neutral-500">{t('budget_tree.empty')}</p>
         {onAddCategory && (
           <button
             onClick={onAddCategory}
             className="text-sm text-primary-500 hover:underline"
           >
-            + Crear primera categoría
+            {t('budget_tree.empty_hint')}
           </button>
         )}
       </div>
@@ -174,7 +186,7 @@ export function BudgetTreeView({ nodes, onSelect, selectedId, onAddCategory }: B
           className="mt-2 flex items-center gap-1.5 text-xs text-neutral-400 hover:text-primary-500 transition-colors px-7 py-1"
         >
           <span>+</span>
-          <span>Agregar categoría</span>
+          <span>{t('budget_tree.add_category')}</span>
         </button>
       )}
     </div>

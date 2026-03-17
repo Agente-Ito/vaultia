@@ -4,13 +4,13 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState } from 'react';
 import { ethers } from 'ethers';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/common/Card';
-import { Badge } from '@/components/common/Badge';
 import { useWeb3 } from '@/context/Web3Context';
 import { useVaults } from '@/hooks/useVaults';
 import { SkeletonRow } from '@/components/common/Skeleton';
 import { getSafeContract } from '@/lib/web3/contracts';
 import { getProvider } from '@/lib/web3/provider';
 import { Alert, AlertDescription } from '@/components/common/Alert';
+import { useI18n } from '@/context/I18nContext';
 
 interface AgentEvent { type: 'LYX' | 'TOKEN'; to: string; token?: string; amount: string; txHash: string; blockNumber: number; }
 interface SafePaymentLog {
@@ -34,6 +34,7 @@ export default function ActivityPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
+  const { t } = useI18n();
 
   useEffect(() => {
     if (!vaults.length) {
@@ -126,21 +127,21 @@ export default function ActivityPage() {
   return (
     <div className="space-y-lg">
       <div>
-        <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">Activity</h1>
+        <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{t('activity.title')}</h1>
         <p className="text-neutral-600 dark:text-neutral-400 mt-xs">
-          All payments across your vaults
+          {t('activity.subtitle')}
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Transaction History</CardTitle>
-          <CardDescription>Agent payments and token transfers</CardDescription>
+          <CardTitle>{t('activity.card.title')}</CardTitle>
+          <CardDescription>{t('activity.card.desc')}</CardDescription>
         </CardHeader>
         <CardContent>
           {!isConnected && (
             <Alert variant="info">
-              <AlertDescription>Connect your wallet to see activity.</AlertDescription>
+              <AlertDescription>{t('activity.connect_prompt')}</AlertDescription>
             </Alert>
           )}
 
@@ -161,37 +162,51 @@ export default function ActivityPage() {
           )}
 
           {isConnected && !isAnyLoading && events.length === 0 && (
-            <p className="text-neutral-600 dark:text-neutral-400">No transactions yet.</p>
+            <p className="text-neutral-600 dark:text-neutral-400">{t('activity.empty')}</p>
           )}
 
           {events.length > 0 && (
-            <div className="divide-y divide-neutral-100 dark:divide-neutral-700">
+            <div className="space-y-2">
               {events.map((ev, i) => (
-                <div key={`${ev.txHash}-${i}`} className="py-sm flex items-start justify-between gap-md">
-                  <div className="flex items-start gap-md">
-                    <Badge variant={ev.type === 'LYX' ? 'primary' : 'warning'} className="mt-xs shrink-0">
-                      {ev.type}
-                    </Badge>
-                    <div>
-                      <p className="text-sm font-medium text-neutral-900 dark:text-neutral-50">
-                        {parseFloat(ev.amount).toFixed(4)} {ev.type === 'LYX' ? 'LYX' : 'tokens'} → {short(ev.to)}
-                      </p>
-                      <p className="text-xs text-neutral-500 mt-xs">
-                        {ev.vaultLabel} · Block {ev.blockNumber}
-                      </p>
+                <div key={`${ev.txHash}-${i}`} className="flex items-start gap-3">
+                  {/* Timeline icon + connector */}
+                  <div className="flex flex-col items-center flex-shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-neutral-100 dark:bg-neutral-700 flex items-center justify-center text-base">
+                      {ev.type === 'LYX' ? '⚡' : '🪙'}
+                    </div>
+                    {i < events.length - 1 && (
+                      <div className="w-px h-4 bg-neutral-200 dark:bg-neutral-700 mt-1" />
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 pb-1">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <div>
+                        <span className="text-sm font-medium text-neutral-900 dark:text-neutral-50">
+                          {parseFloat(ev.amount).toFixed(4)} {ev.type === 'LYX' ? 'LYX' : 'tokens'} → {short(ev.to)}
+                        </span>
+                        <span className="text-xs text-neutral-400 ml-1.5">• {ev.vaultLabel}</span>
+                      </div>
+                      <a
+                        href={`https://explorer.execution.${chainId === 42 ? 'mainnet' : 'testnet'}.lukso.network/tx/${ev.txHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline flex-shrink-0"
+                      >
+                        {t('activity.view')}
+                      </a>
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      <span className="text-xs text-neutral-400">Block {ev.blockNumber}</span>
+                      <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-50 text-green-600 dark:bg-green-900/40 dark:text-green-300">
+                        {t('timeline.status.completed')}
+                      </span>
                       {ev.type === 'TOKEN' && ev.token && (
-                        <p className="text-xs font-mono text-neutral-400">{short(ev.token)}</p>
+                        <span className="text-xs font-mono text-neutral-400">{short(ev.token)}</span>
                       )}
                     </div>
                   </div>
-                  <a
-                    href={`https://explorer.execution.${chainId === 42 ? 'mainnet' : 'testnet'}.lukso.network/tx/${ev.txHash}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-primary hover:underline shrink-0 mt-xs"
-                  >
-                    View ↗
-                  </a>
                 </div>
               ))}
             </div>

@@ -3,21 +3,20 @@
 import { AppShell } from '@/components/layout/AppShell';
 import { Alert, AlertTitle, AlertDescription } from '@/components/common/Alert';
 import { useWeb3 } from '@/context/Web3Context';
+import { useI18n } from '@/context/I18nContext';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { account, chainId, connect, isRegistryConfigured, isWrongChain } = useWeb3();
+  const { t } = useI18n();
 
   return (
     <AppShell account={account} chainId={chainId} onConnect={connect}>
       {isWrongChain && (
         <div className="px-lg pt-md">
           <Alert variant="error">
-            <AlertTitle>Wrong network</AlertTitle>
+            <AlertTitle>{t('layout.wrong_chain.title')}</AlertTitle>
             <AlertDescription>
-              Please switch your wallet to{' '}
-              <strong>LUKSO Testnet</strong> (chain ID 4201) or{' '}
-              <strong>LUKSO Mainnet</strong> (chain ID 42). Contract calls will
-              fail on chain {chainId}.
+              {t('layout.wrong_chain.desc')} {chainId}.
             </AlertDescription>
           </Alert>
         </div>
@@ -25,17 +24,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {!isRegistryConfigured && (
         <div className="px-lg pt-md">
           <Alert variant="warning">
-            <AlertTitle>Registry contract not configured</AlertTitle>
+            <AlertTitle>{t('layout.registry_not_configured.title')}</AlertTitle>
             <AlertDescription>
-              Set{' '}
+              {t('layout.registry_not_configured.desc')}{' '}
               <code className="font-mono text-xs bg-neutral-100 dark:bg-neutral-700 px-1 rounded">
                 NEXT_PUBLIC_REGISTRY_ADDRESS
               </code>{' '}
-              in your{' '}
               <code className="font-mono text-xs bg-neutral-100 dark:bg-neutral-700 px-1 rounded">
                 .env.local
-              </code>{' '}
-              to enable vault creation and management.
+              </code>
             </AlertDescription>
           </Alert>
         </div>

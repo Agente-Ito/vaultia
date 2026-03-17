@@ -45,7 +45,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const [useCase, setUseCaseState] = useState<UseCase>(null);
   const [vaultName, setVaultNameState] = useState('');
   const [vaultEmoji, setVaultEmojiState] = useState('💰');
-  const [rootBudget, setRootBudgetState] = useState('5000');
+  const [rootBudget, setRootBudgetState] = useState('1');
   const [budgetPeriod, setBudgetPeriodState] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
 
   // SSR hydration guard — same pattern as ModeContext

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils/cn';
+import { useI18n } from '@/context/I18nContext';
 
 export interface PaymentEvent {
   id: string;
@@ -14,14 +15,14 @@ export interface PaymentEvent {
   status: 'scheduled' | 'completed' | 'failed';
 }
 
-function formatDate(date: Date): string {
+function formatDate(date: Date, t: (key: string) => string): string {
   const now = new Date();
   const diff = date.getTime() - now.getTime();
   const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
 
-  if (days === 0) return 'Hoy';
-  if (days === 1) return 'Mañana';
-  if (days < 0 && days > -2) return 'Ayer';
+  if (days === 0) return t('timeline.today');
+  if (days === 1) return t('timeline.tomorrow');
+  if (days < 0 && days > -2) return t('timeline.yesterday');
 
   return date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
 }
@@ -32,23 +33,25 @@ const STATUS_STYLES: Record<PaymentEvent['status'], string> = {
   failed: 'bg-red-50 text-red-600 dark:bg-red-900/40 dark:text-red-300',
 };
 
-const STATUS_LABELS: Record<PaymentEvent['status'], string> = {
-  scheduled: 'Programado',
-  completed: 'Completado',
-  failed: 'Fallido',
-};
-
 interface PaymentTimelineProps {
   events: PaymentEvent[];
   className?: string;
 }
 
 export function PaymentTimeline({ events, className }: PaymentTimelineProps) {
+  const { t } = useI18n();
+
+  const statusLabels: Record<PaymentEvent['status'], string> = {
+    scheduled: t('timeline.status.scheduled'),
+    completed: t('timeline.status.completed'),
+    failed: t('timeline.status.failed'),
+  };
+
   if (events.length === 0) {
     return (
       <div className={cn('text-center py-6', className)}>
         <p className="text-2xl mb-1">📅</p>
-        <p className="text-xs text-neutral-400">No hay pagos programados</p>
+        <p className="text-xs text-neutral-400">{t('timeline.empty')}</p>
       </div>
     );
   }
@@ -81,9 +84,9 @@ export function PaymentTimeline({ events, className }: PaymentTimelineProps) {
               </span>
             </div>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-xs text-neutral-400">{formatDate(event.date)}</span>
+              <span className="text-xs text-neutral-400">{formatDate(event.date, t)}</span>
               <span className={cn('text-xs px-1.5 py-0.5 rounded-full', STATUS_STYLES[event.status])}>
-                {STATUS_LABELS[event.status]}
+                {statusLabels[event.status]}
               </span>
             </div>
           </div>

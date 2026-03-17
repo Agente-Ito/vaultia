@@ -11,74 +11,117 @@ import { useVaults } from '@/hooks/useVaults';
 import { useVault } from '@/hooks/useVault';
 import { Skeleton, SkeletonCard } from '@/components/common/Skeleton';
 import { Alert, AlertDescription } from '@/components/common/Alert';
+import { useI18n } from '@/context/I18nContext';
+import { cn } from '@/lib/utils/cn';
+
+// ─── Spend bar (same colour logic as BudgetTreeView) ─────────────────────────
+
+function SpendBar({ spent, total }: { spent: number; total: number }) {
+  const pct = total > 0 ? Math.min((spent / total) * 100, 100) : 0;
+  const ratio = total > 0 ? spent / total : 0;
+  const barColor =
+    ratio >= 1 ? 'bg-red-500' : ratio >= 0.85 ? 'bg-yellow-400' : 'bg-green-500';
+  return (
+    <div className="mt-2">
+      <div className="h-1.5 w-full rounded-full bg-neutral-200 dark:bg-neutral-700 overflow-hidden">
+        <div
+          className={cn('h-full rounded-full transition-all duration-500', barColor)}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <div className="flex justify-between text-xs text-neutral-400 mt-0.5">
+        <span className={cn(ratio >= 1 && 'text-red-500 font-medium')}>
+          {spent} LYX spent
+        </span>
+        <span>{total} LYX</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Vault card ───────────────────────────────────────────────────────────────
 
 function VaultCard({ vault }: { vault: { safe: string; keyManager: string; policyEngine: string; label: string } }) {
   const [expanded, setExpanded] = useState(false);
   const { detail, loading } = useVault(expanded ? vault.safe : null);
+  const { t } = useI18n();
 
   const short = (addr: string) => `${addr.slice(0, 8)}…${addr.slice(-6)}`;
 
+  const spent = detail ? parseFloat(detail.policySummary.spent ?? '0') : 0;
+  const budget = detail?.policySummary.budget ? parseFloat(detail.policySummary.budget) : 0;
+
   return (
-    <Card>
+    <Card className="flex flex-col">
       <CardHeader>
         <div className="flex items-start justify-between">
           <div>
             <CardTitle>{vault.label || 'Unnamed Vault'}</CardTitle>
             <CardDescription className="font-mono text-xs mt-xs">{short(vault.safe)}</CardDescription>
           </div>
-          <Badge variant="success">Active</Badge>
+          <Badge variant="success">{t('common.active')}</Badge>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 flex flex-col gap-md">
         {loading && (
-          <div className="space-y-sm mb-md">
+          <div className="space-y-sm">
             <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-2 w-full" />
+            <Skeleton className="h-3 w-2/3" />
           </div>
         )}
 
         {detail && (
-          <div className="grid grid-cols-2 gap-sm text-sm mb-md">
-            <div>
-              <p className="text-neutral-500 dark:text-neutral-400 text-xs uppercase tracking-wide">Balance</p>
-              <p className="font-semibold text-neutral-900 dark:text-neutral-50">{detail.balance} LYX</p>
-            </div>
-            {detail.policySummary.budget && (
+          <>
+            {/* Balance + expiry row */}
+            <div className="flex items-end justify-between gap-sm">
               <div>
-                <p className="text-neutral-500 dark:text-neutral-400 text-xs uppercase tracking-wide">Spent / Budget</p>
-                <p className="font-semibold text-neutral-900 dark:text-neutral-50">
-                  {detail.policySummary.spent ?? '0'} / {detail.policySummary.budget} LYX
+                <p className="text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                  {t('vaults.card.balance')}
+                </p>
+                <p className="text-2xl font-bold text-neutral-900 dark:text-neutral-50 leading-tight">
+                  {detail.balance}
+                  <span className="text-sm font-medium text-neutral-400 ml-1">LYX</span>
                 </p>
               </div>
+              {detail.policySummary.expiration && detail.policySummary.expiration !== '0' && (
+                <div className="text-right">
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400">{t('vaults.card.expires')}</p>
+                  <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                    {new Date(Number(detail.policySummary.expiration) * 1000).toLocaleDateString()}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Spend bar */}
+            {detail.policySummary.budget && (
+              <SpendBar spent={spent} total={budget} />
             )}
-            {detail.policySummary.expiration && detail.policySummary.expiration !== '0' && (
-              <div className="col-span-2">
-                <p className="text-neutral-500 dark:text-neutral-400 text-xs uppercase tracking-wide">Expires</p>
-                <p className="font-semibold text-neutral-900 dark:text-neutral-50">
-                  {new Date(Number(detail.policySummary.expiration) * 1000).toLocaleDateString()}
-                </p>
-              </div>
-            )}
-          </div>
+          </>
         )}
 
+        {/* Expand toggle */}
         <button
           onClick={() => setExpanded((v) => !v)}
           aria-expanded={expanded}
           aria-controls={`vault-details-${vault.safe}`}
-          className="text-xs text-primary hover:underline"
+          className="text-xs text-primary hover:underline text-left"
         >
-          {expanded ? 'Hide details ↑' : 'Show details ↓'}
+          {expanded ? t('vaults.card.hide_details') : t('vaults.card.show_details')}
         </button>
 
         {expanded && detail && (
-          <div id={`vault-details-${vault.safe}`} className="mt-md space-y-xs text-xs font-mono text-neutral-600 dark:text-neutral-400 border-t border-neutral-100 dark:border-neutral-700 pt-md">
-            <p><span className="font-sans font-medium text-neutral-500">KeyManager:</span> {short(detail.keyManager)}</p>
-            <p><span className="font-sans font-medium text-neutral-500">PolicyEngine:</span> {short(detail.policyEngine)}</p>
+          <div
+            id={`vault-details-${vault.safe}`}
+            className="space-y-xs text-xs font-mono text-neutral-600 dark:text-neutral-400 border-t border-neutral-100 dark:border-neutral-700 pt-md"
+          >
+            <p><span className="font-sans font-medium text-neutral-500">{t('vaults.card.key_manager')}:</span> {short(detail.keyManager)}</p>
+            <p><span className="font-sans font-medium text-neutral-500">{t('vaults.card.policy_engine')}:</span> {short(detail.policyEngine)}</p>
             {detail.policySummary.merchants?.length ? (
-              <p><span className="font-sans font-medium text-neutral-500">Merchants:</span> {detail.policySummary.merchants.length} whitelisted</p>
+              <p><span className="font-sans font-medium text-neutral-500">{t('vaults.card.merchants')}:</span> {detail.policySummary.merchants.length} {t('vaults.card.whitelisted')}</p>
             ) : (
-              <p><span className="font-sans font-medium text-neutral-500">Merchants:</span> no restriction</p>
+              <p><span className="font-sans font-medium text-neutral-500">{t('vaults.card.merchants')}:</span> {t('vaults.card.no_restriction')}</p>
             )}
             {!!detail.policySummary.warnings?.length && (
               <Alert variant="warning" className="mt-sm font-sans">
@@ -97,29 +140,52 @@ function VaultCard({ vault }: { vault: { safe: string; keyManager: string; polic
 export default function VaultsPage() {
   const { registry, account, isConnected } = useWeb3();
   const { vaults, loading, error, refresh: refreshVaults } = useVaults(registry, account);
+  const { t } = useI18n();
 
   return (
     <div className="space-y-lg">
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">Vaults</h1>
+          <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{t('vaults.title')}</h1>
           <p className="text-neutral-600 dark:text-neutral-400 mt-xs">
-            Your financial vaults on LUKSO
+            {t('vaults.subtitle')}
           </p>
         </div>
         <div className="flex gap-sm">
           <Button variant="secondary" size="sm" onClick={refreshVaults} disabled={loading}>
-            {loading ? '…' : 'Refresh'}
+            {loading ? '…' : t('common.refresh')}
           </Button>
           <Link href="/vaults/create">
-            <Button>Create Vault</Button>
+            <Button>{t('vaults.create')}</Button>
           </Link>
         </div>
       </div>
 
+      {/* Stats summary bar */}
+      {isConnected && !loading && vaults.length > 0 && (
+        <div className="grid grid-cols-3 gap-md">
+          {[
+            { emoji: '🏦', label: t('vaults.stats.total'), value: String(vaults.length) },
+            { emoji: '✅', label: t('vaults.stats.active'), value: String(vaults.length) },
+            { emoji: '🤖', label: t('vaults.stats.network'), value: 'LUKSO' },
+          ].map((s) => (
+            <div
+              key={s.label}
+              className="rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-4 flex items-center gap-3"
+            >
+              <span className="text-2xl">{s.emoji}</span>
+              <div>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">{s.label}</p>
+                <p className="text-xl font-bold text-neutral-900 dark:text-neutral-50">{s.value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {!isConnected && (
         <Alert variant="info">
-          <AlertDescription>Connect your wallet to see your vaults.</AlertDescription>
+          <AlertDescription>{t('vaults.connect_prompt')}</AlertDescription>
         </Alert>
       )}
 
@@ -136,15 +202,15 @@ export default function VaultsPage() {
       {isConnected && !loading && !error && vaults.length === 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>No vaults yet</CardTitle>
-            <CardDescription>Create your first vault to get started</CardDescription>
+            <CardTitle>{t('vaults.empty.title')}</CardTitle>
+            <CardDescription>{t('vaults.empty.subtitle')}</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-neutral-600 dark:text-neutral-400 mb-md">
-              Vaults are financial containers where agents execute payments within pre-defined rules.
+              {t('vaults.empty.description')}
             </p>
             <Link href="/vaults/create">
-              <Button variant="primary">Create your first vault</Button>
+              <Button variant="primary">{t('vaults.empty.cta')}</Button>
             </Link>
           </CardContent>
         </Card>

@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { Skeleton } from '@/components/common/Skeleton';
 import { Button } from '@/components/common/Button';
 import { Alert, AlertDescription } from '@/components/common/Alert';
+import { useI18n } from '@/context/I18nContext';
 
 function PolicyCard({ title, badge, children }: { title: string; badge?: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -37,6 +38,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 
 function VaultPolicies({ safeAddress }: { safeAddress: string }) {
   const { detail, loading, error } = useVault(safeAddress);
+  const { t } = useI18n();
 
   if (loading) return (
     <div className="space-y-md">
@@ -57,7 +59,7 @@ function VaultPolicies({ safeAddress }: { safeAddress: string }) {
   const hasExpiry = !!policySummary.expiration && policySummary.expiration !== '0';
 
   if (!hasBudget && !hasMerchants && !hasExpiry) {
-    return <p className="text-neutral-500 text-sm py-md">No policies found for this vault.</p>;
+    return <p className="text-neutral-500 text-sm py-md">{t('rules.no_policies')}</p>;
   }
 
   return (
@@ -69,15 +71,15 @@ function VaultPolicies({ safeAddress }: { safeAddress: string }) {
       )}
 
       {hasBudget && (
-        <PolicyCard title="Spending Limit" badge={<Badge variant="primary">Active</Badge>}>
-          <Row label="Max budget" value={`${policySummary.budget} LYX`} />
-          <Row label="Spent this period" value={`${policySummary.spent ?? '0'} LYX`} />
+        <PolicyCard title={t('rules.budget.title')} badge={<Badge variant="primary">{t('rules.budget.active')}</Badge>}>
+          <Row label={t('rules.budget.max')} value={`${policySummary.budget} LYX`} />
+          <Row label={t('rules.budget.spent')} value={`${policySummary.spent ?? '0'} LYX`} />
           {policySummary.periodStart && (
-            <Row label="Period started" value={policySummary.periodStart} />
+            <Row label={t('rules.budget.period_start')} value={policySummary.periodStart} />
           )}
           <div className="mt-sm">
             <div className="flex justify-between text-xs text-neutral-500 mb-xs">
-              <span>Spent</span>
+              <span>{t('rules.budget.spent_label')}</span>
               <span>{policySummary.spent ?? '0'} / {policySummary.budget} LYX</span>
             </div>
             <div className="w-full bg-neutral-100 dark:bg-neutral-700 rounded-full h-2">
@@ -96,13 +98,12 @@ function VaultPolicies({ safeAddress }: { safeAddress: string }) {
       )}
 
       {hasMerchants && (
-        <PolicyCard title="Approved Merchants" badge={<Badge variant="warning">Restricted</Badge>}>
+        <PolicyCard title={t('rules.merchants.title')} badge={<Badge variant="warning">{t('rules.merchants.badge')}</Badge>}>
           <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-md">
-            Only the addresses below can receive payments from this vault. Any attempt to send funds
-            to a different address will be blocked automatically.
+            {t('rules.merchants.info')}
           </p>
           {policySummary.merchants!.length === 0 ? (
-            <p className="text-sm text-neutral-500">No merchants in whitelist.</p>
+            <p className="text-sm text-neutral-500">{t('rules.merchants.none')}</p>
           ) : (
             <div className="space-y-xs">
               {policySummary.merchants!.map((m) => (
@@ -110,24 +111,24 @@ function VaultPolicies({ safeAddress }: { safeAddress: string }) {
                   {m}
                 </p>
               ))}
-              <p className="text-xs text-neutral-500 mt-xs">{policySummary.merchants!.length} address(es) approved</p>
+              <p className="text-xs text-neutral-500 mt-xs">{policySummary.merchants!.length} {t('rules.merchants.count')}</p>
             </div>
           )}
         </PolicyCard>
       )}
 
       {hasExpiry && (
-        <PolicyCard title="Vault Expiry" badge={<Badge variant="neutral">Expires</Badge>}>
+        <PolicyCard title={t('rules.expiry.title')} badge={<Badge variant="neutral">{t('rules.expiry.badge')}</Badge>}>
           <Row
-            label="Expires"
+            label={t('rules.expiry.label')}
             value={new Date(Number(policySummary.expiration) * 1000).toLocaleString()}
           />
           <Row
-            label="Status"
+            label={t('rules.expiry.status')}
             value={
               Number(policySummary.expiration) * 1000 > Date.now()
-                ? <span className="text-success">Active</span>
-                : <span className="text-danger">Expired</span>
+                ? <span className="text-success">{t('rules.expiry.active')}</span>
+                : <span className="text-danger">{t('rules.expiry.expired')}</span>
             }
           />
         </PolicyCard>
@@ -140,26 +141,27 @@ export default function RulesPage() {
   const { registry, account, isConnected } = useWeb3();
   const { vaults, loading: vaultsLoading } = useVaults(registry, account);
   const [selectedSafe, setSelectedSafe] = useState<string>('');
+  const { t } = useI18n();
 
   return (
     <div className="space-y-lg">
       <div>
-        <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">Rules</h1>
+        <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{t('rules.title')}</h1>
         <p className="text-neutral-600 dark:text-neutral-400 mt-xs">
-          Payment policies enforced per vault
+          {t('rules.subtitle')}
         </p>
       </div>
 
       {!isConnected && (
         <Alert variant="info">
-          <AlertDescription>Connect your wallet to inspect vault policies.</AlertDescription>
+          <AlertDescription>{t('rules.connect_prompt')}</AlertDescription>
         </Alert>
       )}
 
       {isConnected && !vaultsLoading && vaults.length === 0 && (
         <Card>
           <CardContent>
-            <p className="text-neutral-600 dark:text-neutral-400 mb-md">No vaults found. Create one first.</p>
+            <p className="text-neutral-600 dark:text-neutral-400 mb-md">{t('rules.no_vaults')}</p>
             <Link href="/vaults/create"><Button variant="primary">Create Vault</Button></Link>
           </CardContent>
         </Card>
@@ -169,8 +171,8 @@ export default function RulesPage() {
         <>
           <Card>
             <CardHeader>
-              <CardTitle>Select Vault</CardTitle>
-              <CardDescription>Choose a vault to inspect its policies</CardDescription>
+              <CardTitle>{t('rules.select_vault.title')}</CardTitle>
+              <CardDescription>{t('rules.select_vault.desc')}</CardDescription>
             </CardHeader>
             <CardContent>
               <select
@@ -178,7 +180,7 @@ export default function RulesPage() {
                 value={selectedSafe}
                 onChange={(e) => setSelectedSafe(e.target.value)}
               >
-                <option value="">— select a vault —</option>
+                <option value="">{t('rules.select_vault.placeholder')}</option>
                 {vaults.map((v) => (
                   <option key={v.safe} value={v.safe}>
                     {v.label || 'Unnamed Vault'} ({v.safe.slice(0, 8)}…{v.safe.slice(-6)})
