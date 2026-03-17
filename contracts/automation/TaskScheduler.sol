@@ -8,6 +8,41 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.
 /// @notice Manages scheduled and recurring tasks for the AI Financial OS.
 /// Supports TIMESTAMP (for subscriptions/payroll) and BLOCK_NUMBER (for DeFi automation) triggers.
 /// Keeper-compatible: off-chain services call executeTask() when isExecutable() returns true.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// TRUST MODEL — KEEPER LIVENESS
+/// ─────────────────────────────────────────────────────────────────────────────
+///
+/// TaskScheduler is a PASSIVE on-chain contract. It stores schedules and allows
+/// execution when a task's trigger condition is met, but it has NO mechanism to
+/// automatically execute tasks or penalize a keeper for being late.
+///
+/// This design carries the following explicit trust assumptions:
+///
+///   1. LIVENESS RISK — There is NO on-chain guarantee that tasks execute on time.
+///      If the off-chain keeper service is down, congested, or misconfigured, tasks
+///      will execute late or not at all. For subscription payments, this means a
+///      missed or delayed payment with no automatic retry or penalty.
+///
+///   2. SINGLE KEEPER = SINGLE POINT OF FAILURE — Operators running only one
+///      keeper instance accept the risk that downtime = missed executions.
+///      Mitigation: run multiple independent keeper instances (different machines,
+///      different operators). With keeperWhitelistEnabled = false, any address can
+///      call executeTask(), allowing community/backup keepers.
+///
+///   3. CATCH-UP BEHAVIOUR — If a keeper is offline for N intervals, only one
+///      execution fires when it comes back online (nextExecution += interval once).
+///      Past-due intervals are NOT retroactively executed. Systems that require
+///      "every payment must run" need external reconciliation logic.
+///
+///   4. BEST-EFFORT ORDERING — When multiple tasks are due, their execution order
+///      depends on the keeper's iteration order over getEligibleTasks(). No
+///      on-chain ordering guarantee exists between concurrent eligible tasks.
+///
+/// These assumptions are acceptable for an AI agent OS operating on a best-effort
+/// basis, but MUST be documented for any subscription or payroll operator relying
+/// on this contract for time-critical payments.
+/// ─────────────────────────────────────────────────────────────────────────────
 contract TaskScheduler is Ownable, ReentrancyGuard {
 
     enum TriggerType { TIMESTAMP, BLOCK_NUMBER }

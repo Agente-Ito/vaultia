@@ -80,9 +80,22 @@ contract PolicyEngine is Ownable {
     }
 
     /// @notice Remove a policy by index using swap-and-pop.
-    /// @dev WARNING: swap-and-pop does NOT preserve insertion order.
-    ///      Policy execution order is NOT guaranteed after removal.
-    ///      Do not build logic that depends on policy order.
+    ///
+    /// @dev ⚠️  ORDER HAZARD — swap-and-pop does NOT preserve insertion order.
+    ///
+    ///      After ANY call to removePolicy():
+    ///        • The policy that was last in the array moves to `index`.
+    ///        • getPolicies() will return a different order than addPolicy() sequence.
+    ///        • validate() and simulateExecution() iterate in the new order.
+    ///
+    ///      REQUIREMENTS:
+    ///        • Policies MUST be independent and stateless with respect to each other.
+    ///        • NO policy may read or depend on a previous policy's output.
+    ///        • If you are considering an order-dependent policy, DO NOT add it here;
+    ///          compose the dependency inside a single IPolicy implementation instead.
+    ///
+    ///      Before removing a policy, verify that no currently registered policy
+    ///      assumes a fixed position for any other policy in the chain.
     function removePolicy(uint256 index) external onlyOwner {
         require(index < policies.length, "PE: out of bounds");
         address removed = policies[index];
@@ -100,13 +113,24 @@ contract PolicyEngine is Ownable {
     ///
     /// @dev USAGE: Always call via eth_call (no gas consumed, no state changes).
     ///      Never call via eth_sendTransaction — this wastes gas and may mutate
-    ///      BudgetPolicy.spent if any stateful policy slips through the try-catch.
+    ///      BudgetPolicy.spent if any stateful policy slips through the low-level call.
     ///
-    ///      NOT marked `view`: Solidity ≤0.8.20 disallows try-catch in view functions.
+    ///      NOT marked `view`: mutates simulationActive so stateful policies can
+    ///      detect the dry-run context and skip spent-counter writes.
+    ///
+    ///      PANIC SAFETY: Uses low-level .call() instead of try/catch so that Solidity
+    ///      panics (assert failure, division by zero, array out-of-bounds, etc.) inside
+    ///      a policy are caught and treated as a "blocked" result rather than leaving
+    ///      simulationActive stuck on true. try/catch does NOT catch panics in Solidity
+    ///      ≥0.8 — they propagate as Panic(uint256) errors that bypass the catch block.
+    ///
+    ///      EMERGENCY: If simulationActive is ever stuck (unexpected proxy edge case),
+    ///      the owner can call emergencyResetSimulation() to unblock the function.
+    ///
     ///      Caller restriction: accepts calls from the linked safe OR from any address
     ///      when used as an off-chain preview (eth_call spoofs msg.sender = address(0)).
     ///      On-chain callers that are NOT the safe get a dry-run with no side-effects
-    ///      because every policy revert is caught without propagating.
+    ///      because every policy failure is caught without propagating.
     ///
     /// @param agent    Agent address (typically KeyManager)
     /// @param token    address(0) for native LYX, or LSP7 contract for token
@@ -126,17 +150,26 @@ contract PolicyEngine is Ownable {
         simulationActive = true;
 
         uint256 len = policies.length;
+        bytes memory callData = abi.encodeWithSelector(
+            IPolicy.validate.selector,
+            agent,
+            token,
+            to,
+            amount,
+            data
+        );
 
         for (uint256 i = 0; i < len; i++) {
             address policy = policies[i];
 
-            // Try to invoke policy.validate(...) safely.
+            // Low-level call catches ALL failure modes: revert, panic (assert/div-by-zero/
+            // out-of-bounds), and invalid opcode. try/catch would miss panics in ≥0.8.
             // Stateful policies MUST check simulationActive and skip spent accounting
             // to prevent budget drain without a real payment being executed.
-            try IPolicy(policy).validate(agent, token, to, amount, data) {
-                // Policy passed, continue to next
-            } catch {
-                simulationActive = false; // reset before early return
+            // solhint-disable-next-line avoid-low-level-calls
+            (bool success,) = policy.call(callData);
+            if (!success) {
+                simulationActive = false;
                 return (policy, "");
             }
         }
@@ -144,5 +177,14 @@ contract PolicyEngine is Ownable {
         // All policies passed
         simulationActive = false;
         return (address(0), "");
+    }
+
+    /// @notice Emergency reset for simulationActive.
+    /// @dev Safety valve: if simulationActive is ever left stuck on true due to an
+    ///      unexpected proxy interaction or future Solidity edge case not caught by
+    ///      the low-level .call() pattern, the owner can call this to unblock
+    ///      simulateExecution. Should never be needed in normal operation.
+    function emergencyResetSimulation() external onlyOwner {
+        simulationActive = false;
     }
 }
