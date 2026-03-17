@@ -12,6 +12,14 @@ import { ProfilePicker } from '@/components/profiles/ProfilePicker';
 import { useWeb3 } from '@/context/Web3Context';
 import { useI18n } from '@/context/I18nContext';
 import { cn } from '@/lib/utils/cn';
+import {
+  getBaseTokenOptions,
+  getBaseVaultFactoryContract,
+  switchToBase,
+  getBaseSigner,
+  isBaseFactoryConfigured,
+  BASE_CHAIN_ID,
+} from '@/lib/web3/baseContracts';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -117,10 +125,12 @@ function PreviewRow({ icon, label, value, active }: { icon: string; label: strin
 
 function VaultPreview({
   vaultLabel, budget, period, hasExpiry, expiryDate, agentCount, merchantCount,
+  chain, tokenSymbol,
 }: {
   vaultLabel: string; budget: string; period: string;
   hasExpiry: boolean; expiryDate: string;
   agentCount: number; merchantCount: number;
+  chain: 'lukso' | 'base'; tokenSymbol: string;
 }) {
   const budgetNum = parseFloat(budget) || 0;
   return (
@@ -136,13 +146,13 @@ function VaultPreview({
           <p className="text-base font-bold text-neutral-900 dark:text-neutral-50 leading-tight">
             {vaultLabel || 'Unnamed Vault'}
           </p>
-          <p className="text-xs text-neutral-400">LUKSO Network</p>
+          <p className="text-xs text-neutral-400">{chain === 'base' ? '🔵 Base Network' : '🌐 LUKSO Network'}</p>
         </div>
       </div>
 
       {/* Summary rows */}
       <div>
-        <PreviewRow icon="💰" label="Budget"    value={budgetNum > 0 ? `${budget} LYX` : '—'}               active={budgetNum > 0} />
+        <PreviewRow icon="💰" label="Budget"    value={budgetNum > 0 ? `${budget} ${tokenSymbol}` : '—'}     active={budgetNum > 0} />
         <PreviewRow icon="📅" label="Period"    value={PERIOD_MAP[period] ?? '—'}                            active={true} />
         <PreviewRow icon="⏱️" label="Expires"   value={hasExpiry && expiryDate ? new Date(expiryDate).toLocaleDateString() : 'No expiry'} active={hasExpiry && !!expiryDate} />
         <PreviewRow icon="🏪" label="Merchants" value={merchantCount > 0 ? `${merchantCount} address(es)` : 'Any'} active={merchantCount > 0} />
@@ -165,6 +175,15 @@ export default function CreateVaultPage() {
   const router = useRouter();
   const { registry, signer, isConnected, isRegistryConfigured } = useWeb3();
   const { t } = useI18n();
+
+  // Chain selection
+  const [chain, setChain]                         = useState<'lukso' | 'base'>('lukso');
+  const baseTokenOptions = getBaseTokenOptions(BASE_CHAIN_ID);
+  const [baseToken, setBaseToken]                 = useState(baseTokenOptions[0].address);
+  const selectedToken = baseTokenOptions.find((t) => t.address === baseToken) ?? baseTokenOptions[0];
+
+  // Deployed Base vault (separate from LUKSO deployed state)
+  const [deployedBase, setDeployedBase]           = useState<{ vault: string; policyEngine: string } | null>(null);
 
   // Form state
   const [label, setLabel]                         = useState('My Vault');
@@ -243,7 +262,93 @@ export default function CreateVaultPage() {
     if (step2Valid) setStep(3);
   };
 
+  const onSubmitBase = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isBaseFactoryConfigured()) {
+      setStatus('Error: NEXT_PUBLIC_BASE_VAULT_FACTORY_ADDRESS not configured.');
+      return;
+    }
+
+    setLoading(true);
+    setStatus(t('create.base.switching'));
+    try {
+      await switchToBase();
+      const baseSigner = await getBaseSigner();
+      const signerAddress = await baseSigner.getAddress();
+
+      const agentList    = parseAddressList(agents, 'Agents');
+      const merchantList = parseAddressList(merchants, 'Merchant whitelist');
+      const expirationUnix =
+        hasExpiry && expiryDate
+          ? BigInt(Math.floor(new Date(expiryDate).getTime() / 1000))
+          : BigInt(0);
+
+      if (hasExpiry && expiryDate && expirationUnix <= BigInt(Math.floor(Date.now() / 1000))) {
+        throw new Error('Expiration date must be in the future.');
+      }
+
+      const decimals = selectedToken.decimals;
+      const budgetWei = ethers.parseUnits(budget, decimals);
+
+      const agentBudgetsList =
+        usePerAgentBudgets && agentList.length > 0
+          ? agentList.map((addr) => {
+              const configured = agentBudgetMap[addr];
+              if (!configured) throw new Error(`Missing budget for agent ${addr}.`);
+              return ethers.parseUnits(configured, decimals);
+            })
+          : [];
+
+      setStatus('Sending transaction…');
+      const factory = getBaseVaultFactoryContract(baseSigner);
+      const tx = await factory.deployVault({
+        label,
+        token: baseToken,
+        budget: budgetWei,
+        period: Number(period),
+        tokenBudgets: [],
+        expiration: expirationUnix,
+        agents: agentList,
+        agentBudgets: agentBudgetsList,
+        merchants: merchantList,
+      });
+
+      setStatus('Waiting for confirmation…');
+      const receipt = await tx.wait();
+      if (!receipt) throw new Error('Transaction receipt not available');
+
+      const iface = factory.interface;
+      let vaultAddr = '', peAddr = '';
+      for (const log of receipt.logs) {
+        try {
+          const parsed = iface.parseLog(log);
+          if (parsed?.name === 'VaultDeployed') {
+            vaultAddr = parsed.args.vault;
+            peAddr    = parsed.args.policyEngine;
+          }
+        } catch { /* ignore unrelated logs */ }
+      }
+
+      if (!vaultAddr) {
+        const latest = await factory.getVaults(signerAddress);
+        if (latest.length > 0) {
+          const found = latest[latest.length - 1];
+          vaultAddr = found.vault;
+          peAddr    = found.policyEngine;
+        }
+      }
+
+      setDeployedBase({ vault: vaultAddr, policyEngine: peAddr });
+      setStatus('Vault deployed!');
+    } catch (err: unknown) {
+      setStatus('Error: ' + getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const onSubmit = async (e: React.FormEvent) => {
+    if (chain === 'base') return onSubmitBase(e);
     e.preventDefault();
     if (!isRegistryConfigured) {
       setStatus('Error: Registry address not configured. Set NEXT_PUBLIC_REGISTRY_ADDRESS in .env.local.');
@@ -331,7 +436,44 @@ export default function CreateVaultPage() {
     }
   };
 
-  // ── Success screen ────────────────────────────────────────────────────────────
+  // ── Base success screen ───────────────────────────────────────────────────────
+  if (deployedBase) {
+    return (
+      <div className="space-y-lg max-w-2xl">
+        <div>
+          <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{t('create.success.base.title')}</h1>
+          <p className="text-neutral-600 dark:text-neutral-400 mt-xs">{t('create.success.base.subtitle')}</p>
+        </div>
+        <Alert variant="success">
+          <AlertTitle>🔵 Base Network</AlertTitle>
+          <AlertDescription>{t('create.success.base.note')}</AlertDescription>
+        </Alert>
+        <Card>
+          <CardContent>
+            <div className="space-y-md text-sm font-mono">
+              {[
+                { label: 'Vault', value: deployedBase.vault },
+                { label: 'PolicyEngine', value: deployedBase.policyEngine },
+              ].map(({ label: lbl, value }) => (
+                <div key={lbl}>
+                  <p className="text-neutral-500 dark:text-neutral-400 font-sans text-xs uppercase tracking-wide mb-xs">{lbl}</p>
+                  <p className="text-neutral-900 dark:text-neutral-100 break-all">{value || '—'}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+        <div className="flex gap-md">
+          <Button variant="primary" onClick={() => router.push('/vaults')}>{t('create.success.view_vaults')}</Button>
+          <Button variant="secondary" onClick={() => { setDeployedBase(null); setStatus(''); setStep(1); }}>
+            {t('create.success.create_another')}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── LUKSO success screen ───────────────────────────────────────────────────────
   if (deployed) {
     return (
       <div className="space-y-lg max-w-2xl">
@@ -401,6 +543,34 @@ export default function CreateVaultPage() {
         </Alert>
       )}
 
+      {/* Chain selector — full width, step 1 only */}
+      {step === 1 && (
+        <div>
+          <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-sm">{t('create.chain.label')}</p>
+          <div className="flex gap-sm">
+            {(['lukso', 'base'] as const).map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setChain(c)}
+                className={cn(
+                  'flex items-center gap-sm px-4 py-3 rounded-xl border-2 text-sm font-semibold transition-all',
+                  chain === c
+                    ? c === 'lukso'
+                      ? 'border-pink-500 bg-pink-50 text-pink-700 dark:bg-pink-900/20 dark:text-pink-300'
+                      : 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
+                    : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:border-neutral-400'
+                )}
+              >
+                <span className="text-xl">{c === 'lukso' ? '🌐' : '🔵'}</span>
+                {t(c === 'lukso' ? 'create.chain.lukso' : 'create.chain.base')}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-neutral-400 mt-xs">{t('create.chain.hint')}</p>
+        </div>
+      )}
+
       {/* Template picker — full width, step 1 only */}
       {step === 1 && (
         <div>
@@ -456,9 +626,36 @@ export default function CreateVaultPage() {
                     <FieldError message={labelError} />
                   </div>
 
+                  {chain === 'base' && (
+                    <div>
+                      <label className="label">{t('create.field.token')}</label>
+                      <div className="flex gap-xs flex-wrap">
+                        {baseTokenOptions.map((tok) => (
+                          <button
+                            key={tok.address}
+                            type="button"
+                            onClick={() => setBaseToken(tok.address)}
+                            className={cn(
+                              'px-3 py-1.5 rounded-lg border text-sm font-medium transition-all',
+                              baseToken === tok.address
+                                ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
+                                : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:border-neutral-400'
+                            )}
+                          >
+                            {tok.emoji} {tok.symbol}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 gap-md">
                     <div>
-                      <label className="label">{t('create.field.budget')}</label>
+                      <label className="label">
+                        {chain === 'base'
+                          ? `${t('create.field.budget_token')} (${selectedToken.symbol})`
+                          : t('create.field.budget')}
+                      </label>
                       <input
                         className={cn('input', budgetError && 'border-red-400 focus:ring-red-400')}
                         type="number"
@@ -621,7 +818,7 @@ export default function CreateVaultPage() {
                                     type="number"
                                     step="0.0001"
                                     min="0"
-                                    placeholder="Budget (LYX)"
+                                    placeholder={`Budget (${chain === 'base' ? selectedToken.symbol : 'LYX'})`}
                                     value={agentBudgetMap[key] ?? ''}
                                     onChange={(e) => setAgentBudgetMap((prev) => ({ ...prev, [key]: e.target.value }))}
                                   />
@@ -669,6 +866,8 @@ export default function CreateVaultPage() {
             expiryDate={expiryDate}
             agentCount={rawAgentList.length}
             merchantCount={merchantCount}
+            chain={chain}
+            tokenSymbol={chain === 'base' ? selectedToken.symbol : 'LYX'}
           />
         </div>
       </div>

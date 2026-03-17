@@ -9,6 +9,8 @@ import { Badge } from '@/components/common/Badge';
 import { useWeb3 } from '@/context/Web3Context';
 import { useVaults } from '@/hooks/useVaults';
 import { useVault } from '@/hooks/useVault';
+import { useBaseVaults, BaseVaultSummary } from '@/hooks/useBaseVaults';
+import { isBaseFactoryConfigured } from '@/lib/web3/baseContracts';
 import { Skeleton, SkeletonCard } from '@/components/common/Skeleton';
 import { Alert, AlertDescription } from '@/components/common/Alert';
 import { useI18n } from '@/context/I18nContext';
@@ -137,10 +139,62 @@ function VaultCard({ vault }: { vault: { safe: string; keyManager: string; polic
   );
 }
 
+// ─── Base vault card ──────────────────────────────────────────────────────────
+
+function BaseVaultCard({ vault }: { vault: BaseVaultSummary }) {
+  const [expanded, setExpanded] = useState(false);
+  const { t } = useI18n();
+  const short = (addr: string) => `${addr.slice(0, 8)}…${addr.slice(-6)}`;
+
+  return (
+    <Card className="flex flex-col border-blue-200 dark:border-blue-800">
+      <CardHeader>
+        <div className="flex items-start justify-between">
+          <div>
+            <CardTitle>{vault.label || 'Unnamed Vault'}</CardTitle>
+            <CardDescription className="font-mono text-xs mt-xs">{short(vault.vault)}</CardDescription>
+          </div>
+          <div className="flex gap-xs">
+            <Badge variant="primary">{t('vaults.base.chain_badge')}</Badge>
+            <Badge variant="success">{t('common.active')}</Badge>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="flex-1 flex flex-col gap-md">
+        <div className="flex items-center gap-sm">
+          <span className="text-xl">{vault.tokenEmoji}</span>
+          <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{vault.tokenSymbol}</span>
+          <span className="text-xs text-neutral-400 font-mono">{short(vault.token)}</span>
+        </div>
+
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          className="text-xs text-primary hover:underline text-left"
+        >
+          {expanded ? t('vaults.card.hide_details') : t('vaults.card.show_details')}
+        </button>
+
+        {expanded && (
+          <div className="space-y-xs text-xs font-mono text-neutral-600 dark:text-neutral-400 border-t border-neutral-100 dark:border-neutral-700 pt-md">
+            <p><span className="font-sans font-medium text-neutral-500">{t('vaults.card.policy_engine')}:</span> {short(vault.policyEngine)}</p>
+            <p><span className="font-sans font-medium text-neutral-500">Vault:</span> {vault.vault}</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function VaultsPage() {
   const { registry, account, isConnected } = useWeb3();
   const { vaults, loading, error, refresh: refreshVaults } = useVaults(registry, account);
+  const { vaults: baseVaults, loading: baseLoading, error: baseError, refresh: refreshBase } = useBaseVaults(account);
   const { t } = useI18n();
+
+  const handleRefreshAll = () => { refreshVaults(); refreshBase(); };
 
   return (
     <div className="space-y-lg">
@@ -152,8 +206,8 @@ export default function VaultsPage() {
           </p>
         </div>
         <div className="flex gap-sm">
-          <Button variant="secondary" size="sm" onClick={refreshVaults} disabled={loading}>
-            {loading ? '…' : t('common.refresh')}
+          <Button variant="secondary" size="sm" onClick={handleRefreshAll} disabled={loading || baseLoading}>
+            {(loading || baseLoading) ? '…' : t('common.refresh')}
           </Button>
           <Link href="/vaults/create">
             <Button>{t('vaults.create')}</Button>
@@ -221,6 +275,47 @@ export default function VaultsPage() {
           {vaults.map((vault) => (
             <VaultCard key={vault.safe} vault={vault} />
           ))}
+        </div>
+      )}
+
+      {/* ── Base vaults section ─────────────────────────────────────────────── */}
+      {isConnected && isBaseFactoryConfigured() && (
+        <div className="space-y-md">
+          <div className="border-t border-neutral-200 dark:border-neutral-700 pt-lg">
+            <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-50 flex items-center gap-sm">
+              <span className="text-2xl">🔵</span>
+              {t('vaults.base.section_title')}
+            </h2>
+            <p className="text-neutral-600 dark:text-neutral-400 text-sm mt-xs">
+              {t('vaults.base.section_subtitle')}
+            </p>
+          </div>
+
+          {baseLoading && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
+              <SkeletonCard /><SkeletonCard />
+            </div>
+          )}
+
+          {baseError && (
+            <Card><CardContent><p className="text-danger text-sm">Error: {baseError}</p></CardContent></Card>
+          )}
+
+          {!baseLoading && !baseError && baseVaults.length === 0 && (
+            <Card>
+              <CardContent>
+                <p className="text-neutral-500 dark:text-neutral-400 text-sm py-sm">{t('vaults.base.empty')}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {baseVaults.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
+              {baseVaults.map((vault) => (
+                <BaseVaultCard key={vault.vault} vault={vault} />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

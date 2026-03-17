@@ -383,6 +383,25 @@ const en = {
   'picker.selected': 'selected',
   'picker.browse': 'Browse Contacts',
 
+  // ─── Base (EVM) vaults ─────────────────────────────────────────────────────
+  'vaults.base.section_title': 'Base Vaults',
+  'vaults.base.section_subtitle': 'Vaults on Base network (USDC, WETH, ETH)',
+  'vaults.base.empty': 'No Base vaults yet.',
+  'vaults.base.not_configured': 'Base vault factory address not configured.',
+  'vaults.base.chain_badge': 'Base',
+  'create.chain.label': 'Blockchain',
+  'create.chain.lukso': 'LUKSO',
+  'create.chain.base': 'Base',
+  'create.chain.hint': 'Choose the network for your vault',
+  'create.field.token': 'Token',
+  'create.field.budget_token': 'Budget',
+  'create.base.subtitle': 'Deploy a vault on Base with USDC, WETH, ETH, or cbBTC.',
+  'create.base.switch_network': 'Switch to Base',
+  'create.base.switching': 'Switching network…',
+  'create.success.base.title': 'Base Vault Created!',
+  'create.success.base.subtitle': 'Your vault is live on Base.',
+  'create.success.base.note': 'Vault ownership is transferred automatically — no extra steps needed.',
+
   // ─── Notifications ─────────────────────────────────────────────────────────
   'notifications.title': 'Notifications',
   'notifications.empty': 'No recent activity on your Universal Profile.',

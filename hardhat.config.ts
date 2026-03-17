@@ -6,6 +6,8 @@ dotenv.config();
 
 const LUKSO_TESTNET_RPC = process.env.LUKSO_TESTNET_RPC ?? "https://rpc.testnet.lukso.network";
 const LUKSO_MAINNET_RPC = process.env.LUKSO_MAINNET_RPC ?? "https://rpc.mainnet.lukso.network";
+const BASE_MAINNET_RPC  = process.env.BASE_MAINNET_RPC  ?? "https://mainnet.base.org";
+const BASE_SEPOLIA_RPC  = process.env.BASE_SEPOLIA_RPC  ?? "https://sepolia.base.org";
 
 // Parse PRIVATE_KEY - can be single key or comma-separated list
 const getPrivateKeys = (): string[] => {
@@ -25,11 +27,32 @@ const getPrivateKeys = (): string[] => {
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: "0.8.20",
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 200, // Optimized for contract usage, not deployment
+    compilers: [
+      {
+        version: "0.8.20",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200, // Optimized for contract usage, not deployment
+          },
+        },
+      },
+    ],
+    overrides: {
+      // BaseVaultFactory deploys many sub-contracts inline, making it large.
+      // runs: 1 minimizes bytecode size at the cost of slightly higher call gas —
+      // acceptable for a factory that is called infrequently.
+      "contracts/base/BaseVaultFactory.sol": {
+        version: "0.8.20",
+        settings: { optimizer: { enabled: true, runs: 1 }, viaIR: true },
+      },
+      "contracts/base/BaseVaultDeployer.sol": {
+        version: "0.8.20",
+        settings: { optimizer: { enabled: true, runs: 1 }, viaIR: true },
+      },
+      "contracts/base/BaseVaultDeployerCore.sol": {
+        version: "0.8.20",
+        settings: { optimizer: { enabled: true, runs: 1 }, viaIR: true },
       },
     },
   },
@@ -47,6 +70,24 @@ const config: HardhatUserConfig = {
     luksoMainnet: {
       url: LUKSO_MAINNET_RPC,
       chainId: 42,
+      accounts: getPrivateKeys(),
+      gasPrice: "auto",
+      timeout: 60000,
+    },
+
+    // Base Mainnet (chainId: 8453)
+    baseMainnet: {
+      url: BASE_MAINNET_RPC,
+      chainId: 8453,
+      accounts: getPrivateKeys(),
+      gasPrice: "auto",
+      timeout: 60000,
+    },
+
+    // Base Sepolia testnet (chainId: 84532)
+    baseSepolia: {
+      url: BASE_SEPOLIA_RPC,
+      chainId: 84532,
       accounts: getPrivateKeys(),
       gasPrice: "auto",
       timeout: 60000,
@@ -78,8 +119,10 @@ const config: HardhatUserConfig = {
   // Contract verification
   etherscan: {
     apiKey: {
-      luksoTestnet: process.env.ETHERSCAN_API_KEY ?? "",
-      luksoMainnet: process.env.ETHERSCAN_API_KEY ?? "",
+      luksoTestnet: process.env.ETHERSCAN_API_KEY    ?? "",
+      luksoMainnet: process.env.ETHERSCAN_API_KEY    ?? "",
+      baseMainnet:  process.env.BASE_ETHERSCAN_KEY   ?? "",
+      baseSepolia:  process.env.BASE_ETHERSCAN_KEY   ?? "",
     },
     customChains: [
       {
@@ -96,6 +139,22 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: "https://api.mainnet.lukso.network/api",
           browserURL: "https://explorer.mainnet.lukso.network",
+        },
+      },
+      {
+        network: "baseMainnet",
+        chainId: 8453,
+        urls: {
+          apiURL: "https://api.basescan.org/api",
+          browserURL: "https://basescan.org",
+        },
+      },
+      {
+        network: "baseSepolia",
+        chainId: 84532,
+        urls: {
+          apiURL: "https://api-sepolia.basescan.org/api",
+          browserURL: "https://sepolia.basescan.org",
         },
       },
     ],

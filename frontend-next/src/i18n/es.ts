@@ -385,6 +385,25 @@ const es: Record<LocaleKey, string> = {
   'picker.selected': 'seleccionados',
   'picker.browse': 'Explorar Contactos',
 
+  // ─── Base (EVM) vaults ─────────────────────────────────────────────────────
+  'vaults.base.section_title': 'Bóvedas en Base',
+  'vaults.base.section_subtitle': 'Bóvedas en la red Base (USDC, WETH, ETH)',
+  'vaults.base.empty': 'Aún no tienes bóvedas en Base.',
+  'vaults.base.not_configured': 'Dirección del factory de Base no configurada.',
+  'vaults.base.chain_badge': 'Base',
+  'create.chain.label': 'Blockchain',
+  'create.chain.lukso': 'LUKSO',
+  'create.chain.base': 'Base',
+  'create.chain.hint': 'Elige la red para tu bóveda',
+  'create.field.token': 'Token',
+  'create.field.budget_token': 'Presupuesto',
+  'create.base.subtitle': 'Despliega una bóveda en Base con USDC, WETH, ETH o cbBTC.',
+  'create.base.switch_network': 'Cambiar a Base',
+  'create.base.switching': 'Cambiando red…',
+  'create.success.base.title': '¡Bóveda en Base creada!',
+  'create.success.base.subtitle': 'Tu bóveda está activa en Base.',
+  'create.success.base.note': 'La propiedad se transfiere automáticamente — no se necesitan pasos adicionales.',
+
   // ─── Notifications ─────────────────────────────────────────────────────────
   'notifications.title': 'Notificaciones',
   'notifications.empty': 'Sin actividad reciente en tu Universal Profile.',
