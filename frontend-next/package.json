@@ -9,11 +9,20 @@
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx"
   },
   "dependencies": {
+    "@radix-ui/react-accordion": "^1.2.12",
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-progress": "^1.1.8",
+    "@radix-ui/react-scroll-area": "^1.2.10",
+    "@radix-ui/react-select": "^2.2.6",
+    "@radix-ui/react-separator": "^1.1.8",
+    "@radix-ui/react-switch": "^1.2.6",
     "class-variance-authority": "^0.7.1",
     "ethers": "^6.0.0",
     "next": "15.2.0",
     "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "react-dom": "18.2.0",
+    "tailwind-merge": "^3.5.0",
+    "vaul": "^1.1.2"
   },
   "devDependencies": {
     "@tailwindcss/forms": "^0.5.11",

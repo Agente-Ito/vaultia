@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useMode } from '@/context/ModeContext';
+import { useOnboarding } from '@/context/OnboardingContext';
 import { cn } from '@/lib/utils/cn';
 
 const navItems = [
@@ -20,6 +21,7 @@ const navItems = [
 export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const pathname = usePathname();
   const { isAdvanced } = useMode();
+  const { completed, dismissed, open: openOnboarding } = useOnboarding();
 
   // Filter nav items based on mode
   const visibleItems = navItems.filter((item) => !item.advanced || isAdvanced);
@@ -83,6 +85,15 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
 
         {/* Sidebar footer */}
         <div className="absolute bottom-0 left-0 right-0 p-md border-t border-neutral-800 bg-neutral-950">
+          {!completed && !dismissed && (
+            <button
+              onClick={() => { openOnboarding(); onClose(); }}
+              className="w-full flex items-center gap-2 text-xs text-yellow-400 hover:text-yellow-300 mb-2 transition-colors"
+            >
+              <span>⚡</span>
+              <span>Completar configuración</span>
+            </button>
+          )}
           <p className="text-xs text-neutral-400">
             LUKSO Testnet 4201
           </p>

@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { ModeProvider } from '@/context/ModeContext';
 import { Web3Provider } from '@/context/Web3Context';
+import { OnboardingProvider } from '@/context/OnboardingContext';
+import { OnboardingModal } from '@/components/onboarding/OnboardingModal';
 import './globals.css';
 
 const geistSans = Geist({
@@ -28,7 +30,12 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Web3Provider>
-          <ModeProvider>{children}</ModeProvider>
+          <ModeProvider>
+            <OnboardingProvider>
+              {children}
+              <OnboardingModal />
+            </OnboardingProvider>
+          </ModeProvider>
         </Web3Provider>
       </body>
     </html>
