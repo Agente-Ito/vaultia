@@ -43,6 +43,18 @@ const es: Record<LocaleKey, string> = {
   'topbar.switch_network': 'Cambiar red',
   'topbar.disconnect': 'Desconectar',
 
+  // ─── Demo mode ─────────────────────────────────────────────────────────────
+  'demo.label': 'Demo',
+  'demo.banner_text': 'Modo demo — los datos son simulados, no se envía ninguna transacción',
+  'demo.exit': 'Salir del demo',
+  'demo.try_demo': 'Probar demo',
+
+  // ─── Dashboard empty states ────────────────────────────────────────────────
+  'dashboard.empty.agents': 'Aún no hay agentes configurados. Crea una bóveda y añade tu primer agente, o prueba el modo demo.',
+  'dashboard.empty.timeline': 'Sin pagos próximos. Los agentes programarán pagos aquí cuando estén configurados.',
+  'dashboard.empty.budget': 'Sin categorías de presupuesto. Crea una bóveda para empezar a rastrear tus gastos.',
+  'dashboard.empty.no_selection': 'Selecciona una categoría para ver detalles.',
+
   // ─── Layout alerts ─────────────────────────────────────────────────────────
   'layout.wrong_chain.title': 'Red incorrecta',
   'layout.wrong_chain.desc': 'Cambia tu wallet a LUKSO Testnet (chain ID 4201) o LUKSO Mainnet (chain ID 42). Las llamadas al contrato fallarán en la cadena',

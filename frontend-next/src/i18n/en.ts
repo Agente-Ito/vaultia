@@ -41,6 +41,18 @@ const en = {
   'topbar.switch_network': 'Switch network',
   'topbar.disconnect': 'Disconnect',
 
+  // ─── Demo mode ─────────────────────────────────────────────────────────────
+  'demo.label': 'Demo',
+  'demo.banner_text': 'Demo mode — data is simulated, no transactions are sent',
+  'demo.exit': 'Exit demo',
+  'demo.try_demo': 'Try demo',
+
+  // ─── Dashboard empty states ────────────────────────────────────────────────
+  'dashboard.empty.agents': 'No agents configured yet. Create a vault and add your first agent, or try demo mode to explore.',
+  'dashboard.empty.timeline': 'No upcoming payments. Agents will schedule payments here once configured.',
+  'dashboard.empty.budget': 'No budget categories yet. Create a vault to start tracking your spending.',
+  'dashboard.empty.no_selection': 'Select a category to see details.',
+
   // ─── Layout alerts ─────────────────────────────────────────────────────────
   'layout.wrong_chain.title': 'Wrong network',
   'layout.wrong_chain.desc': 'Please switch your wallet to LUKSO Testnet (chain ID 4201) or LUKSO Mainnet (chain ID 42). Contract calls will fail on chain',

@@ -5,6 +5,7 @@ import { WagmiProvider } from "wagmi";
 import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { wagmiConfig } from "@/lib/web3/wagmiConfig";
+import { DemoProvider } from "@/context/DemoContext";
 
 export function Web3Providers({ children }: { children: React.ReactNode }) {
   // Stable QueryClient — must not be recreated on each render
@@ -20,7 +21,9 @@ export function Web3Providers({ children }: { children: React.ReactNode }) {
             borderRadius: "medium",
           })}
         >
-          {children}
+          <DemoProvider>
+            {children}
+          </DemoProvider>
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>

@@ -1,7 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ethers } from 'ethers';
@@ -9,87 +9,14 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/common/Ca
 import { Button } from '@/components/common/Button';
 import { Skeleton } from '@/components/common/Skeleton';
 import { BudgetTreeView, type BudgetNode } from '@/components/dashboard/BudgetTreeView';
-import { AgentCardScroll, type AgentMiniRecord } from '@/components/dashboard/AgentCardScroll';
-import { PaymentTimeline, type PaymentEvent } from '@/components/dashboard/PaymentTimeline';
+import { AgentCardScroll } from '@/components/dashboard/AgentCardScroll';
+import { PaymentTimeline } from '@/components/dashboard/PaymentTimeline';
 import { useWeb3 } from '@/context/Web3Context';
 import { useVaults } from '@/hooks/useVaults';
+import { useOnboarding } from '@/context/OnboardingContext';
+import { useDemo } from '@/context/DemoContext';
 import { getProvider } from '@/lib/web3/provider';
 import { useI18n } from '@/context/I18nContext';
-
-// ─── Mock data (replaced by real reads once Budget/Coordinator contracts deployed) ─
-
-const MOCK_BUDGET_NODES: BudgetNode[] = [
-  {
-    id: 'root',
-    label: 'Presupuesto Total',
-    emoji: '💰',
-    spent: 4872,
-    total: 5000,
-    period: 'monthly',
-    children: [
-      {
-        id: 'living',
-        label: 'Gastos del Hogar',
-        emoji: '🏠',
-        spent: 2950,
-        total: 3500,
-        period: 'monthly',
-        children: [
-          { id: 'food', label: 'Alimentos', emoji: '🛒', spent: 720, total: 800, period: 'monthly' },
-          { id: 'housing', label: 'Vivienda', emoji: '🏡', spent: 2230, total: 2700, period: 'monthly' },
-        ],
-      },
-      {
-        id: 'investments',
-        label: 'Inversiones',
-        emoji: '📈',
-        spent: 780,
-        total: 1500,
-        period: 'monthly',
-      },
-    ],
-  },
-];
-
-const MOCK_AGENTS: AgentMiniRecord[] = [
-  { address: '0x1', name: 'Grocery Bot', emoji: '🛒', role: 'GROCERY_AGENT', spentToday: 42, active: true },
-  { address: '0x2', name: 'Rent Bot', emoji: '🏠', role: 'SUBSCRIPTION_AGENT', spentToday: 0, active: false, nextPayment: '1 abr' },
-  { address: '0x3', name: 'DeFi Bot', emoji: '📈', role: 'TRADE_AGENT', spentToday: 0, active: false, nextPayment: '12 abr' },
-];
-
-const _now = new Date();
-const MOCK_EVENTS: PaymentEvent[] = [
-  {
-    id: '1',
-    date: new Date(_now.getFullYear(), _now.getMonth(), 28),
-    label: 'Renta mensual',
-    amount: 1200,
-    currency: '$',
-    botName: 'Rent Bot',
-    botEmoji: '🏠',
-    status: 'scheduled',
-  },
-  {
-    id: '2',
-    date: new Date(_now.getFullYear(), _now.getMonth() + 1, 5),
-    label: 'Spotify Premium',
-    amount: 11,
-    currency: '$',
-    botName: 'Subscription Bot',
-    botEmoji: '🎵',
-    status: 'scheduled',
-  },
-  {
-    id: '3',
-    date: new Date(_now.getFullYear(), _now.getMonth() + 1, 12),
-    label: 'Rebalanceo 60/40',
-    amount: 0,
-    currency: '',
-    botName: 'DeFi Bot',
-    botEmoji: '📈',
-    status: 'scheduled',
-  },
-];
 
 function findNode(nodes: BudgetNode[], id: string): BudgetNode | null {
   for (const n of nodes) {
@@ -102,16 +29,88 @@ function findNode(nodes: BudgetNode[], id: string): BudgetNode | null {
   return null;
 }
 
+// ─── Empty-state helpers ──────────────────────────────────────────────────────
+
+function EmptyAgents({ onEnable }: { onEnable: () => void }) {
+  const { t } = useI18n();
+  return (
+    <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
+      <span className="text-4xl">🤖</span>
+      <p className="text-sm text-neutral-500 dark:text-neutral-400 max-w-xs">
+        {t('dashboard.empty.agents')}
+      </p>
+      <Button size="sm" variant="secondary" onClick={onEnable}>
+        {t('demo.try_demo')}
+      </Button>
+    </div>
+  );
+}
+
+function EmptyTimeline({ onEnable }: { onEnable: () => void }) {
+  const { t } = useI18n();
+  return (
+    <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
+      <span className="text-4xl">📅</span>
+      <p className="text-sm text-neutral-500 dark:text-neutral-400 max-w-xs">
+        {t('dashboard.empty.timeline')}
+      </p>
+      <Button size="sm" variant="secondary" onClick={onEnable}>
+        {t('demo.try_demo')}
+      </Button>
+    </div>
+  );
+}
+
+function EmptyBudgetTree({ onEnable }: { onEnable: () => void }) {
+  const { t } = useI18n();
+  return (
+    <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
+      <span className="text-4xl">💰</span>
+      <p className="text-sm text-neutral-500 dark:text-neutral-400 max-w-xs">
+        {t('dashboard.empty.budget')}
+      </p>
+      <Button size="sm" variant="secondary" onClick={onEnable}>
+        {t('demo.try_demo')}
+      </Button>
+    </div>
+  );
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+
 export default function DashboardPage() {
   const router = useRouter();
   const { t } = useI18n();
   const { registry, account, isConnected, connect } = useWeb3();
   const { vaults, loading: vaultsLoading } = useVaults(registry, account);
+  const { open: openOnboarding, completed: onboardingCompleted } = useOnboarding();
+  const { isDemo, enableDemo, demoBudgetNodes, demoAgents, demoEvents } = useDemo();
+
   const [totalBalance, setTotalBalance] = useState<string | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string>('root');
 
+  // ── Auto-open onboarding when connected with no vaults ─────────────────────
+  const onboardingTriggered = useRef(false);
+  useEffect(() => {
+    if (
+      isConnected &&
+      !vaultsLoading &&
+      !isDemo &&
+      vaults.length === 0 &&
+      !onboardingCompleted &&
+      !onboardingTriggered.current
+    ) {
+      onboardingTriggered.current = true;
+      openOnboarding();
+    }
+    // Reset so it can trigger again if user disconnects and reconnects
+    if (!isConnected) onboardingTriggered.current = false;
+  }, [isConnected, vaultsLoading, vaults.length, isDemo, onboardingCompleted, openOnboarding]);
+
+  // ── Load vault balances ────────────────────────────────────────────────────
   const loadBalances = useCallback(async () => {
+    if (isDemo) { setTotalBalance('13,247.00'); return; }
     if (!vaults.length) { setTotalBalance('0.0000'); return; }
     setBalanceLoading(true);
     try {
@@ -126,12 +125,24 @@ export default function DashboardPage() {
     } finally {
       setBalanceLoading(false);
     }
-  }, [vaults]);
+  }, [vaults, isDemo]);
 
   useEffect(() => { loadBalances(); }, [loadBalances]);
 
   const loading = vaultsLoading || balanceLoading;
-  const selectedNode = findNode(MOCK_BUDGET_NODES, selectedNodeId);
+
+  // ── Derive display data ────────────────────────────────────────────────────
+  const budgetNodes    = isDemo ? demoBudgetNodes    : [];
+  const agents         = isDemo ? demoAgents         : [];
+  const events         = isDemo ? demoEvents         : [];
+  const vaultCount     = isDemo ? 2 : vaults.length;
+  const selectedNode   = findNode(budgetNodes, selectedNodeId);
+
+  const balanceDisplay = isDemo
+    ? '13,247.00 LYX'
+    : isConnected
+      ? `${totalBalance ?? '0.0000'} LYX`
+      : '—';
 
   return (
     <div className="space-y-6">
@@ -145,17 +156,26 @@ export default function DashboardPage() {
           ) : (
             <div className="flex items-baseline gap-3">
               <h1 className="text-4xl font-bold text-neutral-900 dark:text-neutral-50">
-                {isConnected ? `${totalBalance ?? '0.0000'} LYX` : '—'}
+                {balanceDisplay}
               </h1>
-              <span className="text-sm font-medium text-green-500 bg-green-50 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
-                ↑ 3%
-              </span>
+              {isDemo && (
+                <span className="text-sm font-medium text-amber-600 bg-amber-50 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">
+                  {t('demo.label')}
+                </span>
+              )}
+              {!isDemo && isConnected && (
+                <span className="text-sm font-medium text-green-500 bg-green-50 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
+                  ↑ 3%
+                </span>
+              )}
             </div>
           )}
-          <p className="text-xs text-neutral-400 mt-1">{t('dashboard.this_month')} · {vaults.length} {t('dashboard.active_vaults')}</p>
+          <p className="text-xs text-neutral-400 mt-1">
+            {t('dashboard.this_month')} · {vaultCount} {t('dashboard.active_vaults')}
+          </p>
         </div>
 
-        {isConnected ? (
+        {isConnected || isDemo ? (
           <Link href="/vaults/create">
             <Button size="sm">{t('dashboard.new_vault')}</Button>
           </Link>
@@ -166,7 +186,6 @@ export default function DashboardPage() {
 
       {/* ─── Main: Budget tree + detail panel ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Tree */}
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
@@ -178,12 +197,16 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <BudgetTreeView
-                nodes={MOCK_BUDGET_NODES}
-                selectedId={selectedNodeId}
-                onSelect={(node) => setSelectedNodeId(node.id)}
-                onAddCategory={() => router.push('/budgets')}
-              />
+              {budgetNodes.length > 0 ? (
+                <BudgetTreeView
+                  nodes={budgetNodes}
+                  selectedId={selectedNodeId}
+                  onSelect={(node) => setSelectedNodeId(node.id)}
+                  onAddCategory={() => router.push('/budgets')}
+                />
+              ) : (
+                <EmptyBudgetTree onEnable={enableDemo} />
+              )}
             </CardContent>
           </Card>
         </div>
@@ -225,7 +248,7 @@ export default function DashboardPage() {
           ) : (
             <Card>
               <CardContent className="text-center py-8 text-neutral-400 text-sm">
-                {t('dashboard.click_category')}
+                {budgetNodes.length > 0 ? t('dashboard.click_category') : t('dashboard.empty.no_selection')}
               </CardContent>
             </Card>
           )}
@@ -236,11 +259,15 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <Card>
           <CardContent className="pt-4">
-            <AgentCardScroll
-              agents={MOCK_AGENTS}
-              onAgentClick={() => router.push('/agents')}
-              onAddAgent={() => router.push('/agents')}
-            />
+            {agents.length > 0 ? (
+              <AgentCardScroll
+                agents={agents}
+                onAgentClick={() => router.push('/agents')}
+                onAddAgent={() => router.push('/agents')}
+              />
+            ) : (
+              <EmptyAgents onEnable={enableDemo} />
+            )}
           </CardContent>
         </Card>
 
@@ -254,10 +281,15 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <PaymentTimeline events={MOCK_EVENTS} />
+            {events.length > 0 ? (
+              <PaymentTimeline events={events} />
+            ) : (
+              <EmptyTimeline onEnable={enableDemo} />
+            )}
           </CardContent>
         </Card>
       </div>
+
     </div>
   );
 }

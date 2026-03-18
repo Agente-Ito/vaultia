@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useMode } from '@/context/ModeContext';
 import { useI18n } from '@/context/I18nContext';
 import { useOnboarding } from '@/context/OnboardingContext';
+import { useDemo } from '@/context/DemoContext';
 import { cn } from '@/lib/utils/cn';
 
 // ─── Nav structure ────────────────────────────────────────────────────────────
@@ -84,6 +85,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
   const { isAdvanced } = useMode();
   const { t } = useI18n();
   const { completed, dismissed, open: openOnboarding } = useOnboarding();
+  const { isDemo, enableDemo, disableDemo } = useDemo();
 
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(href + '/');
@@ -142,11 +144,26 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
 
         {/* Footer */}
         <div className="px-4 py-3 border-t border-neutral-800 bg-neutral-950 flex-shrink-0 space-y-2">
+          {/* Demo mode toggle */}
+          <button
+            onClick={() => { isDemo ? disableDemo() : enableDemo(); onClose(); }}
+            className={cn(
+              'w-full flex items-center gap-2 text-xs transition-colors',
+              isDemo
+                ? 'text-amber-400 hover:text-amber-300'
+                : 'text-neutral-500 hover:text-neutral-300'
+            )}
+          >
+            <span>🎮</span>
+            <span>{t(isDemo ? 'demo.exit' : 'demo.try_demo')}</span>
+          </button>
+
+          {/* Setup guide */}
           <button
             onClick={() => { openOnboarding(); onClose(); }}
             className={cn(
               'w-full flex items-center gap-2 text-xs transition-colors',
-              completed
+              completed || dismissed
                 ? 'text-neutral-500 hover:text-neutral-300'
                 : 'text-yellow-400 hover:text-yellow-300'
             )}
@@ -154,6 +171,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
             <span>{completed ? '📖' : '⚡'}</span>
             <span>{t(completed ? 'nav.setup_reopen' : 'nav.setup_cta')}</span>
           </button>
+
           <p className="text-xs text-neutral-500">{t('nav.network')}</p>
         </div>
       </div>

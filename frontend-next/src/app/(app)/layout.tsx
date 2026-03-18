@@ -2,6 +2,7 @@
 
 import { AppShell } from '@/components/layout/AppShell';
 import { Alert, AlertTitle, AlertDescription } from '@/components/common/Alert';
+import { DemoBanner } from '@/components/common/DemoBanner';
 import { useWeb3 } from '@/context/Web3Context';
 import { useI18n } from '@/context/I18nContext';
 
@@ -11,6 +12,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <AppShell account={account} chainId={chainId} onConnect={connect}>
+      <DemoBanner />
       {isWrongChain && (
         <div className="px-lg pt-md">
           <Alert variant="error">
