@@ -28,6 +28,7 @@ const en = {
   'nav.advanced_mode': 'Advanced Mode',
   'nav.section.pro': 'Pro',
   'nav.setup_cta': 'Complete setup',
+  'nav.setup_reopen': 'Setup guide',
   'nav.network': 'LUKSO Testnet 4201',
 
   // ─── TopBar ────────────────────────────────────────────────────────────────
@@ -37,6 +38,8 @@ const en = {
   'topbar.lukso_testnet': 'LUKSO Testnet',
   'topbar.lukso_mainnet': 'LUKSO Mainnet',
   'topbar.wrong_chain': 'Wrong chain',
+  'topbar.switch_network': 'Switch network',
+  'topbar.disconnect': 'Disconnect',
 
   // ─── Layout alerts ─────────────────────────────────────────────────────────
   'layout.wrong_chain.title': 'Wrong network',

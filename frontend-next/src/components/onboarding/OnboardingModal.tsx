@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ethers } from 'ethers';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/common/Button';
 import { Alert, AlertDescription } from '@/components/common/Alert';
@@ -335,7 +335,8 @@ export function OnboardingModal() {
   const isLastStep = step === stepLabels.length - 1;
   const canDeploy = isConnected && isRegistryConfigured && !deploying;
 
-  if (dismissed) return null;
+  // dismissed only blocks auto-show on load; manual open() clears it
+  if (dismissed && !visible) return null;
 
   return (
     <Dialog open={visible} onOpenChange={(open) => !open && handleClose()}>
@@ -343,7 +344,7 @@ export function OnboardingModal() {
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-0">
           <div className="flex items-center gap-2">
-            <span className="text-lg font-bold text-neutral-900 dark:text-neutral-50">💰 {t('onboarding.app_name')}</span>
+            <DialogTitle className="text-lg font-bold text-neutral-900 dark:text-neutral-50">💰 {t('onboarding.app_name')}</DialogTitle>
           </div>
           <span className="text-xs text-neutral-400 font-medium">
             {step + 1} / {stepLabels.length}

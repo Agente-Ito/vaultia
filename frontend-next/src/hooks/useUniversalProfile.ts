@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 
@@ -21,6 +22,9 @@ const LSP3_SCHEMA = [
   },
 ];
 
+/** True when NEXT_PUBLIC_INDEXER_URL is configured at build time */
+const INDEXER_ENABLED = !!process.env.NEXT_PUBLIC_INDEXER_URL;
+
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface UPProfile {
@@ -30,6 +34,8 @@ export interface UPProfile {
   backgroundUrl: string | null;
   tags: string[];
   links: Array<{ title: string; url: string }>;
+  followerCount: number | null;
+  followingCount: number | null;
 }
 
 interface LSP3Raw {
@@ -49,62 +55,118 @@ export function resolveIpfs(url: string): string {
   return url;
 }
 
+// ─── Indexer-based fetcher (only called when NEXT_PUBLIC_INDEXER_URL is set) ──
+
+async function fetchFromIndexer(address: string): Promise<UPProfile | null> {
+  // Guard: avoids importing or calling the indexer if URL is not configured.
+  // process.env.NEXT_PUBLIC_INDEXER_URL is replaced at build time by Next.js.
+  const indexerUrl = process.env.NEXT_PUBLIC_INDEXER_URL;
+  if (!indexerUrl) return null;
+
+  try {
+    const { fetchProfile } = await import('@lsp-indexer/node');
+    const result = await fetchProfile(indexerUrl, {
+      address,
+      include: {
+        name: true,
+        description: true,
+        profileImage: true,
+        backgroundImage: true,
+        tags: true,
+        links: true,
+        followerCount: true,
+        followingCount: true,
+      },
+    });
+
+    if (!result) return null;
+
+    const avatarRaw = result.profileImage?.[0]?.url ?? null;
+    const bgRaw     = result.backgroundImage?.[0]?.url ?? null;
+
+    return {
+      name:           result.name          ?? '',
+      description:    result.description   ?? '',
+      avatarUrl:      avatarRaw ? resolveIpfs(avatarRaw) : null,
+      backgroundUrl:  bgRaw     ? resolveIpfs(bgRaw)     : null,
+      tags:           result.tags  ?? [],
+      links:          (result.links ?? []) as Array<{ title: string; url: string }>,
+      followerCount:  result.followerCount  ?? null,
+      followingCount: result.followingCount ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ─── ERC725.js-based fetcher (always available, no external service needed) ──
+
+async function fetchFromERC725(address: string, chainId?: number | null): Promise<UPProfile | null> {
+  try {
+    const { default: ERC725 } = await import('@erc725/erc725.js');
+    const rpcUrl = (chainId && RPC_URLS[chainId]) ?? DEFAULT_RPC;
+
+    const erc725 = new ERC725(LSP3_SCHEMA, address, rpcUrl, { ipfsGateway: IPFS_GATEWAY });
+    const result = await erc725.fetchData('LSP3Profile');
+
+    const val = result?.value as Record<string, unknown> | null;
+    const lsp3: LSP3Raw =
+      (val?.LSP3Profile as LSP3Raw) ?? (val as LSP3Raw) ?? {};
+
+    return {
+      name:           lsp3.name           ?? '',
+      description:    lsp3.description    ?? '',
+      avatarUrl:      lsp3.profileImage?.[0]?.url    ? resolveIpfs(lsp3.profileImage[0].url!)    : null,
+      backgroundUrl:  lsp3.backgroundImage?.[0]?.url ? resolveIpfs(lsp3.backgroundImage[0].url!) : null,
+      tags:           lsp3.tags  ?? [],
+      links:          lsp3.links ?? [],
+      followerCount:  null,
+      followingCount: null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ─── Hook ───────────────────────────────────────────────────────────────────
 
 export function useUniversalProfile(address: string | null, chainId?: number | null) {
-  const [profile, setProfile] = useState<UPProfile | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // ── Indexer path (TanStack Query, enabled only when indexer is configured) ──
+  const indexerQuery = useQuery({
+    queryKey: ['up-indexer', address],
+    queryFn:  () => fetchFromIndexer(address!),
+    enabled:  INDEXER_ENABLED && !!address,
+    staleTime: 60_000,
+  });
+
+  // ── ERC725 path — used when indexer is disabled or returns null ────────────
+  const [erc725Profile, setErc725Profile] = useState<UPProfile | null>(null);
+  const [loading725, setLoading725]       = useState(false);
 
   useEffect(() => {
-    if (!address) {
-      setProfile(null);
-      return;
-    }
+    // Skip ERC725 fetch if the indexer already returned a non-null result
+    if (INDEXER_ENABLED && indexerQuery.data !== undefined) return;
+    if (!address) { setErc725Profile(null); return; }
 
     let cancelled = false;
-    setLoading(true);
-    setError(null);
+    setLoading725(true);
 
-    (async () => {
-      try {
-        // Dynamic import keeps erc725.js out of the SSR bundle
-        const { default: ERC725 } = await import('@erc725/erc725.js');
-
-        const rpcUrl = (chainId && RPC_URLS[chainId]) ?? DEFAULT_RPC;
-
-        const erc725 = new ERC725(LSP3_SCHEMA, address, rpcUrl, {
-          ipfsGateway: IPFS_GATEWAY,
-        });
-
-        const result = await erc725.fetchData('LSP3Profile');
-        if (cancelled) return;
-
-        // value can be { LSP3Profile: { ... } } or the raw object depending on version
-        const val = result?.value as Record<string, unknown> | null;
-        const lsp3: LSP3Raw =
-          (val?.LSP3Profile as LSP3Raw) ?? (val as LSP3Raw) ?? {};
-
-        setProfile({
-          name:          lsp3.name          ?? '',
-          description:   lsp3.description   ?? '',
-          avatarUrl:     lsp3.profileImage?.[0]?.url    ? resolveIpfs(lsp3.profileImage[0].url!)    : null,
-          backgroundUrl: lsp3.backgroundImage?.[0]?.url ? resolveIpfs(lsp3.backgroundImage[0].url!) : null,
-          tags:          lsp3.tags  ?? [],
-          links:         lsp3.links ?? [],
-        });
-      } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof Error ? e.message : 'Failed to load profile');
-          setProfile(null);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
+    fetchFromERC725(address, chainId).then((profile) => {
+      if (!cancelled) {
+        setErc725Profile(profile);
+        setLoading725(false);
       }
-    })();
+    });
 
     return () => { cancelled = true; };
-  }, [address, chainId]);
+  }, [address, chainId, indexerQuery.data]);
+
+  // ── Merge: prefer indexer result when present ──────────────────────────────
+  const profile  = (INDEXER_ENABLED ? indexerQuery.data : null) ?? erc725Profile;
+  const loading  = (INDEXER_ENABLED ? indexerQuery.isLoading : false) || loading725;
+  const error    = INDEXER_ENABLED && indexerQuery.isError
+    ? String(indexerQuery.error)
+    : null;
 
   return { profile, loading, error };
 }

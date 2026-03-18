@@ -142,15 +142,18 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
 
         {/* Footer */}
         <div className="px-4 py-3 border-t border-neutral-800 bg-neutral-950 flex-shrink-0 space-y-2">
-          {!completed && !dismissed && (
-            <button
-              onClick={() => { openOnboarding(); onClose(); }}
-              className="w-full flex items-center gap-2 text-xs text-yellow-400 hover:text-yellow-300 transition-colors"
-            >
-              <span>⚡</span>
-              <span>{t('nav.setup_cta')}</span>
-            </button>
-          )}
+          <button
+            onClick={() => { openOnboarding(); onClose(); }}
+            className={cn(
+              'w-full flex items-center gap-2 text-xs transition-colors',
+              completed
+                ? 'text-neutral-500 hover:text-neutral-300'
+                : 'text-yellow-400 hover:text-yellow-300'
+            )}
+          >
+            <span>{completed ? '📖' : '⚡'}</span>
+            <span>{t(completed ? 'nav.setup_reopen' : 'nav.setup_cta')}</span>
+          </button>
           <p className="text-xs text-neutral-500">{t('nav.network')}</p>
         </div>
       </div>

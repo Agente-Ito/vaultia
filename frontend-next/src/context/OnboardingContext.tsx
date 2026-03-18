@@ -61,7 +61,12 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     setHydrated(true);
   }, []);
 
-  const open = useCallback(() => setVisible(true), []);
+  const open = useCallback(() => {
+    setVisible(true);
+    // Clear dismissed in state so the modal renders (localStorage keeps the
+    // "don't auto-show" preference for future page loads).
+    setDismissed(false);
+  }, []);
   const close = useCallback(() => setVisible(false), []);
 
   const next = useCallback(() => {

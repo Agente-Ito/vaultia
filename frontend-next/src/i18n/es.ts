@@ -30,6 +30,7 @@ const es: Record<LocaleKey, string> = {
   'nav.advanced_mode': 'Modo Avanzado',
   'nav.section.pro': 'Pro',
   'nav.setup_cta': 'Completar configuración',
+  'nav.setup_reopen': 'Guía de configuración',
   'nav.network': 'LUKSO Testnet 4201',
 
   // ─── TopBar ────────────────────────────────────────────────────────────────
@@ -39,6 +40,8 @@ const es: Record<LocaleKey, string> = {
   'topbar.lukso_testnet': 'LUKSO Testnet',
   'topbar.lukso_mainnet': 'LUKSO Mainnet',
   'topbar.wrong_chain': 'Red incorrecta',
+  'topbar.switch_network': 'Cambiar red',
+  'topbar.disconnect': 'Desconectar',
 
   // ─── Layout alerts ─────────────────────────────────────────────────────────
   'layout.wrong_chain.title': 'Red incorrecta',
