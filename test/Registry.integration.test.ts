@@ -11,6 +11,16 @@ import {
   BudgetPolicy,
   MerchantPolicy,
 } from "../typechain-types";
+import {
+  AP_ARRAY_KEY,
+  apArrayElementKey,
+  apPermissionsKey,
+  decodeArrayLength,
+  decodePermissions,
+  decodeControllerAddress,
+  SUPER_PERM,
+  AGENT_PERM,
+} from "../scripts/lsp6Keys";
 
 describe("AgentVaultRegistry — Integration", function () {
   let owner: SignerWithAddress;
@@ -278,6 +288,111 @@ describe("AgentVaultRegistry — Integration", function () {
         "0x",
       ]);
       await expect(km.connect(agent).execute(executeCalldata)).to.be.reverted;
+    });
+  });
+
+  // ─── ERC725Y storage — setData → getData roundtrip ────────────────────────
+  //
+  // These tests verify that permission keys written by AgentVaultRegistry._deployStack
+  // are actually persisted in the AgentSafe's ERC725Y storage and can be read back
+  // with the correct canonical LSP6 key derivation.
+  //
+  // Failure here means the write target, key construction, or encoding is wrong —
+  // even if the deployment tx succeeded and events were emitted.
+
+  describe("ERC725Y storage — permissions roundtrip", function () {
+    let safe: AgentSafe;
+    let safeAddr: string;
+
+    beforeEach(async function () {
+      const tx = await registry.connect(owner).deployVault({
+        budget: BUDGET,
+        period: 1,
+        budgetToken: ethers.ZeroAddress,
+        expiration: 0,
+        agents: [agent.address],
+        agentBudgets: [],
+        merchants: [],
+        label: "Perm Test Vault",
+      });
+      const receipt = await tx.wait();
+      const event = receipt!.logs
+        .map((log) => {
+          try { return registry.interface.parseLog(log as any); } catch { return null; }
+        })
+        .find((e) => e?.name === "VaultDeployed");
+
+      safeAddr = event!.args.safe;
+      safe = await ethers.getContractAt("AgentSafe", safeAddr) as AgentSafe;
+    });
+
+    it("AddressPermissions[] length is 2 (owner + 1 agent)", async function () {
+      const raw = await safe.getData(AP_ARRAY_KEY);
+      expect(decodeArrayLength(raw)).to.equal(2);
+    });
+
+    it("AddressPermissions[0] stores the owner address", async function () {
+      const raw = await safe.getData(apArrayElementKey(0));
+      const stored = decodeControllerAddress(raw);
+      expect(stored.toLowerCase()).to.equal(owner.address.toLowerCase());
+    });
+
+    it("AddressPermissions[1] stores the agent address", async function () {
+      const raw = await safe.getData(apArrayElementKey(1));
+      const stored = decodeControllerAddress(raw);
+      expect(stored.toLowerCase()).to.equal(agent.address.toLowerCase());
+    });
+
+    it("owner has SUPER permissions (all bits set)", async function () {
+      const raw = await safe.getData(apPermissionsKey(owner.address));
+      // Permissions stored as bytes32(type(uint256).max) — must round-trip exactly.
+      expect(raw.toLowerCase()).to.equal(SUPER_PERM.toLowerCase());
+    });
+
+    it("agent has CALL + TRANSFERVALUE permissions (0x500)", async function () {
+      const raw = await safe.getData(apPermissionsKey(agent.address));
+      expect(decodePermissions(raw)).to.equal(BigInt(AGENT_PERM));
+    });
+
+    it("unknown address has no permissions", async function () {
+      const [, , , stranger] = await ethers.getSigners();
+      const raw = await safe.getData(apPermissionsKey(stranger.address));
+      expect(decodePermissions(raw)).to.equal(0n);
+    });
+
+    it("AddressPermissions[] length grows when deploying with multiple agents", async function () {
+      const [, , , agentB, agentC] = await ethers.getSigners();
+      const tx = await registry.connect(owner).deployVault({
+        budget: BUDGET,
+        period: 1,
+        budgetToken: ethers.ZeroAddress,
+        expiration: 0,
+        agents: [agentB.address, agentC.address],
+        agentBudgets: [],
+        merchants: [],
+        label: "Multi-agent Vault",
+      });
+      const receipt = await tx.wait();
+      const event = receipt!.logs
+        .map((log) => {
+          try { return registry.interface.parseLog(log as any); } catch { return null; }
+        })
+        .find((e) => e?.name === "VaultDeployed");
+      const multiSafe = await ethers.getContractAt("AgentSafe", event!.args.safe) as AgentSafe;
+
+      const raw = await multiSafe.getData(AP_ARRAY_KEY);
+      // owner + agentB + agentC = 3
+      expect(decodeArrayLength(raw)).to.equal(3);
+    });
+
+    it("element key at index 0 is NOT the length key (guard against off-by-one key confusion)", async function () {
+      // AP_ARRAY_KEY (length) and apArrayElementKey(0) (first element) must be different.
+      expect(AP_ARRAY_KEY.toLowerCase()).to.not.equal(apArrayElementKey(0).toLowerCase());
+
+      // Reading element[0] must NOT return the same bytes as the length slot.
+      const lengthRaw = await safe.getData(AP_ARRAY_KEY);
+      const elem0Raw  = await safe.getData(apArrayElementKey(0));
+      expect(elem0Raw.toLowerCase()).to.not.equal(lengthRaw.toLowerCase());
     });
   });
 });

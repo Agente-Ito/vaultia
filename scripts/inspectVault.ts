@@ -1,5 +1,13 @@
 import { ethers } from "hardhat";
 import * as dotenv from "dotenv";
+import {
+  AP_ARRAY_KEY,
+  apArrayElementKey,
+  apPermissionsKey,
+  decodeArrayLength,
+  decodePermissions,
+  decodeControllerAddress,
+} from "./lsp6Keys";
 
 dotenv.config();
 
@@ -129,6 +137,51 @@ async function main() {
   const kmTarget = await km.target;
   console.log("Address:        ", kmAddr);
   console.log("Target:         ", kmTarget);
+
+  // ============ ERC725Y Permission Storage ============
+  console.log("\n\n🗝️  ERC725Y Permission Storage (AddressPermissions)");
+  console.log("─".repeat(60));
+  console.log(
+    "Keys are read from the AgentSafe's ERC725Y store and decoded with\n" +
+    "the canonical LSP6 derivation.  A mismatch here (while the tx\n" +
+    "succeeded) means a key-derivation or write-target bug.\n"
+  );
+
+  // The array length key is the FULL keccak256 hash — not the zero-padded prefix.
+  // Using the wrong key here is the most common source of false "length = 0" reads.
+  const lengthRaw: string = await safe.getData(AP_ARRAY_KEY);
+  const arrayLength = decodeArrayLength(lengthRaw);
+
+  console.log(`AddressPermissions[] length key : ${AP_ARRAY_KEY}`);
+  console.log(`  Raw stored value              : ${lengthRaw === "0x" ? "(empty)" : lengthRaw}`);
+  console.log(`  Decoded length                : ${arrayLength}`);
+
+  if (arrayLength === 0) {
+    console.log("\n  ⚠️  No controllers are registered in ERC725Y storage.");
+    console.log("  The setData write may have used the wrong key or wrong target contract.");
+  }
+
+  for (let i = 0; i < arrayLength; i++) {
+    const elemKey = apArrayElementKey(i);
+    const elemRaw: string = await safe.getData(elemKey);
+    const controller = decodeControllerAddress(elemRaw);
+
+    const permKey = apPermissionsKey(controller);
+    const permRaw: string = await safe.getData(permKey);
+    const permissions = decodePermissions(permRaw);
+
+    console.log(`\n  Controller [${i}]`);
+    console.log(`    Element key  : ${elemKey}`);
+    console.log(`    Raw address  : ${elemRaw === "0x" ? "(empty ⚠️)" : elemRaw}`);
+    console.log(`    Address      : ${controller}`);
+    console.log(`    Perms key    : ${permKey}`);
+    console.log(`    Perms raw    : ${permRaw === "0x" ? "(empty ⚠️)" : permRaw}`);
+    console.log(`    Perms bits   : 0x${permissions.toString(16).padStart(64, "0")}`);
+
+    if (permissions === 0n) {
+      console.log(`    ⚠️  Permissions bitmap is zero — controller has no access.`);
+    }
+  }
 
   // ============ AgentVaultRegistry ============
   console.log("\n📦 AgentVaultRegistry");
