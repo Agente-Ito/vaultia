@@ -38,14 +38,15 @@ const EMOJIS = ['💰', '🏠', '🛒', '📈', '🎯', '✈️', '🏥', '🎓'
 // ─── Step 0: Entity type ──────────────────────────────────────────────────────
 
 function Step0({ onSelect }: { onSelect: (id: EntityType) => void }) {
+  const { t } = useI18n();
   return (
     <div className="p-6 space-y-5">
       <div>
         <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-50">
-          Who is this vault for?
+          {t('onboarding.step0.title')}
         </h2>
         <p className="text-sm text-neutral-500 mt-1">
-          Choose the entity type that best describes your use case.
+          {t('onboarding.step0.subtitle')}
         </p>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -57,10 +58,10 @@ function Step0({ onSelect }: { onSelect: (id: EntityType) => void }) {
           >
             <span className="text-3xl block mb-2">{entity.emoji}</span>
             <p className="text-xs font-semibold text-neutral-900 dark:text-neutral-50 leading-tight">
-              {entity.title}
+              {t(entity.titleKey as Parameters<typeof t>[0])}
             </p>
             <p className="text-xs text-neutral-400 mt-1 leading-relaxed line-clamp-2">
-              {entity.desc}
+              {t(entity.descKey as Parameters<typeof t>[0])}
             </p>
           </button>
         ))}
@@ -73,6 +74,7 @@ function Step0({ onSelect }: { onSelect: (id: EntityType) => void }) {
 
 function Step1({ onSelect }: { onSelect: (id: string) => void }) {
   const { entityType } = useOnboarding();
+  const { t } = useI18n();
   const entity = entityType ? getEntityDef(entityType) : null;
 
   if (!entity) return null;
@@ -81,13 +83,13 @@ function Step1({ onSelect }: { onSelect: (id: string) => void }) {
     <div className="p-6 space-y-5">
       <div>
         <p className="text-xs font-semibold text-primary-500 uppercase tracking-widest mb-1">
-          {entity.emoji} {entity.title}
+          {entity.emoji} {t(entity.titleKey as Parameters<typeof t>[0])}
         </p>
         <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-50">
-          What best describes you?
+          {t('onboarding.step1.title')}
         </h2>
         <p className="text-sm text-neutral-500 mt-1">
-          We'll suggest a vault structure tailored to your needs.
+          {t('onboarding.step1.subtitle')}
         </p>
       </div>
       <div className="space-y-3">
@@ -101,10 +103,10 @@ function Step1({ onSelect }: { onSelect: (id: string) => void }) {
               <span className="text-2xl flex-shrink-0">{profile.emoji}</span>
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
-                  {profile.title}
+                  {t(profile.titleKey as Parameters<typeof t>[0])}
                 </p>
                 <p className="text-xs text-neutral-400 mt-0.5 leading-relaxed">
-                  {profile.desc}
+                  {t(profile.descKey as Parameters<typeof t>[0])}
                 </p>
                 <div className="flex flex-wrap gap-1 mt-2">
                   {profile.subVaults.slice(0, 3).map((sv) => (
@@ -112,12 +114,12 @@ function Step1({ onSelect }: { onSelect: (id: string) => void }) {
                       key={sv.id}
                       className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs bg-neutral-100 text-neutral-500 dark:bg-neutral-700 dark:text-neutral-400"
                     >
-                      {sv.emoji} {sv.title}
+                      {sv.emoji} {t(sv.titleKey as Parameters<typeof t>[0])}
                     </span>
                   ))}
                   {profile.subVaults.length > 3 && (
                     <span className="text-xs text-neutral-400">
-                      +{profile.subVaults.length - 3} more
+                      +{profile.subVaults.length - 3} {t('onboarding.more')}
                     </span>
                   )}
                 </div>
@@ -138,6 +140,7 @@ function Step2() {
     vaultName, vaultEmoji, selectedSubVaults,
     setVaultName, setVaultEmoji, toggleSubVault,
   } = useOnboarding();
+  const { t } = useI18n();
 
   const profile = entityType && entityProfile
     ? getProfile(entityType, entityProfile)
@@ -147,23 +150,23 @@ function Step2() {
     <div className="p-6 space-y-5">
       <div>
         <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-50">
-          Name your root vault
+          {t('onboarding.step2.title')}
         </h2>
         <p className="text-sm text-neutral-500 mt-1">
-          This is your master vault. Sub-vaults sit under it for each spending category.
+          {t('onboarding.step2.subtitle')}
         </p>
       </div>
 
       {/* Name */}
       <div className="space-y-1">
         <label className="text-xs font-semibold text-neutral-600 dark:text-neutral-300 uppercase tracking-widest">
-          Vault name
+          {t('onboarding.step2.name_label')}
         </label>
         <input
           type="text"
           value={vaultName}
           onChange={(e) => setVaultName(e.target.value)}
-          placeholder={profile?.defaultVaultName ?? 'My Vault'}
+          placeholder={profile ? t(profile.vaultKey as Parameters<typeof t>[0]) : t('onboarding.step2.name_placeholder')}
           className="w-full h-10 rounded-lg border border-neutral-300 px-3 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-50"
         />
       </div>
@@ -171,7 +174,7 @@ function Step2() {
       {/* Emoji */}
       <div className="space-y-2">
         <label className="text-xs font-semibold text-neutral-600 dark:text-neutral-300 uppercase tracking-widest">
-          Icon
+          {t('onboarding.step2.icon_label')}
         </label>
         <div className="flex flex-wrap gap-2">
           {EMOJIS.map((e) => (
@@ -195,10 +198,10 @@ function Step2() {
       {profile && profile.subVaults.length > 0 && (
         <div className="space-y-2">
           <label className="text-xs font-semibold text-neutral-600 dark:text-neutral-300 uppercase tracking-widest">
-            Suggested sub-vaults
+            {t('onboarding.step2.subvaults_label')}
           </label>
           <p className="text-xs text-neutral-400">
-            Select which sub-vaults to create after setup. You can add more later.
+            {t('onboarding.step2.subvaults_hint')}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {profile.subVaults.map((sv) => {
@@ -222,8 +225,12 @@ function Step2() {
                   </div>
                   <span className="text-sm">{sv.emoji}</span>
                   <div className="min-w-0">
-                    <p className="text-xs font-medium text-neutral-800 dark:text-neutral-100 leading-tight">{sv.title}</p>
-                    <p className="text-xs text-neutral-400 truncate">{sv.desc}</p>
+                    <p className="text-xs font-medium text-neutral-800 dark:text-neutral-100 leading-tight">
+                      {t(sv.titleKey as Parameters<typeof t>[0])}
+                    </p>
+                    <p className="text-xs text-neutral-400 truncate">
+                      {t(sv.descKey as Parameters<typeof t>[0])}
+                    </p>
                   </div>
                 </button>
               );
@@ -241,20 +248,21 @@ const PERIOD_VALUES = ['daily', 'weekly', 'monthly'] as const;
 
 function Step3() {
   const { rootBudget, budgetPeriod, setRootBudget, setBudgetPeriod } = useOnboarding();
+  const { t } = useI18n();
   return (
     <div className="p-6 space-y-5">
       <div>
         <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-50">
-          Set the root budget
+          {t('onboarding.step3.title')}
         </h2>
         <p className="text-sm text-neutral-500 mt-1">
-          This is the spending limit for the master vault. Agent payments will be capped by this policy.
+          {t('onboarding.step3.subtitle')}
         </p>
       </div>
       <div className="space-y-4">
         <div>
           <label className="text-xs font-semibold text-neutral-600 dark:text-neutral-300 uppercase tracking-widest block mb-1">
-            Budget limit
+            {t('onboarding.step3.amount_label')}
           </label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-sm font-medium">LYX</span>
@@ -270,7 +278,7 @@ function Step3() {
         </div>
         <div>
           <label className="text-xs font-semibold text-neutral-600 dark:text-neutral-300 uppercase tracking-widest block mb-2">
-            Reset period
+            {t('onboarding.step3.period_label')}
           </label>
           <div className="flex gap-2">
             {PERIOD_VALUES.map((v) => (
@@ -278,13 +286,13 @@ function Step3() {
                 key={v}
                 onClick={() => setBudgetPeriod(v)}
                 className={cn(
-                  'flex-1 py-2 rounded-lg border-2 text-sm font-medium capitalize transition-all',
+                  'flex-1 py-2 rounded-lg border-2 text-sm font-medium transition-all',
                   budgetPeriod === v
                     ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-neutral-700 dark:text-primary-300'
                     : 'border-neutral-200 text-neutral-600 hover:border-primary-300 dark:border-neutral-700 dark:text-neutral-400'
                 )}
               >
-                {v}
+                {t(`onboarding.step3.period.${v}` as Parameters<typeof t>[0])}
               </button>
             ))}
           </div>
@@ -302,61 +310,67 @@ function Step4({ deploying, deployError }: { deploying: boolean; deployError: st
     vaultName, vaultEmoji, rootBudget, budgetPeriod, selectedSubVaults,
   } = useOnboarding();
   const { isConnected, isRegistryConfigured } = useWeb3();
+  const { t } = useI18n();
 
-  const entity  = entityType  ? getEntityDef(entityType)             : null;
+  const entity  = entityType ? getEntityDef(entityType) : null;
   const profile = entityType && entityProfile ? getProfile(entityType, entityProfile) : null;
   const subVaultDetails = profile?.subVaults.filter((sv) => selectedSubVaults.includes(sv.id)) ?? [];
-
-  const displayName = vaultName || profile?.defaultVaultName || 'My Vault';
+  const displayName = vaultName || (profile ? t(profile.vaultKey as Parameters<typeof t>[0]) : t('onboarding.step4.no_name'));
 
   return (
     <div className="p-6 space-y-5">
       <div className="text-center space-y-1">
         <div className="text-5xl">{vaultEmoji}</div>
         <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-50">
-          Ready to deploy
+          {t('onboarding.step4.title')}
         </h2>
         <p className="text-sm text-neutral-500">
-          Review your setup below, then hit Deploy.
+          {t('onboarding.step4.subtitle')}
         </p>
       </div>
 
       <div className="rounded-xl bg-neutral-50 dark:bg-neutral-700/50 divide-y divide-neutral-100 dark:divide-neutral-700 text-sm overflow-hidden border border-neutral-200 dark:border-neutral-600">
         {entity && (
           <div className="flex justify-between px-4 py-2.5">
-            <span className="text-neutral-500">Entity</span>
-            <span className="font-medium text-neutral-900 dark:text-neutral-50">{entity.emoji} {entity.title}</span>
+            <span className="text-neutral-500">{t('onboarding.step4.entity')}</span>
+            <span className="font-medium text-neutral-900 dark:text-neutral-50">
+              {entity.emoji} {t(entity.titleKey as Parameters<typeof t>[0])}
+            </span>
           </div>
         )}
         {profile && (
           <div className="flex justify-between px-4 py-2.5">
-            <span className="text-neutral-500">Profile</span>
-            <span className="font-medium text-neutral-900 dark:text-neutral-50">{profile.emoji} {profile.title}</span>
+            <span className="text-neutral-500">{t('onboarding.step4.profile')}</span>
+            <span className="font-medium text-neutral-900 dark:text-neutral-50">
+              {profile.emoji} {t(profile.titleKey as Parameters<typeof t>[0])}
+            </span>
           </div>
         )}
         <div className="flex justify-between px-4 py-2.5">
-          <span className="text-neutral-500">Root vault</span>
+          <span className="text-neutral-500">{t('onboarding.step4.vault')}</span>
           <span className="font-medium text-neutral-900 dark:text-neutral-50">{vaultEmoji} {displayName}</span>
         </div>
         <div className="flex justify-between px-4 py-2.5">
-          <span className="text-neutral-500">Budget</span>
-          <span className="font-medium text-neutral-900 dark:text-neutral-50">{rootBudget} LYX / {budgetPeriod}</span>
+          <span className="text-neutral-500">{t('onboarding.step4.budget')}</span>
+          <span className="font-medium text-neutral-900 dark:text-neutral-50">
+            {rootBudget} LYX / {t(`onboarding.step3.period.${budgetPeriod}` as Parameters<typeof t>[0])}
+          </span>
         </div>
         {subVaultDetails.length > 0 && (
           <div className="px-4 py-2.5">
-            <p className="text-neutral-500 mb-1.5">Sub-vaults (next steps)</p>
+            <p className="text-neutral-500 mb-1.5">{t('onboarding.step4.subvaults')}</p>
             <div className="flex flex-wrap gap-1.5">
               {subVaultDetails.map((sv) => (
                 <span
                   key={sv.id}
                   className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-primary-50 text-primary-700 border border-primary-200 dark:bg-neutral-700 dark:text-primary-300 dark:border-neutral-600"
                 >
-                  {sv.emoji} {sv.title}
+                  {sv.emoji} {t(sv.titleKey as Parameters<typeof t>[0])}
                 </span>
               ))}
             </div>
             <p className="text-xs text-neutral-400 mt-1.5">
-              These will be suggested after the root vault is deployed.
+              {t('onboarding.step4.subvaults_hint')}
             </p>
           </div>
         )}
@@ -364,12 +378,12 @@ function Step4({ deploying, deployError }: { deploying: boolean; deployError: st
 
       {!isRegistryConfigured && (
         <Alert variant="warning">
-          <AlertDescription>Registry contract not configured. Set NEXT_PUBLIC_REGISTRY_ADDRESS.</AlertDescription>
+          <AlertDescription>{t('onboarding.registry_not_configured')}</AlertDescription>
         </Alert>
       )}
       {isRegistryConfigured && !isConnected && (
         <Alert variant="warning">
-          <AlertDescription>Connect your wallet to deploy.</AlertDescription>
+          <AlertDescription>{t('onboarding.connect_wallet')}</AlertDescription>
         </Alert>
       )}
       {deployError && (
@@ -379,7 +393,7 @@ function Step4({ deploying, deployError }: { deploying: boolean; deployError: st
       )}
       {deploying && (
         <p className="text-sm text-center text-neutral-500 animate-pulse">
-          Deploying vault…
+          {t('onboarding.step4.deploying')}
         </p>
       )}
     </div>
@@ -388,14 +402,12 @@ function Step4({ deploying, deployError }: { deploying: boolean; deployError: st
 
 // ─── Main modal ───────────────────────────────────────────────────────────────
 
-const STEP_LABELS = ['Entity', 'Profile', 'Vault', 'Budget', 'Deploy'];
-
 export function OnboardingModal() {
   const router = useRouter();
   const {
     step, visible, dismissed,
     entityType, entityProfile,
-    vaultName, rootBudget, budgetPeriod, selectedSubVaults,
+    vaultName, rootBudget, budgetPeriod,
     close, next, back, finish, dismissPermanently,
     setEntityType, setEntityProfile,
   } = useOnboarding();
@@ -412,13 +424,11 @@ export function OnboardingModal() {
     else close();
   };
 
-  // Step 0: entity select → auto-advance
   const handleEntitySelect = (id: EntityType) => {
     setEntityType(id);
     next();
   };
 
-  // Step 1: profile select → auto-advance
   const handleProfileSelect = (id: string) => {
     if (!entityType) return;
     setEntityProfile(id);
@@ -427,14 +437,14 @@ export function OnboardingModal() {
 
   const handleDeploy = async () => {
     if (!isRegistryConfigured || !registry || !signer) {
-      setDeployError('Connect your wallet to deploy.');
+      setDeployError(t('onboarding.connect_wallet'));
       return;
     }
     setDeploying(true);
     setDeployError(null);
     try {
       const profile = entityType && entityProfile ? getProfile(entityType, entityProfile) : null;
-      const displayName = vaultName || profile?.defaultVaultName || 'My Vault';
+      const displayName = vaultName || (profile ? t(profile.vaultKey as Parameters<typeof t>[0]) : 'My Vault');
 
       const tx = await registry.deployVault({
         budget: ethers.parseEther(rootBudget || '0'),
@@ -448,8 +458,6 @@ export function OnboardingModal() {
       });
       await tx.wait();
       finish();
-
-      // Navigate to vaults; sub-vault suggestions will appear there
       router.push('/vaults');
     } catch (err: unknown) {
       setDeployError(getErrorMessage(err));
@@ -458,16 +466,20 @@ export function OnboardingModal() {
     }
   };
 
-  const progressValue   = ((step + 1) / MAX_STEPS) * 100;
-  const isLastStep      = step === MAX_STEPS - 1;
-  const canDeploy       = isConnected && isRegistryConfigured && !deploying;
+  const STEP_LABEL_KEYS = [
+    'onboarding.step_labels.0',
+    'onboarding.step_labels.1',
+    'onboarding.step_labels.2',
+    'onboarding.step_labels.3',
+    'onboarding.step_labels.4',
+  ] as const;
 
-  // Step-level forward button is shown for steps 2 and 3 (step 0 & 1 auto-advance on click)
-  const showNextButton  = step >= 2 && !isLastStep;
-  const showBackButton  = step > 0;
-  const showFooter      = step > 0;
+  const progressValue  = ((step + 1) / MAX_STEPS) * 100;
+  const isLastStep     = step === MAX_STEPS - 1;
+  const showNextButton = step >= 2 && !isLastStep;
+  const showFooter     = step > 0;
+  const canDeploy      = isConnected && isRegistryConfigured && !deploying;
 
-  // dismissed only blocks auto-show on load; manual open() clears it
   if (dismissed && !visible) return null;
 
   return (
@@ -477,7 +489,7 @@ export function OnboardingModal() {
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-0">
           <DialogTitle className="text-lg font-bold text-neutral-900 dark:text-neutral-50">
-            💰 Agent Vault Setup
+            {t('onboarding.title')}
           </DialogTitle>
           <span className="text-xs text-neutral-400 font-medium">
             {step + 1} / {MAX_STEPS}
@@ -488,17 +500,17 @@ export function OnboardingModal() {
         <div className="px-6 pt-3">
           <Progress value={progressValue} className="h-1.5" />
           <div className="flex gap-2 mt-2">
-            {STEP_LABELS.map((label, i) => (
+            {STEP_LABEL_KEYS.map((key, i) => (
               <span
-                key={label}
+                key={key}
                 className={cn(
                   'text-xs flex-1 text-center transition-colors',
-                  i < step  ? 'text-primary-500 font-medium' :
-                  i === step ? 'text-primary-600 font-semibold' :
-                               'text-neutral-400'
+                  i < step   ? 'text-primary-500 font-medium'  :
+                  i === step  ? 'text-primary-600 font-semibold' :
+                                'text-neutral-400'
                 )}
               >
-                {label}
+                {t(key)}
               </span>
             ))}
           </div>
@@ -543,12 +555,7 @@ export function OnboardingModal() {
                   </Button>
                 )}
                 {isLastStep && (
-                  <Button
-                    size="sm"
-                    variant="success"
-                    onClick={handleDeploy}
-                    disabled={!canDeploy}
-                  >
+                  <Button size="sm" variant="success" onClick={handleDeploy} disabled={!canDeploy}>
                     {deploying ? t('onboarding.btn.deploying') : t('onboarding.btn.start')}
                   </Button>
                 )}

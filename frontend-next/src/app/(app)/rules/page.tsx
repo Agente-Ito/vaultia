@@ -13,6 +13,7 @@ import { Button } from '@/components/common/Button';
 import { Alert, AlertDescription } from '@/components/common/Alert';
 import { useI18n } from '@/context/I18nContext';
 import { useContacts } from '@/hooks/useContacts';
+import { useDemo, DEMO_PERSONAS } from '@/context/DemoContext';
 
 function PolicyCard({ title, badge, children }: { title: string; badge?: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -150,11 +151,71 @@ function VaultPolicies({ safeAddress }: { safeAddress: string }) {
   );
 }
 
+function DemoRulesSection() {
+  const { t } = useI18n();
+  const { demoPersonaId } = useDemo();
+  const persona = DEMO_PERSONAS.find((p) => p.id === demoPersonaId) ?? DEMO_PERSONAS[0];
+  const totalSpent = persona.subVaults.filter((sv) => sv.activeByDefault).reduce((s, sv) => s + sv.spent, 0);
+  const budget = persona.totalBudget;
+  const pct = Math.min(Math.round((totalSpent / budget) * 100), 100);
+
+  return (
+    <div className="space-y-md">
+      <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-md text-sm text-amber-800 dark:text-amber-300">
+        <span>🎮</span>
+        <span className="font-medium">{t('demo.label')}</span>
+        <span>—</span>
+        <span>{persona.emoji} {persona.vaultName} ({persona.label})</span>
+      </div>
+
+      {/* Budget */}
+      <PolicyCard title={t('rules.budget.title')} badge={<Badge variant="primary">{t('rules.budget.active')}</Badge>}>
+        <Row label={t('rules.budget.max')}   value={`${budget.toLocaleString()} LYX`} />
+        <Row label={t('rules.budget.spent')} value={`${totalSpent.toLocaleString()} LYX`} />
+        <div className="mt-sm">
+          <div className="flex justify-between text-xs text-neutral-500 mb-xs">
+            <span>{t('rules.budget.spent_label')}</span>
+            <span>{totalSpent.toLocaleString()} / {budget.toLocaleString()} LYX</span>
+          </div>
+          <div className="w-full bg-neutral-100 dark:bg-neutral-700 rounded-full h-2">
+            <div className="bg-primary h-2 rounded-full transition-all" style={{ width: `${pct}%` }} />
+          </div>
+        </div>
+      </PolicyCard>
+
+      {/* Merchant whitelist */}
+      <PolicyCard title={t('rules.merchants.title')} badge={<Badge variant="warning">{t('rules.merchants.badge')}</Badge>}>
+        <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-md">{t('rules.merchants.info')}</p>
+        <div className="space-y-xs">
+          {persona.merchants.slice(0, 3).map((m) => (
+            <div key={m.address} className="flex items-center gap-2">
+              <span className="text-sm">{m.emoji}</span>
+              <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">{m.name}</span>
+              <span className="text-xs text-neutral-400">({m.category})</span>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-neutral-500 mt-xs">3 {t('rules.merchants.count')}</p>
+      </PolicyCard>
+
+      {/* Expiry */}
+      <PolicyCard title={t('rules.expiry.title')} badge={<Badge variant="neutral">{t('rules.expiry.badge')}</Badge>}>
+        <Row label={t('rules.expiry.label')} value="Dec 31, 2026" />
+        <Row
+          label={t('rules.expiry.status')}
+          value={<span className="text-success">{t('rules.expiry.active')}</span>}
+        />
+      </PolicyCard>
+    </div>
+  );
+}
+
 export default function RulesPage() {
   const { registry, account, isConnected } = useWeb3();
   const { vaults, loading: vaultsLoading } = useVaults(registry, account);
   const [selectedSafe, setSelectedSafe] = useState<string>('');
   const { t } = useI18n();
+  const { isDemo } = useDemo();
 
   return (
     <div className="space-y-lg">
@@ -165,13 +226,15 @@ export default function RulesPage() {
         </p>
       </div>
 
-      {!isConnected && (
+      {isDemo && <DemoRulesSection />}
+
+      {!isDemo && !isConnected && (
         <Alert variant="info">
           <AlertDescription>{t('rules.connect_prompt')}</AlertDescription>
         </Alert>
       )}
 
-      {isConnected && !vaultsLoading && vaults.length === 0 && (
+      {!isDemo && isConnected && !vaultsLoading && vaults.length === 0 && (
         <Card>
           <CardContent>
             <p className="text-neutral-600 dark:text-neutral-400 mb-md">{t('rules.no_vaults')}</p>
@@ -180,7 +243,7 @@ export default function RulesPage() {
         </Card>
       )}
 
-      {isConnected && vaults.length > 0 && (
+      {!isDemo && isConnected && vaults.length > 0 && (
         <>
           <Card>
             <CardHeader>

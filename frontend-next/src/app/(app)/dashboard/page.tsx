@@ -15,6 +15,7 @@ import { useWeb3 } from '@/context/Web3Context';
 import { useVaults } from '@/hooks/useVaults';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { useDemo } from '@/context/DemoContext';
+import { DemoWorkspace } from '@/components/demo/DemoWorkspace';
 import { getProvider } from '@/lib/web3/provider';
 import { useI18n } from '@/context/I18nContext';
 
@@ -90,6 +91,10 @@ export default function DashboardPage() {
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string>('root');
 
+  // ── Demo mode: render the interactive sandbox ──────────────────────────────
+  // (hooks must all be called before any conditional return)
+  const shouldShowDemo = isDemo;
+
   // ── Auto-open onboarding when connected with no vaults ─────────────────────
   const onboardingTriggered = useRef(false);
   useEffect(() => {
@@ -130,6 +135,8 @@ export default function DashboardPage() {
   useEffect(() => { loadBalances(); }, [loadBalances]);
 
   const loading = vaultsLoading || balanceLoading;
+
+  if (shouldShowDemo) return <DemoWorkspace />;
 
   // ── Derive display data ────────────────────────────────────────────────────
   const budgetNodes    = isDemo ? demoBudgetNodes    : [];

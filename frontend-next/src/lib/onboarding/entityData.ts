@@ -1,6 +1,5 @@
 // ─── Entity taxonomy for onboarding wizard ────────────────────────────────────
-// Pure data — no React, no i18n (strings are in English and used as-is since
-// this is rich wizard content, not UI chrome).
+// All user-visible strings are i18n key references resolved via t() in components.
 
 export type EntityType =
   | 'individual'
@@ -13,275 +12,148 @@ export type EntityType =
 export interface SubVaultTemplate {
   id: string;
   emoji: string;
-  title: string;
-  desc: string;
+  titleKey: string;
+  descKey: string;
 }
 
 export interface EntityProfile {
   id: string;
   emoji: string;
-  title: string;
-  desc: string;
-  defaultVaultName: string;
-  defaultVaultEmoji: string;
+  titleKey: string;
+  descKey: string;
+  vaultKey: string;       // i18n key for the default vault name
   subVaults: SubVaultTemplate[];
 }
 
 export interface EntityDefinition {
   id: EntityType;
   emoji: string;
-  title: string;
-  desc: string;
+  titleKey: string;
+  descKey: string;
   profiles: EntityProfile[];
 }
 
-// ─── Sub-vault building blocks (reused across profiles) ───────────────────────
+// ─── Sub-vault building blocks ────────────────────────────────────────────────
 
-const SV = {
-  operations:   { id: 'operations',   emoji: '⚙️',  title: 'Operations',        desc: 'Day-to-day operational expenses' },
-  payroll:      { id: 'payroll',       emoji: '👷',  title: 'Payroll',           desc: 'Salaries, contractor payments, bounties' },
-  reserve:      { id: 'reserve',       emoji: '🏦',  title: 'Reserve / Buffer',  desc: 'Emergency fund and liquidity reserve' },
-  rnd:          { id: 'rnd',           emoji: '🔬',  title: 'R&D',               desc: 'Research, development, experiments' },
-  marketing:    { id: 'marketing',     emoji: '📣',  title: 'Marketing',         desc: 'Campaigns, growth, community' },
-  grants:       { id: 'grants',        emoji: '🤝',  title: 'Grants Pool',       desc: 'Grants to contributors and teams' },
-  community:    { id: 'community',     emoji: '🌱',  title: 'Community Fund',    desc: 'Events, rewards, ecosystem incentives' },
-  grantOps:     { id: 'grantOps',      emoji: '⚙️',  title: 'Grant Operations',  desc: 'Coordination, tooling, admin costs' },
-  protocol:     { id: 'protocol',      emoji: '🔒',  title: 'Protocol Treasury', desc: 'Long-term protocol sustainability' },
-  dev:          { id: 'dev',           emoji: '💻',  title: 'Development',       desc: 'Smart contracts, infra, engineering' },
-  security:     { id: 'security',      emoji: '🛡️',  title: 'Security / Audits', desc: 'Audit costs, bug bounties, insurance' },
-  daily:        { id: 'daily',         emoji: '🛒',  title: 'Daily Expenses',    desc: 'Groceries, transport, subscriptions' },
-  bills:        { id: 'bills',         emoji: '🏡',  title: 'Bills & Rent',      desc: 'Housing, utilities, recurring bills' },
-  savings:      { id: 'savings',       emoji: '💎',  title: 'Savings',           desc: 'Medium-term savings goals' },
-  emergency:    { id: 'emergency',     emoji: '🚨',  title: 'Emergency Fund',    desc: '3–6 months of expenses as safety net' },
-  portfolio:    { id: 'portfolio',     emoji: '📈',  title: 'Trading Portfolio', desc: 'Active trading and rebalancing' },
-  yield:        { id: 'yield',         emoji: '🌾',  title: 'Yield Farming',     desc: 'Liquidity provision, staking rewards' },
-  fees:         { id: 'fees',          emoji: '💸',  title: 'Management Fees',   desc: 'Fee collection and distribution' },
-  income:       { id: 'income',        emoji: '💰',  title: 'Income Buffer',     desc: 'Incoming revenue before allocation' },
-  taxes:        { id: 'taxes',         emoji: '📋',  title: 'Tax Reserve',       desc: 'Set-aside for tax obligations' },
-  projects:     { id: 'projects',      emoji: '🎯',  title: 'Projects',          desc: 'Per-project budgets and milestone payments' },
-  equipment:    { id: 'equipment',     emoji: '🎛️',  title: 'Equipment & Tools', desc: 'Gear, software licences, infrastructure' },
-  programs:     { id: 'programs',      emoji: '📚',  title: 'Programs',          desc: 'Funded programs and initiatives' },
-  donations:    { id: 'donations',     emoji: '🫶',  title: 'Donations Inbox',   desc: 'Incoming donations before allocation' },
-  impact:       { id: 'impact',        emoji: '🌍',  title: 'Impact Projects',   desc: 'Direct on-the-ground spending' },
-  admin:        { id: 'admin',         emoji: '🗂️',  title: 'Admin & Legal',     desc: 'Legal, compliance, admin overhead' },
-  advocacy:     { id: 'advocacy',      emoji: '📢',  title: 'Advocacy',          desc: 'Campaigns, lobbying, awareness' },
-  nft:          { id: 'nft',           emoji: '🖼️',  title: 'NFT Portfolio',     desc: 'NFT acquisitions and royalties' },
-  lp:           { id: 'lp',            emoji: '🔄',  title: 'LP Positions',      desc: 'Liquidity pool management' },
-  travel:       { id: 'travel',        emoji: '✈️',  title: 'Travel',            desc: 'Accommodation, transport, coworking' },
-  healthcare:   { id: 'healthcare',    emoji: '🏥',  title: 'Healthcare',        desc: 'Health insurance, medical expenses' },
+const SV = (id: string, emoji: string): SubVaultTemplate => ({
+  id,
+  emoji,
+  titleKey: `onboarding.subvault.${id}.title`,
+  descKey:  `onboarding.subvault.${id}.desc`,
+});
+
+const sv = {
+  operations: SV('operations',  '⚙️'),
+  payroll:    SV('payroll',     '👷'),
+  reserve:    SV('reserve',     '🏦'),
+  rnd:        SV('rnd',         '🔬'),
+  marketing:  SV('marketing',   '📣'),
+  grants:     SV('grants',      '🤝'),
+  community:  SV('community',   '🌱'),
+  grantOps:   SV('grantOps',    '⚙️'),
+  protocol:   SV('protocol',    '🔒'),
+  dev:        SV('dev',         '💻'),
+  security:   SV('security',    '🛡️'),
+  daily:      SV('daily',       '🛒'),
+  bills:      SV('bills',       '🏡'),
+  savings:    SV('savings',     '💎'),
+  emergency:  SV('emergency',   '🚨'),
+  portfolio:  SV('portfolio',   '📈'),
+  yield:      SV('yield',       '🌾'),
+  fees:       SV('fees',        '💸'),
+  income:     SV('income',      '💰'),
+  taxes:      SV('taxes',       '📋'),
+  projects:   SV('projects',    '🎯'),
+  equipment:  SV('equipment',   '🎛️'),
+  programs:   SV('programs',    '📚'),
+  donations:  SV('donations',   '🫶'),
+  impact:     SV('impact',      '🌍'),
+  admin:      SV('admin',       '🗂️'),
+  advocacy:   SV('advocacy',    '📢'),
+  nft:        SV('nft',         '🖼️'),
+  lp:         SV('lp',          '🔄'),
+  travel:     SV('travel',      '✈️'),
+  healthcare: SV('healthcare',  '🏥'),
 };
+
+// ─── Helper to build an entity profile ───────────────────────────────────────
+
+function p(
+  id: string,
+  emoji: string,
+  subVaults: SubVaultTemplate[]
+): EntityProfile {
+  return {
+    id,
+    emoji,
+    titleKey: `onboarding.profile.${id}.title`,
+    descKey:  `onboarding.profile.${id}.desc`,
+    vaultKey: `onboarding.profile.${id}.vault`,
+    subVaults,
+  };
+}
 
 // ─── Entity definitions ────────────────────────────────────────────────────────
 
 export const ENTITY_TYPES: EntityDefinition[] = [
   {
-    id: 'individual',
-    emoji: '🧑',
-    title: 'Individual / Personal',
-    desc: 'Personal finance, household budgets, savings goals, investments',
+    id: 'individual', emoji: '🧑',
+    titleKey: 'onboarding.entity.individual.title',
+    descKey:  'onboarding.entity.individual.desc',
     profiles: [
-      {
-        id: 'household',
-        emoji: '🏠',
-        title: 'Household & Family',
-        desc: 'Day-to-day expenses, bills, and family savings',
-        defaultVaultName: 'Family Vault',
-        defaultVaultEmoji: '🏠',
-        subVaults: [SV.daily, SV.bills, SV.savings, SV.emergency, SV.healthcare],
-      },
-      {
-        id: 'investor',
-        emoji: '📈',
-        title: 'Active Investor',
-        desc: 'Allocate across trading, yield, and long-term savings',
-        defaultVaultName: 'Investment Vault',
-        defaultVaultEmoji: '📈',
-        subVaults: [SV.portfolio, SV.yield, SV.savings, SV.reserve, SV.fees],
-      },
-      {
-        id: 'nomad',
-        emoji: '🌐',
-        title: 'Digital Nomad',
-        desc: 'Multi-currency life: travel, remote work, and lean living',
-        defaultVaultName: 'Nomad Vault',
-        defaultVaultEmoji: '🌐',
-        subVaults: [SV.daily, SV.travel, SV.income, SV.taxes, SV.emergency],
-      },
+      p('household',       '🏠', [sv.daily, sv.bills, sv.savings, sv.emergency, sv.healthcare]),
+      p('investor',        '📈', [sv.portfolio, sv.yield, sv.savings, sv.reserve, sv.fees]),
+      p('nomad',           '🌐', [sv.daily, sv.travel, sv.income, sv.taxes, sv.emergency]),
     ],
   },
   {
-    id: 'business',
-    emoji: '🏢',
-    title: 'Business',
-    desc: 'Company treasury, payroll automation, operational spending controls',
+    id: 'business', emoji: '🏢',
+    titleKey: 'onboarding.entity.business.title',
+    descKey:  'onboarding.entity.business.desc',
     profiles: [
-      {
-        id: 'startup',
-        emoji: '🚀',
-        title: 'Startup',
-        desc: 'Burn rate control, payroll, fundraising runway management',
-        defaultVaultName: 'Company Treasury',
-        defaultVaultEmoji: '🚀',
-        subVaults: [SV.operations, SV.payroll, SV.rnd, SV.marketing, SV.reserve],
-      },
-      {
-        id: 'smb',
-        emoji: '🏪',
-        title: 'SMB / E-commerce',
-        desc: 'Inventory, supplier payments, marketing spend',
-        defaultVaultName: 'Business Vault',
-        defaultVaultEmoji: '🏪',
-        subVaults: [SV.operations, SV.payroll, SV.marketing, SV.reserve, SV.taxes],
-      },
-      {
-        id: 'defi_protocol',
-        emoji: '⛓️',
-        title: 'DeFi Protocol',
-        desc: 'Protocol fees, grants, security budget, liquidity programs',
-        defaultVaultName: 'Protocol Treasury',
-        defaultVaultEmoji: '⛓️',
-        subVaults: [SV.protocol, SV.dev, SV.security, SV.grants, SV.marketing],
-      },
+      p('startup',         '🚀', [sv.operations, sv.payroll, sv.rnd, sv.marketing, sv.reserve]),
+      p('smb',             '🏪', [sv.operations, sv.payroll, sv.marketing, sv.reserve, sv.taxes]),
+      p('defi_protocol',   '⛓️', [sv.protocol, sv.dev, sv.security, sv.grants, sv.marketing]),
     ],
   },
   {
-    id: 'dao',
-    emoji: '🏛️',
-    title: 'DAO',
-    desc: 'Decentralised governance, on-chain treasury, contributor payments',
+    id: 'dao', emoji: '🏛️',
+    titleKey: 'onboarding.entity.dao.title',
+    descKey:  'onboarding.entity.dao.desc',
     profiles: [
-      {
-        id: 'grants_dao',
-        emoji: '🤝',
-        title: 'Grants DAO',
-        desc: 'Fund external contributors, teams, and ecosystem projects',
-        defaultVaultName: 'DAO Treasury',
-        defaultVaultEmoji: '🏛️',
-        subVaults: [SV.grants, SV.grantOps, SV.community, SV.reserve, SV.security],
-      },
-      {
-        id: 'dev_dao',
-        emoji: '💻',
-        title: 'Dev DAO',
-        desc: 'Engineering guilds, protocol upgrades, technical bounties',
-        defaultVaultName: 'Dev DAO Vault',
-        defaultVaultEmoji: '💻',
-        subVaults: [SV.dev, SV.payroll, SV.security, SV.operations, SV.reserve],
-      },
-      {
-        id: 'community_dao',
-        emoji: '🌱',
-        title: 'Community DAO',
-        desc: 'Events, education, ambassador programs, content funding',
-        defaultVaultName: 'Community DAO',
-        defaultVaultEmoji: '🌱',
-        subVaults: [SV.community, SV.grants, SV.marketing, SV.operations, SV.reserve],
-      },
+      p('grants_dao',      '🤝', [sv.grants, sv.grantOps, sv.community, sv.reserve, sv.security]),
+      p('dev_dao',         '💻', [sv.dev, sv.payroll, sv.security, sv.operations, sv.reserve]),
+      p('community_dao',   '🌱', [sv.community, sv.grants, sv.marketing, sv.operations, sv.reserve]),
     ],
   },
   {
-    id: 'creator',
-    emoji: '🎨',
-    title: 'Creator / Freelancer',
-    desc: 'Income allocation, project budgets, tax reserves, equipment',
+    id: 'creator', emoji: '🎨',
+    titleKey: 'onboarding.entity.creator.title',
+    descKey:  'onboarding.entity.creator.desc',
     profiles: [
-      {
-        id: 'content_creator',
-        emoji: '📹',
-        title: 'Content Creator',
-        desc: 'Sponsorships, production costs, platform income',
-        defaultVaultName: 'Creator Vault',
-        defaultVaultEmoji: '🎨',
-        subVaults: [SV.income, SV.equipment, SV.taxes, SV.savings, SV.marketing],
-      },
-      {
-        id: 'freelancer',
-        emoji: '💼',
-        title: 'Freelancer / Consultant',
-        desc: 'Client payments, project reserves, invoicing',
-        defaultVaultName: 'Freelance Vault',
-        defaultVaultEmoji: '💼',
-        subVaults: [SV.income, SV.projects, SV.taxes, SV.equipment, SV.reserve],
-      },
-      {
-        id: 'artist',
-        emoji: '🖼️',
-        title: 'Artist / NFT Creator',
-        desc: 'Royalties, minting costs, collector relationships',
-        defaultVaultName: 'Artist Vault',
-        defaultVaultEmoji: '🖼️',
-        subVaults: [SV.income, SV.nft, SV.equipment, SV.taxes, SV.savings],
-      },
+      p('content_creator', '📹', [sv.income, sv.equipment, sv.taxes, sv.savings, sv.marketing]),
+      p('freelancer',      '💼', [sv.income, sv.projects, sv.taxes, sv.equipment, sv.reserve]),
+      p('artist',          '🖼️', [sv.income, sv.nft, sv.equipment, sv.taxes, sv.savings]),
     ],
   },
   {
-    id: 'fund',
-    emoji: '💹',
-    title: 'Investment Fund',
-    desc: 'Portfolio management, fee collection, risk controls, LP capital',
+    id: 'fund', emoji: '💹',
+    titleKey: 'onboarding.entity.fund.title',
+    descKey:  'onboarding.entity.fund.desc',
     profiles: [
-      {
-        id: 'trading',
-        emoji: '📊',
-        title: 'Trading / Quant',
-        desc: 'Algorithmic strategies, position sizing, fee collection',
-        defaultVaultName: 'Fund Treasury',
-        defaultVaultEmoji: '💹',
-        subVaults: [SV.portfolio, SV.fees, SV.reserve, SV.operations, SV.security],
-      },
-      {
-        id: 'yield_fund',
-        emoji: '🌾',
-        title: 'DeFi Yield Fund',
-        desc: 'LP positions, staking strategies, yield optimisation',
-        defaultVaultName: 'Yield Fund',
-        defaultVaultEmoji: '🌾',
-        subVaults: [SV.yield, SV.lp, SV.fees, SV.reserve, SV.operations],
-      },
-      {
-        id: 'nft_fund',
-        emoji: '🖼️',
-        title: 'NFT / Collector Fund',
-        desc: 'Acquisition budget, royalty flows, floor management',
-        defaultVaultName: 'NFT Fund',
-        defaultVaultEmoji: '🖼️',
-        subVaults: [SV.nft, SV.fees, SV.reserve, SV.operations, SV.marketing],
-      },
+      p('trading',         '📊', [sv.portfolio, sv.fees, sv.reserve, sv.operations, sv.security]),
+      p('yield_fund',      '🌾', [sv.yield, sv.lp, sv.fees, sv.reserve, sv.operations]),
+      p('nft_fund',        '🖼️', [sv.nft, sv.fees, sv.reserve, sv.operations, sv.marketing]),
     ],
   },
   {
-    id: 'nonprofit',
-    emoji: '🤝',
-    title: 'Non-profit / NGO',
-    desc: 'Donation management, program funding, transparent reporting',
+    id: 'nonprofit', emoji: '🤝',
+    titleKey: 'onboarding.entity.nonprofit.title',
+    descKey:  'onboarding.entity.nonprofit.desc',
     profiles: [
-      {
-        id: 'humanitarian',
-        emoji: '🌍',
-        title: 'Humanitarian / Aid',
-        desc: 'Direct relief programs, field operations, donor transparency',
-        defaultVaultName: 'NGO Vault',
-        defaultVaultEmoji: '🌍',
-        subVaults: [SV.donations, SV.impact, SV.operations, SV.admin, SV.reserve],
-      },
-      {
-        id: 'advocacy_org',
-        emoji: '📢',
-        title: 'Advocacy Organisation',
-        desc: 'Policy campaigns, awareness programs, coalition building',
-        defaultVaultName: 'Advocacy Vault',
-        defaultVaultEmoji: '📢',
-        subVaults: [SV.advocacy, SV.programs, SV.operations, SV.admin, SV.reserve],
-      },
-      {
-        id: 'research',
-        emoji: '🔬',
-        title: 'Research / Education',
-        desc: 'Research grants, scholarships, publications, conferences',
-        defaultVaultName: 'Research Vault',
-        defaultVaultEmoji: '🔬',
-        subVaults: [SV.grants, SV.rnd, SV.programs, SV.operations, SV.reserve],
-      },
+      p('humanitarian',    '🌍', [sv.donations, sv.impact, sv.operations, sv.admin, sv.reserve]),
+      p('advocacy_org',    '📢', [sv.advocacy, sv.programs, sv.operations, sv.admin, sv.reserve]),
+      p('research',        '🔬', [sv.grants, sv.rnd, sv.programs, sv.operations, sv.reserve]),
     ],
   },
 ];
@@ -292,9 +164,6 @@ export function getEntityDef(id: EntityType): EntityDefinition | undefined {
   return ENTITY_TYPES.find((e) => e.id === id);
 }
 
-export function getProfile(
-  entityId: EntityType,
-  profileId: string
-): EntityProfile | undefined {
+export function getProfile(entityId: EntityType, profileId: string): EntityProfile | undefined {
   return getEntityDef(entityId)?.profiles.find((p) => p.id === profileId);
 }
