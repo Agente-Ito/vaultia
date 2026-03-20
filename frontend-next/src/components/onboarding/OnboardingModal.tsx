@@ -7,7 +7,6 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/common/Button';
 import { Alert, AlertDescription } from '@/components/common/Alert';
-import { cn } from '@/lib/utils/cn';
 import { useOnboarding, MAX_STEPS } from '@/context/OnboardingContext';
 import type { GoalKey, FrequencyKey, ExecutorType, RecipientNetwork } from '@/context/OnboardingContext';
 import { useWeb3 } from '@/context/Web3Context';
@@ -278,32 +277,33 @@ function Step3() {
   return (
     <div className="p-6 space-y-5">
       <div>
-        <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-50">
+        <h2 className="text-xl font-bold" style={{ color: 'var(--text)' }}>
           {t('onboarding.step3.title')}
         </h2>
-        <p className="text-sm text-neutral-500 mt-1">
+        <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
           {t('onboarding.step3.subtitle')}
         </p>
       </div>
       <div className="space-y-4">
         <div>
-          <label className="text-xs font-semibold text-neutral-600 dark:text-neutral-300 uppercase tracking-widest block mb-1">
+          <label className="text-xs font-semibold uppercase tracking-widest block mb-1" style={{ color: 'var(--text-muted)' }}>
             {t('onboarding.step3.amount_label')}
           </label>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-sm font-medium">LYX</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>LYX</span>
             <input
               type="number"
               value={rootBudget}
               onChange={(e) => setRootBudget(e.target.value)}
               min="0"
               step="0.1"
-              className="w-full h-10 rounded-lg border border-neutral-300 pl-12 pr-3 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-50"
+              className="w-full h-10 rounded-lg pl-12 pr-3 text-sm focus:outline-none"
+              style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
             />
           </div>
         </div>
         <div>
-          <label className="text-xs font-semibold text-neutral-600 dark:text-neutral-300 uppercase tracking-widest block mb-2">
+          <label className="text-xs font-semibold uppercase tracking-widest block mb-2" style={{ color: 'var(--text-muted)' }}>
             {t('onboarding.step3.period_label')}
           </label>
           <div className="flex gap-2">
@@ -311,12 +311,12 @@ function Step3() {
               <button
                 key={v}
                 onClick={() => setBudgetPeriod(v)}
-                className={cn(
-                  'flex-1 py-2 rounded-lg border-2 text-sm font-medium transition-all',
-                  budgetPeriod === v
-                    ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-neutral-700 dark:text-primary-300'
-                    : 'border-neutral-200 text-neutral-600 hover:border-primary-300 dark:border-neutral-700 dark:text-neutral-400'
-                )}
+                className="flex-1 py-2 rounded-lg text-sm font-medium transition-all"
+                style={{
+                  background: budgetPeriod === v ? 'var(--card-mid)' : 'transparent',
+                  border: `2px solid ${budgetPeriod === v ? 'var(--accent)' : 'var(--border)'}`,
+                  color: budgetPeriod === v ? 'var(--text)' : 'var(--text-muted)',
+                }}
               >
                 {t(`onboarding.step3.period.${v}` as Parameters<typeof t>[0])}
               </button>
@@ -347,55 +347,59 @@ function Step4({ deploying, deployError }: { deploying: boolean; deployError: st
     <div className="p-6 space-y-5">
       <div className="text-center space-y-1">
         <div className="text-5xl">{vaultEmoji}</div>
-        <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-50">
+        <h2 className="text-xl font-bold" style={{ color: 'var(--text)' }}>
           {t('onboarding.step4.title')}
         </h2>
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
           {t('onboarding.step4.subtitle')}
         </p>
       </div>
 
-      <div className="rounded-xl bg-neutral-50 dark:bg-neutral-700/50 divide-y divide-neutral-100 dark:divide-neutral-700 text-sm overflow-hidden border border-neutral-200 dark:border-neutral-600">
+      <div
+        className="rounded-xl text-sm overflow-hidden"
+        style={{ background: 'var(--card-mid)', border: '1px solid var(--border)' }}
+      >
         {entity && (
-          <div className="flex justify-between px-4 py-2.5">
-            <span className="text-neutral-500">{t('onboarding.step4.entity')}</span>
-            <span className="font-medium text-neutral-900 dark:text-neutral-50">
+          <div className="flex justify-between px-4 py-2.5" style={{ borderBottom: '1px solid var(--border)' }}>
+            <span style={{ color: 'var(--text-muted)' }}>{t('onboarding.step4.entity')}</span>
+            <span className="font-medium" style={{ color: 'var(--text)' }}>
               {entity.emoji} {t(entity.titleKey as Parameters<typeof t>[0])}
             </span>
           </div>
         )}
         {profile && (
-          <div className="flex justify-between px-4 py-2.5">
-            <span className="text-neutral-500">{t('onboarding.step4.profile')}</span>
-            <span className="font-medium text-neutral-900 dark:text-neutral-50">
+          <div className="flex justify-between px-4 py-2.5" style={{ borderBottom: '1px solid var(--border)' }}>
+            <span style={{ color: 'var(--text-muted)' }}>{t('onboarding.step4.profile')}</span>
+            <span className="font-medium" style={{ color: 'var(--text)' }}>
               {profile.emoji} {t(profile.titleKey as Parameters<typeof t>[0])}
             </span>
           </div>
         )}
-        <div className="flex justify-between px-4 py-2.5">
-          <span className="text-neutral-500">{t('onboarding.step4.vault')}</span>
-          <span className="font-medium text-neutral-900 dark:text-neutral-50">{vaultEmoji} {displayName}</span>
+        <div className="flex justify-between px-4 py-2.5" style={{ borderBottom: '1px solid var(--border)' }}>
+          <span style={{ color: 'var(--text-muted)' }}>{t('onboarding.step4.vault')}</span>
+          <span className="font-medium" style={{ color: 'var(--text)' }}>{vaultEmoji} {displayName}</span>
         </div>
-        <div className="flex justify-between px-4 py-2.5">
-          <span className="text-neutral-500">{t('onboarding.step4.budget')}</span>
-          <span className="font-medium text-neutral-900 dark:text-neutral-50">
+        <div className="flex justify-between px-4 py-2.5" style={{ borderBottom: subVaultDetails.length > 0 ? '1px solid var(--border)' : 'none' }}>
+          <span style={{ color: 'var(--text-muted)' }}>{t('onboarding.step4.budget')}</span>
+          <span className="font-medium" style={{ color: 'var(--text)' }}>
             {rootBudget} LYX / {t(`onboarding.step3.period.${budgetPeriod}` as Parameters<typeof t>[0])}
           </span>
         </div>
         {subVaultDetails.length > 0 && (
           <div className="px-4 py-2.5">
-            <p className="text-neutral-500 mb-1.5">{t('onboarding.step4.subvaults')}</p>
+            <p className="mb-1.5" style={{ color: 'var(--text-muted)' }}>{t('onboarding.step4.subvaults')}</p>
             <div className="flex flex-wrap gap-1.5">
               {subVaultDetails.map((sv) => (
                 <span
                   key={sv.id}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-primary-50 text-primary-700 border border-primary-200 dark:bg-neutral-700 dark:text-primary-300 dark:border-neutral-600"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs"
+                  style={{ background: 'rgba(123,97,255,0.15)', color: 'var(--primary)', border: '1px solid rgba(123,97,255,0.25)' }}
                 >
                   {sv.emoji} {t(sv.titleKey as Parameters<typeof t>[0])}
                 </span>
               ))}
             </div>
-            <p className="text-xs text-neutral-400 mt-1.5">
+            <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>
               {t('onboarding.step4.subvaults_hint')}
             </p>
           </div>
@@ -418,7 +422,7 @@ function Step4({ deploying, deployError }: { deploying: boolean; deployError: st
         </Alert>
       )}
       {deploying && (
-        <p className="text-sm text-center text-neutral-500 animate-pulse">
+        <p className="text-sm text-center animate-pulse" style={{ color: 'var(--text-muted)' }}>
           {t('onboarding.step4.deploying')}
         </p>
       )}
@@ -1098,14 +1102,17 @@ export function OnboardingModal() {
 
   return (
     <Dialog open={visible} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="max-w-lg w-full p-0 overflow-hidden">
+      <DialogContent
+        className="max-w-lg w-full p-0 overflow-hidden"
+        style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+      >
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-0">
-          <DialogTitle className="text-lg font-bold text-neutral-900 dark:text-neutral-50">
+          <DialogTitle className="text-lg font-bold" style={{ color: 'var(--text)' }}>
             {t('onboarding.title')}
           </DialogTitle>
-          <span className="text-xs text-neutral-400 font-medium">
+          <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
             {step + 1} / {MAX_STEPS}
           </span>
         </div>
@@ -1117,12 +1124,10 @@ export function OnboardingModal() {
             {STEP_LABEL_KEYS.map((key, i) => (
               <span
                 key={key}
-                className={cn(
-                  'text-xs flex-1 text-center transition-colors',
-                  i < step   ? 'text-primary-500 font-medium'  :
-                  i === step  ? 'text-primary-600 font-semibold' :
-                                'text-neutral-400'
-                )}
+                className="text-xs flex-1 text-center transition-colors font-medium"
+                style={{
+                  color: i < step ? 'var(--success)' : i === step ? 'var(--accent)' : 'var(--text-muted)',
+                }}
               >
                 {t(key)}
               </span>
@@ -1141,16 +1146,16 @@ export function OnboardingModal() {
 
         {/* Footer */}
         {showFooter && (
-          <div className="px-6 pb-5 space-y-3 border-t border-neutral-100 dark:border-neutral-700 pt-3">
+          <div className="px-6 pb-5 space-y-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
             {step >= 2 && (
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={neverShow}
                   onChange={(e) => setNeverShow(e.target.checked)}
-                  className="rounded border-neutral-300 text-primary-500 focus:ring-primary-500"
+                  className="rounded"
                 />
-                <span className="text-xs text-neutral-500">{t('onboarding.footer.never_show')}</span>
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('onboarding.footer.never_show')}</span>
               </label>
             )}
             <div className="flex items-center justify-between gap-3">

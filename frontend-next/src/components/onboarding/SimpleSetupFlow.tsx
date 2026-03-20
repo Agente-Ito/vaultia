@@ -41,8 +41,8 @@ const RECIPIENT_NETWORKS: Array<{ key: RecipientNetwork; labelKey: string }> = [
 ];
 
 const STEP_LABEL_KEYS = [
-  'wizard.step_label.vault',
   'wizard.step_label.goal',
+  'wizard.step_label.vault',
   'wizard.step_label.limits',
   'wizard.step_label.automation',
   'wizard.step_label.review',
@@ -146,7 +146,7 @@ export function SimpleSetupFlow() {
     setStepError(null);
     setDeployError(null);
 
-    if (step === 1 && !goal) {
+    if (step === 0 && !goal) {
       setStepError(translateSimpleError('missing_goal'));
       return;
     }
@@ -255,9 +255,9 @@ export function SimpleSetupFlow() {
             </p>
             <h1 className="text-3xl font-bold" style={{ color: 'var(--text)' }}>
               {step === 0
-                ? t('wizard.vault.title')
+                ? t('wizard.goal.title')
                 : step === 1
-                  ? t('wizard.goal.title')
+                  ? t('wizard.vault.title')
                   : step === 2
                     ? t('wizard.limits.title')
                     : step === 3
@@ -266,9 +266,9 @@ export function SimpleSetupFlow() {
             </h1>
             <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>
               {step === 0
-                ? t('wizard.vault.subtitle')
+                ? t('wizard.goal.subtitle')
                 : step === 1
-                  ? t('wizard.goal.subtitle')
+                  ? t('wizard.vault.subtitle')
                   : step === 2
                     ? t('wizard.limits.subtitle')
                     : step === 3
@@ -298,14 +298,32 @@ export function SimpleSetupFlow() {
             {STEP_LABEL_KEYS.map((labelKey, idx) => {
               const isActive = idx === step;
               const isDone = idx < step;
+              const isClickable = isDone;
               return (
                 <div
                   key={labelKey}
-                  className="rounded-2xl px-3 py-2 text-xs font-medium text-center"
+                  role={isClickable ? 'button' : undefined}
+                  tabIndex={isClickable ? 0 : undefined}
+                  onClick={() => {
+                    if (isClickable) {
+                      setStepError(null);
+                      setDeployError(null);
+                      setStep(idx);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
+                      setStepError(null);
+                      setDeployError(null);
+                      setStep(idx);
+                    }
+                  }}
+                  className="rounded-2xl px-3 py-2 text-xs font-medium text-center transition-opacity"
                   style={{
                     background: isActive ? 'var(--card-mid)' : 'transparent',
                     border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
                     color: isDone ? 'var(--success)' : isActive ? 'var(--text)' : 'var(--text-muted)',
+                    cursor: isClickable ? 'pointer' : 'default',
                   }}
                 >
                   {isDone ? '✓ ' : ''}{t(labelKey)}
@@ -316,39 +334,8 @@ export function SimpleSetupFlow() {
 
           <div className="mt-8 min-h-[420px]">
 
-            {/* ── Step 0: Vault Name ─────────────────────────────────────────── */}
+            {/* ── Step 0: Goal ───────────────────────────────────────────────── */}
             {step === 0 && (
-              <div className="space-y-6 max-w-lg">
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
-                    {t('wizard.vault.name_label')}
-                  </label>
-                  <input
-                    type="text"
-                    value={wizardVaultName}
-                    onChange={(e) => setWizardVaultName(e.target.value)}
-                    placeholder={t('wizard.vault.name_placeholder')}
-                    maxLength={48}
-                    autoFocus
-                    className="w-full rounded-xl px-4 py-3 text-base focus:outline-none"
-                    style={{
-                      background: 'var(--card-mid)',
-                      border: `1px solid ${stepError ? 'var(--blocked)' : 'var(--border)'}`,
-                      color: 'var(--text)',
-                    }}
-                  />
-                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    {t('wizard.vault.name_hint')}
-                  </p>
-                </div>
-                {stepError && (
-                  <p className="text-sm" style={{ color: 'var(--blocked)' }}>{stepError}</p>
-                )}
-              </div>
-            )}
-
-            {/* ── Step 1: Goal ───────────────────────────────────────────────── */}
-            {step === 1 && (
               <div className="space-y-6">
                 {/* Primary presets */}
                 <div className="grid gap-3 md:grid-cols-3">
@@ -406,6 +393,37 @@ export function SimpleSetupFlow() {
                   )}
                 </div>
 
+                {stepError && (
+                  <p className="text-sm" style={{ color: 'var(--blocked)' }}>{stepError}</p>
+                )}
+              </div>
+            )}
+
+            {/* ── Step 1: Vault Name ─────────────────────────────────────────── */}
+            {step === 1 && (
+              <div className="space-y-6 max-w-lg">
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+                    {t('wizard.vault.name_label')}
+                  </label>
+                  <input
+                    type="text"
+                    value={wizardVaultName}
+                    onChange={(e) => setWizardVaultName(e.target.value)}
+                    placeholder={t('wizard.vault.name_placeholder')}
+                    maxLength={48}
+                    autoFocus
+                    className="w-full rounded-xl px-4 py-3 text-base focus:outline-none"
+                    style={{
+                      background: 'var(--card-mid)',
+                      border: `1px solid ${stepError ? 'var(--blocked)' : 'var(--border)'}`,
+                      color: 'var(--text)',
+                    }}
+                  />
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    {t('wizard.vault.name_hint')}
+                  </p>
+                </div>
                 {stepError && (
                   <p className="text-sm" style={{ color: 'var(--blocked)' }}>{stepError}</p>
                 )}

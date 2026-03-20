@@ -133,18 +133,19 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
 
   return (
     <>
-      {/* Mobile overlay */}
+      {/* Overlay — always shown (not just mobile) in setup mode */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-20 bg-black/60 md:hidden backdrop-blur-sm"
+          className={cn('fixed inset-0 z-20 bg-black/60 backdrop-blur-sm', !pathname.startsWith('/setup') && 'md:hidden')}
           onClick={onClose}
         />
       )}
 
-      {/* Sidebar panel */}
+      {/* Sidebar panel — pinned on desktop except in setup mode */}
       <div
         className={cn(
-          'fixed inset-y-0 left-0 z-30 w-64 flex flex-col overflow-y-auto transition-transform duration-300 md:relative md:translate-x-0 md:w-64',
+          'fixed inset-y-0 left-0 z-30 w-64 flex flex-col overflow-y-auto transition-transform duration-300',
+          !pathname.startsWith('/setup') && 'md:relative md:translate-x-0 md:w-64',
           isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
         style={{
