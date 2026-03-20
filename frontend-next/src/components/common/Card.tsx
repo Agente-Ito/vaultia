@@ -6,15 +6,20 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const Card = React.forwardRef<HTMLDivElement, CardProps>(
-  ({ className, hoverable = false, ...props }, ref) => (
+  ({ className, hoverable = false, style, ...props }, ref) => (
     <div
       ref={ref}
       className={cn(
-        'bg-white rounded-md border border-neutral-200 shadow-card p-md',
+        'rounded-2xl border p-md',
         hoverable && 'cursor-pointer transition-shadow hover:shadow-card-hover',
-        'dark:bg-neutral-800 dark:border-neutral-700',
         className
       )}
+      style={{
+        background: 'var(--card)',
+        borderColor: 'var(--border)',
+        boxShadow: '0 14px 32px rgba(5, 7, 10, 0.08)',
+        ...style,
+      }}
       {...props}
     />
   )
@@ -25,10 +30,11 @@ Card.displayName = 'Card';
 type CardHeaderProps = React.HTMLAttributes<HTMLDivElement>;
 
 const CardHeader = React.forwardRef<HTMLDivElement, CardHeaderProps>(
-  ({ className, ...props }, ref) => (
+  ({ className, style, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('flex flex-col space-y-xs pb-md border-b border-neutral-200 dark:border-neutral-700', className)}
+      className={cn('flex flex-col space-y-xs pb-md border-b', className)}
+      style={{ borderColor: 'var(--border)', ...style }}
       {...props}
     />
   )
@@ -39,10 +45,11 @@ CardHeader.displayName = 'CardHeader';
 type CardTitleProps = React.HTMLAttributes<HTMLHeadingElement>;
 
 const CardTitle = React.forwardRef<HTMLHeadingElement, CardTitleProps>(
-  ({ className, ...props }, ref) => (
+  ({ className, style, ...props }, ref) => (
     <h3
       ref={ref}
-      className={cn('text-lg font-semibold leading-6 text-neutral-900 dark:text-neutral-50', className)}
+      className={cn('text-lg font-semibold leading-6', className)}
+      style={{ color: 'var(--text)', ...style }}
       {...props}
     />
   )
@@ -53,10 +60,11 @@ CardTitle.displayName = 'CardTitle';
 type CardDescriptionProps = React.HTMLAttributes<HTMLParagraphElement>;
 
 const CardDescription = React.forwardRef<HTMLParagraphElement, CardDescriptionProps>(
-  ({ className, ...props }, ref) => (
+  ({ className, style, ...props }, ref) => (
     <p
       ref={ref}
-      className={cn('text-sm text-neutral-500 dark:text-neutral-400', className)}
+      className={cn('text-sm', className)}
+      style={{ color: 'var(--text-muted)', ...style }}
       {...props}
     />
   )
@@ -81,10 +89,11 @@ CardContent.displayName = 'CardContent';
 type CardFooterProps = React.HTMLAttributes<HTMLDivElement>;
 
 const CardFooter = React.forwardRef<HTMLDivElement, CardFooterProps>(
-  ({ className, ...props }, ref) => (
+  ({ className, style, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('flex items-center pt-md border-t border-neutral-200 gap-md dark:border-neutral-700', className)}
+      className={cn('flex items-center pt-md border-t gap-md', className)}
+      style={{ borderColor: 'var(--border)', ...style }}
       {...props}
     />
   )

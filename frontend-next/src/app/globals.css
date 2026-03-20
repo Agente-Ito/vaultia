@@ -3,25 +3,161 @@
 @tailwind utilities;
 
 /* ============================================
-   DESIGN SYSTEM - FINANCIAL OS
+   VAULTIA DESIGN SYSTEM — Granular Sky
    ============================================ */
 
-/* All color tokens and spacing are managed exclusively by Tailwind (tailwind.config.ts).
-   Use Tailwind utility classes (text-primary, gap-xs, p-md, etc.) — not CSS custom properties. */
+/* ── Theme tokens via CSS custom properties ─────────────────────────────── */
+:root,
+[data-theme="dark"] {
+  --bg:          #05070A;
+  --bg-surface:  #0B0F1A;
+  --card:        #121A2F;
+  --card-mid:    #1A2747;
+  --primary:     #7B61FF;
+  --accent:      #3CF2FF;
+  --accent-soft: #6EA8FE;
+  --nebula:      #A78BFA;
+  --text:        #EAF2FF;
+  --text-muted:  #8CC8FF;
+  --border:      rgba(110, 168, 254, 0.15);
+  --success:     #22FFB2;
+  --blocked:     #FF4D6D;
+  --warning:     #FFC857;
+  --glow:        rgba(123, 97, 255, 0.35);
+}
+
+[data-theme="light"] {
+  --bg:          #F5F9FF;
+  --bg-surface:  #EEF4FF;
+  --card:        #FFFFFF;
+  --card-mid:    #F0F5FF;
+  --primary:     #3F7DFF;
+  --accent:      #6EA8FE;
+  --accent-soft: #93C5FD;
+  --nebula:      #7B61FF;
+  --text:        #0F172A;
+  --text-muted:  #475569;
+  --border:      rgba(63, 125, 255, 0.15);
+  --success:     #059669;
+  --blocked:     #DC2626;
+  --warning:     #D97706;
+  --glow:        rgba(63, 125, 255, 0.2);
+}
+
+/* ── Keyframe animations ─────────────────────────────────────────────────── */
+
+/* Orbiting particle around connect button */
+@keyframes particle-orbit {
+  from { transform: rotate(0deg) translateX(22px) rotate(0deg); }
+  to   { transform: rotate(360deg) translateX(22px) rotate(-360deg); }
+}
+
+/* Particle pulsing (node) */
+@keyframes pulse-node {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.75); }
+}
+
+/* Particle traveling along a line */
+@keyframes particle-travel {
+  0%   { offset-distance: 0%;   opacity: 1; }
+  80%  { offset-distance: 90%;  opacity: 1; }
+  100% { offset-distance: 100%; opacity: 0; }
+}
+
+/* Vault activation: collapse → explode → settle */
+@keyframes vault-ignite {
+  0%   { transform: scale(1);    opacity: 1; }
+  35%  { transform: scale(0.05); opacity: 0.8; }
+  60%  { transform: scale(1.6);  opacity: 0.6; }
+  100% { transform: scale(1);    opacity: 0; }
+}
+
+/* Node slow float */
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-6px); }
+}
+
+/* Glow pulse for active nodes */
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 8px var(--glow); }
+  50%       { box-shadow: 0 0 20px var(--glow), 0 0 40px var(--glow); }
+}
+
+/* ── Animation utility classes ────────────────────────────────────────────── */
+.animate-particle-orbit {
+  animation: particle-orbit linear infinite;
+}
+.animate-pulse-node {
+  animation: pulse-node 2s ease-in-out infinite;
+}
+.animate-float-slow {
+  animation: float-slow 4s ease-in-out infinite;
+}
+.animate-glow-pulse {
+  animation: glow-pulse 2.5s ease-in-out infinite;
+}
+.animate-vault-ignite {
+  animation: vault-ignite 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* ── Base themed styles ──────────────────────────────────────────────────── */
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Themed component aliases ─────────────────────────────────────────────── */
+.vaultia-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.vaultia-surface {
+  background: var(--bg-surface);
+}
+
+.vaultia-btn-primary {
+  background: var(--primary);
+  color: #fff;
+  border-radius: 10px;
+  padding: 0.625rem 1.5rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: opacity 0.15s, box-shadow 0.15s;
+}
+.vaultia-btn-primary:hover {
+  opacity: 0.88;
+  box-shadow: 0 0 16px var(--glow);
+}
+
+/* Orbit container — place around ConnectButton */
+.orbit-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.orbit-dot {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  top: 50%;
+  left: 50%;
+  margin-top: -2.5px;
+  margin-left: -2.5px;
+}
 
 /* ============================================
    TYPOGRAPHY & BASE STYLES
    ============================================ */
-
-body {
-  @apply bg-white text-neutral-900 font-sans antialiased;
-}
-
-@media (prefers-color-scheme: dark) {
-  body {
-    @apply bg-neutral-900 text-neutral-50;
-  }
-}
 
 h1 {
   @apply text-3xl font-bold leading-tight tracking-tight;

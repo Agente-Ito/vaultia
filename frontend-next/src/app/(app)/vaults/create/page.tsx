@@ -15,6 +15,14 @@ import { useI18n } from '@/context/I18nContext';
 import { cn } from '@/lib/utils/cn';
 import { verifyPermissionsWrite } from '@/lib/verifyWrite';
 import {
+  AgentMode,
+  buildRegistryDeployParams,
+  deployRegistryVault,
+  encodeAllowedCallsForTargets,
+  permissionHexForMode,
+  PERM_POWER_USER,
+} from '@/lib/web3/deployVault';
+import {
   getBaseTokenOptions,
   getBaseVaultFactoryContract,
   switchToBase,
@@ -51,41 +59,6 @@ function getErrorMessage(error: unknown) {
     if (typeof e.message === 'string' && e.message) return e.message;
   }
   return String(error);
-}
-
-const AgentMode = {
-  STRICT_PAYMENTS: 0,
-  SUBSCRIPTIONS: 1,
-  TREASURY_BALANCED: 2,
-  OPS_ADMIN: 3,
-  CUSTOM: 4,
-} as const;
-
-const PERM_STRICT_PAYMENTS = '0x0000000000000000000000000000000000000000000000000000000000000A00';
-const PERM_SUBSCRIPTIONS = '0x0000000000000000000000000000000000000000000000000000000000400A00';
-const PERM_TREASURY_BALANCED = '0x0000000000000000000000000000000000000000000000000000000000002A00';
-const PERM_OPS_ADMIN = '0x0000000000000000000000000000000000000000000000000000000000040000';
-const PERM_POWER_USER = '0x0000000000000000000000000000000000000000000000000000000000000500';
-
-const ANY_STANDARD_ID = 'ffffffff';
-const ANY_FUNCTION_SIG = 'ffffffff';
-const ALLOWED_CALL_TYPE_CALL_AND_VALUE = 3;
-
-function encodeAllowedCallsForTargets(targets: string[]): string {
-  if (targets.length === 0) return '0x';
-  const entries = targets.map((addr) => {
-    const normalized = ethers.getAddress(addr).slice(2).toLowerCase();
-    return `0020${ALLOWED_CALL_TYPE_CALL_AND_VALUE.toString(16).padStart(8, '0')}${normalized}${ANY_STANDARD_ID}${ANY_FUNCTION_SIG}`;
-  });
-  return `0x${entries.join('')}`;
-}
-
-function permissionHexForMode(agentMode: number): string {
-  if (agentMode === AgentMode.STRICT_PAYMENTS) return PERM_STRICT_PAYMENTS;
-  if (agentMode === AgentMode.SUBSCRIPTIONS) return PERM_SUBSCRIPTIONS;
-  if (agentMode === AgentMode.TREASURY_BALANCED) return PERM_TREASURY_BALANCED;
-  if (agentMode === AgentMode.OPS_ADMIN) return PERM_OPS_ADMIN;
-  return PERM_POWER_USER;
 }
 
 interface Eip1193ProviderLike {
@@ -459,45 +432,28 @@ export default function CreateVaultPage() {
         agentMode === AgentMode.CUSTOM ? PERM_POWER_USER : ethers.ZeroHash;
 
       setStatus('Sending transaction…');
-      const tx = await registry.deployVault({
-        budget: ethers.parseEther(budget),
-        period: Number(period),
-        budgetToken: ethers.ZeroAddress,
-        expiration: expirationUnix,
-        agents: agentList,
-        agentBudgets: agentBudgetsList,
-        merchants: merchantList,
-        label,
-        agentMode,
-        allowSuperPermissions,
-        customAgentPermissions,
-        allowedCallsByAgent,
-      });
-
       setStatus('Waiting for confirmation…');
-      const receipt = await tx.wait();
-      if (!receipt) throw new Error('Transaction receipt not available');
-
-      const iface = registry.interface;
-      let safeAddr = '', kmAddr = '', peAddr = '';
-      for (const log of receipt.logs) {
-        try {
-          const parsed = iface.parseLog(log);
-          if (parsed?.name === 'VaultDeployed') {
-            safeAddr = parsed.args.safe;
-            kmAddr   = parsed.args.keyManager;
-            peAddr   = parsed.args.policyEngine;
-          }
-        } catch { /* ignore unrelated logs */ }
-      }
-
-      if (!safeAddr) {
-        const latest = await registry.getVaults(owner);
-        const found =
-          latest.find((v) => !existingSafeAddresses.has(v.safe.toLowerCase()) && v.label === label) ??
-          latest.find((v) => !existingSafeAddresses.has(v.safe.toLowerCase()));
-        if (found) { safeAddr = found.safe; kmAddr = found.keyManager; peAddr = found.policyEngine; }
-      }
+      const { receipt, deployed: deployedVault } = await deployRegistryVault({
+        registry,
+        owner,
+        existingSafeAddresses,
+        params: buildRegistryDeployParams({
+          budget: ethers.parseEther(budget),
+          period: Number(period),
+          expiration: expirationUnix,
+          agents: agentList,
+          agentBudgets: agentBudgetsList,
+          merchants: merchantList,
+          label,
+          agentMode,
+          allowSuperPermissions,
+          customAgentPermissions,
+          allowedCallsByAgent,
+        }),
+      });
+      const safeAddr = deployedVault?.safe ?? '';
+      const kmAddr = deployedVault?.keyManager ?? '';
+      const peAddr = deployedVault?.policyEngine ?? '';
 
       if (!safeAddr) {
         setStatus(`Vault deployed (tx: ${receipt.hash}), but deployed addresses could not be recovered. Check the explorer or refresh your vault list.`);

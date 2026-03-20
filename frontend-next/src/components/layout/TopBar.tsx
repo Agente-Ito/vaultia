@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useDisconnect } from 'wagmi';
 import { useMode } from '@/context/ModeContext';
+import { useTheme } from '@/context/ThemeContext';
 import { useI18n } from '@/context/I18nContext';
 import { useWeb3 } from '@/context/Web3Context';
 import { useUniversalProfile } from '@/hooks/useUniversalProfile';
@@ -14,20 +15,22 @@ import { Button } from '@/components/common/Button';
 import { Badge } from '@/components/common/Badge';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { cn } from '@/lib/utils/cn';
+import { lookupBasename, BASENAME_CHAINS } from '@/lib/web3/basename';
 
 // ─── Page meta ────────────────────────────────────────────────────────────────
 
 const PAGE_META: Record<string, { titleKey: string; ctaLabelKey?: string; ctaHref?: string }> = {
   '/dashboard':     { titleKey: 'nav.dashboard' },
-  '/vaults':        { titleKey: 'nav.vaults',    ctaLabelKey: 'vaults.create', ctaHref: '/vaults/create' },
+  '/vaults':        { titleKey: 'nav.spaces',         ctaLabelKey: 'vaults.create', ctaHref: '/vaults/create' },
   '/vaults/create': { titleKey: 'create.title' },
-  '/rules':         { titleKey: 'nav.rules' },
+  '/rules':         { titleKey: 'nav.spending_rules' },
   '/activity':      { titleKey: 'nav.activity' },
   '/profiles':      { titleKey: 'nav.profiles' },
-  '/agents':        { titleKey: 'nav.agents' },
+  '/agents':        { titleKey: 'nav.automations' },
   '/automation':    { titleKey: 'nav.automation' },
   '/budgets':       { titleKey: 'nav.budgets' },
   '/settings':      { titleKey: 'nav.settings' },
+  '/missions':      { titleKey: 'nav.active_automations' },
 };
 
 function resolvePageMeta(pathname: string) {
@@ -35,7 +38,15 @@ function resolvePageMeta(pathname: string) {
   const prefix = Object.keys(PAGE_META)
     .filter((k) => pathname.startsWith(k + '/'))
     .sort((a, b) => b.length - a.length)[0];
-  return prefix ? PAGE_META[prefix] : { titleKey: 'nav.app_name' };
+  return prefix ? PAGE_META[prefix] : { titleKey: 'nav.app_name_vaultia' };
+}
+
+// ─── Gradient avatar (address-seeded) ─────────────────────────────────────────
+
+function gradientFromAddress(addr: string): string {
+  const h1 = parseInt(addr.slice(2, 6), 16) % 360;
+  const h2 = (h1 + 120) % 360;
+  return `linear-gradient(135deg, hsl(${h1},70%,55%), hsl(${h2},70%,45%))`;
 }
 
 // ─── UP Avatar ────────────────────────────────────────────────────────────────
@@ -53,22 +64,51 @@ function UPAvatar({
 
   if (avatarUrl) {
     return (
-      <div className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-primary-400 flex-shrink-0">
+      <div
+        className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0"
+        style={{ boxShadow: '0 0 0 2px var(--accent)' }}
+      >
         <Image
           src={avatarUrl}
           alt={name || address}
           width={32}
           height={32}
           className="w-full h-full object-cover"
-          unoptimized // IPFS URLs need unoptimized
+          unoptimized
         />
       </div>
     );
   }
 
   return (
-    <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+    <div
+      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+      style={{ background: gradientFromAddress(address) }}
+    >
       {initial}
+    </div>
+  );
+}
+
+// ─── Orbit ring (animated dots around connect button) ─────────────────────────
+
+function OrbitRing({ connected }: { connected: boolean }) {
+  if (connected) return null;
+  return (
+    <div className="orbit-container pointer-events-none absolute inset-0" aria-hidden="true">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="orbit-dot animate-particle-orbit"
+          style={{
+            animationDuration: `${3 + i * 1.5}s`,
+            animationDelay: `${i * -1.1}s`,
+            opacity: 0.7 - i * 0.15,
+            width: i === 0 ? 5 : i === 1 ? 4 : 3,
+            height: i === 0 ? 5 : i === 1 ? 4 : 3,
+          }}
+        />
+      ))}
     </div>
   );
 }
@@ -89,20 +129,26 @@ function RainbowConnectButton({ onConnect }: { onConnect?: () => void }) {
         };
         if (hasUPExtension) {
           return (
-            <button
-              onClick={handleClick}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-semibold shadow-sm hover:opacity-90 transition-opacity"
-              style={{ background: 'linear-gradient(135deg, #FE005B 0%, #FF9B00 100%)' }}
-            >
-              <span>🌐</span>
-              {t('up.login_button')}
-            </button>
+            <div className="relative inline-flex">
+              <button
+                onClick={handleClick}
+                className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-white text-xs font-semibold shadow-sm hover:opacity-90 transition-opacity z-10"
+                style={{ background: 'linear-gradient(135deg, #7B61FF 0%, #3CF2FF 100%)' }}
+              >
+                <span>⬡</span>
+                {t('up.login_button')}
+              </button>
+              <OrbitRing connected={false} />
+            </div>
           );
         }
         return (
-          <Button size="sm" variant="primary" onClick={handleClick}>
-            {t('common.connect_wallet')}
-          </Button>
+          <div className="relative inline-flex">
+            <Button size="sm" variant="primary" onClick={handleClick}>
+              {t('common.connect_wallet')}
+            </Button>
+            <OrbitRing connected={false} />
+          </div>
         );
       }}
     </ConnectButton.Custom>
@@ -133,6 +179,16 @@ function ConnectedAccount({
   const { disconnect } = useDisconnect();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [basename, setBasename] = useState<string | null>(null);
+
+  // Resolve basename for Base chains
+  useEffect(() => {
+    if (!account || !chainId || !BASENAME_CHAINS.has(chainId)) {
+      setBasename(null);
+      return;
+    }
+    lookupBasename(account, chainId).then(setBasename);
+  }, [account, chainId]);
 
   // Close on outside click
   useEffect(() => {
@@ -145,15 +201,20 @@ function ConnectedAccount({
     return () => document.removeEventListener('mousedown', handleClick);
   }, [menuOpen]);
 
-  const formatAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  const shortAddress = (addr: string) => `${addr.slice(0, 6)}…${addr.slice(-4)}`;
   const chainLabel = chainId ? (CHAIN_LABELS[chainId] ?? `Chain ${chainId}`) : null;
   const isKnownChain = chainId ? chainId in CHAIN_LABELS : false;
+
+  // Priority: UP name → basename → short address
+  const displayName = (isUniversalProfile && profile?.name)
+    ? profile.name
+    : basename ?? null;
 
   return (
     <ConnectButton.Custom>
       {({ openChainModal }) => (
         <div className="flex items-center gap-sm">
-          {/* Chain badge — clickable to switch network */}
+          {/* Chain badge */}
           {chainId && (
             <button
               onClick={openChainModal}
@@ -169,35 +230,29 @@ function ConnectedAccount({
             </button>
           )}
 
-          {/* Account section — click avatar to open dropdown */}
+          {/* Account section */}
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setMenuOpen((v) => !v)}
               className="flex items-center gap-sm focus:outline-none"
             >
-              {/* Identity text */}
+              {/* Identity text — address hidden in header, only name / follower count */}
               <div className="hidden sm:block text-right">
-                {isUniversalProfile && profile?.name ? (
+                {displayName ? (
                   <>
-                    <p className="text-sm font-medium text-neutral-900 dark:text-neutral-50 leading-tight">
-                      {profile.name}
+                    <p className="text-sm font-semibold leading-tight" style={{ color: 'var(--text)' }}>
+                      {displayName}
                     </p>
-                    <p className="text-xs text-neutral-400 font-mono">
-                      {formatAddress(account)}
-                      {profile.followerCount !== null && (
-                        <span className="ml-1.5">
-                          · {profile.followerCount.toLocaleString()} followers
-                        </span>
-                      )}
-                    </p>
+                    {profile?.followerCount !== null && profile?.followerCount !== undefined && (
+                      <p className="text-xs leading-tight" style={{ color: 'var(--text-muted)' }}>
+                        {profile.followerCount.toLocaleString()} followers
+                      </p>
+                    )}
                   </>
                 ) : (
-                  <>
-                    <p className="text-xs text-neutral-500 dark:text-neutral-400">{t('common.connected')}</p>
-                    <p className="text-sm font-mono font-medium text-neutral-900 dark:text-neutral-50">
-                      {formatAddress(account)}
-                    </p>
-                  </>
+                  <p className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
+                    {shortAddress(account)}
+                  </p>
                 )}
               </div>
 
@@ -210,27 +265,47 @@ function ConnectedAccount({
 
             {/* Dropdown menu */}
             {menuOpen && (
-              <div className="absolute right-0 top-full mt-2 w-48 rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-800 overflow-hidden z-50">
-                {/* Address row */}
-                <div className="px-3 py-2 border-b border-neutral-100 dark:border-neutral-700">
-                  <p className="text-xs text-neutral-400 font-mono truncate">{account}</p>
+              <div
+                className="absolute right-0 top-full mt-2 w-56 rounded-xl overflow-hidden z-50 shadow-xl"
+                style={{
+                  background: 'var(--card)',
+                  border: '1px solid var(--border)',
+                }}
+              >
+                {/* Profile info */}
+                {isUniversalProfile && (profile?.name || profile?.description) && (
+                  <div className="px-3 py-2.5" style={{ borderBottom: '1px solid var(--border)' }}>
+                    {profile?.name && (
+                      <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{profile.name}</p>
+                    )}
+                    {profile?.description && (
+                      <p className="text-xs mt-0.5 line-clamp-2" style={{ color: 'var(--text-muted)' }}>{profile.description}</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Address row — full address only in dropdown */}
+                <div className="px-3 py-2" style={{ borderBottom: '1px solid var(--border)' }}>
+                  <p className="text-xs font-mono truncate" style={{ color: 'var(--text-muted)' }}>{account}</p>
                 </div>
 
                 {/* Switch network */}
                 <button
                   onClick={() => { setMenuOpen(false); openChainModal(); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:opacity-80"
+                  style={{ color: 'var(--text)' }}
                 >
-                  <span>🔗</span>
+                  <span>⬡</span>
                   {t('topbar.switch_network')}
                 </button>
 
                 {/* Disconnect */}
                 <button
                   onClick={() => { setMenuOpen(false); disconnect(); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-neutral-700 transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:opacity-80"
+                  style={{ color: 'var(--blocked)' }}
                 >
-                  <span>🔌</span>
+                  <span>⏻</span>
                   {t('topbar.disconnect')}
                 </button>
               </div>
@@ -253,6 +328,7 @@ interface TopBarProps {
 
 export function TopBar({ account, chainId, onMenuClick, onConnect }: TopBarProps) {
   const { mode, setMode } = useMode();
+  const { isDark, toggle: toggleTheme } = useTheme();
   const { t, locale, setLocale } = useI18n();
   const { isUniversalProfile } = useWeb3();
   const pathname = usePathname();
@@ -267,22 +343,29 @@ export function TopBar({ account, chainId, onMenuClick, onConnect }: TopBarProps
   );
 
   return (
-    <header className="sticky top-0 z-40 border-b border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-800">
+    <header
+      className="sticky top-0 z-40"
+      style={{
+        background: 'var(--bg-surface)',
+        borderBottom: '1px solid var(--border)',
+      }}
+    >
       <div className="px-lg py-md flex items-center gap-md">
         {/* Mobile menu */}
         <button
           onClick={onMenuClick}
-          className="md:hidden p-xs hover:bg-neutral-100 rounded-md dark:hover:bg-neutral-700 flex-shrink-0"
+          className="md:hidden p-xs rounded-md flex-shrink-0 transition-colors hover:opacity-70"
           aria-label="Toggle menu"
+          style={{ color: 'var(--text-muted)' }}
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
 
         {/* Page title + context CTA */}
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          <h2 className="text-base font-semibold text-neutral-900 dark:text-neutral-50 truncate">
+          <h2 className="text-base font-semibold truncate" style={{ color: 'var(--text)' }}>
             {pageTitle}
           </h2>
           {pageMeta.ctaHref && pageMeta.ctaLabelKey && (
@@ -295,19 +378,26 @@ export function TopBar({ account, chainId, onMenuClick, onConnect }: TopBarProps
         </div>
 
         {/* Right controls */}
-        <div className="flex items-center gap-md flex-shrink-0">
+        <div className="flex items-center gap-3 flex-shrink-0">
           {/* Mode toggle */}
-          <div className="hidden sm:flex items-center gap-xs bg-neutral-100 rounded-md p-xs dark:bg-neutral-700">
+          <div
+            className="hidden sm:flex items-center gap-xs rounded-lg p-xs"
+            style={{ background: 'var(--card)' }}
+          >
             {(['simple', 'advanced'] as const).map((m) => (
               <button
                 key={m}
                 onClick={() => setMode(m)}
                 className={cn(
-                  'px-sm py-xs text-xs font-medium rounded transition-colors',
-                  mode === m
-                    ? 'bg-white text-neutral-900 shadow-sm dark:bg-neutral-600 dark:text-white'
-                    : 'text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-200'
+                  'px-sm py-xs text-xs font-medium rounded-md transition-all duration-150',
+                  mode === m ? 'shadow-sm' : 'opacity-50 hover:opacity-70'
                 )}
+                style={mode === m ? {
+                  background: 'var(--primary)',
+                  color: '#fff',
+                } : {
+                  color: 'var(--text-muted)',
+                }}
               >
                 {t(m === 'simple' ? 'topbar.simple' : 'topbar.advanced')}
               </button>
@@ -315,22 +405,48 @@ export function TopBar({ account, chainId, onMenuClick, onConnect }: TopBarProps
           </div>
 
           {/* Language toggle */}
-          <div className="hidden sm:flex items-center gap-xs bg-neutral-100 rounded-md p-xs dark:bg-neutral-700">
+          <div
+            className="hidden sm:flex items-center gap-xs rounded-lg p-xs"
+            style={{ background: 'var(--card)' }}
+          >
             {(['en', 'es'] as const).map((l) => (
               <button
                 key={l}
                 onClick={() => setLocale(l)}
                 className={cn(
-                  'px-sm py-xs text-xs font-medium rounded transition-colors',
-                  locale === l
-                    ? 'bg-white text-neutral-900 shadow-sm dark:bg-neutral-600 dark:text-white'
-                    : 'text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-200'
+                  'px-sm py-xs text-xs font-medium rounded-md transition-all duration-150',
+                  locale === l ? 'shadow-sm' : 'opacity-50 hover:opacity-70'
                 )}
+                style={locale === l ? {
+                  background: 'var(--primary)',
+                  color: '#fff',
+                } : {
+                  color: 'var(--text-muted)',
+                }}
               >
                 {l.toUpperCase()}
               </button>
             ))}
           </div>
+
+          {/* Theme toggle */}
+          <button
+            onClick={toggleTheme}
+            title={t('settings.theme.toggle')}
+            className="p-1.5 rounded-lg transition-colors hover:opacity-70 hidden sm:flex items-center justify-center"
+            style={{ color: 'var(--text-muted)', background: 'var(--card)' }}
+          >
+            {isDark ? (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="5" strokeWidth="2" strokeLinecap="round" />
+                <path strokeWidth="2" strokeLinecap="round" d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+              </svg>
+            )}
+          </button>
 
           {/* Notification bell — only for UP users */}
           {isUniversalProfile && account && (

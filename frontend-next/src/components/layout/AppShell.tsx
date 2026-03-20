@@ -15,7 +15,7 @@ export function AppShell({ children, account, chainId, onConnect }: AppShellProp
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen bg-neutral-50 dark:bg-neutral-900">
+    <div className="flex h-screen" style={{ background: 'var(--bg)' }}>
       {/* Sidebar */}
       <SidebarClient isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
@@ -30,7 +30,7 @@ export function AppShell({ children, account, chainId, onConnect }: AppShellProp
         />
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-lg md:p-xl">
+        <main className="flex-1 overflow-y-auto p-lg md:p-xl" style={{ background: 'var(--bg)' }}>
           <div className="max-w-7xl mx-auto">
             {children}
           </div>
@@ -39,3 +39,4 @@ export function AppShell({ children, account, chainId, onConnect }: AppShellProp
     </div>
   );
 }
+

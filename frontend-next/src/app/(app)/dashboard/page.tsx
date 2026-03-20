@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { ethers } from 'ethers';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
@@ -11,10 +11,12 @@ import { Skeleton } from '@/components/common/Skeleton';
 import { BudgetTreeView, type BudgetNode } from '@/components/dashboard/BudgetTreeView';
 import { AgentCardScroll } from '@/components/dashboard/AgentCardScroll';
 import { PaymentTimeline } from '@/components/dashboard/PaymentTimeline';
+import { PermissionGraph } from '@/components/dashboard/PermissionGraph';
 import { useWeb3 } from '@/context/Web3Context';
 import { useVaults } from '@/hooks/useVaults';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { useDemo } from '@/context/DemoContext';
+import { useMode } from '@/context/ModeContext';
 import { DemoWorkspace } from '@/components/demo/DemoWorkspace';
 import { getProvider } from '@/lib/web3/provider';
 import { useI18n } from '@/context/I18nContext';
@@ -77,11 +79,77 @@ function EmptyBudgetTree({ onEnable }: { onEnable: () => void }) {
   );
 }
 
+function StatusChip({ label, value, tone }: { label: string; value: string; tone: 'primary' | 'success' | 'warning' }) {
+  const colorMap = {
+    primary: 'var(--primary)',
+    success: 'var(--success)',
+    warning: 'var(--warning)',
+  } as const;
+
+  return (
+    <div
+      className="rounded-2xl px-4 py-4 space-y-1"
+      style={{ background: 'var(--card-mid)', border: '1px solid var(--border)' }}
+    >
+      <p className="text-xs uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>{label}</p>
+      <p className="text-2xl font-semibold" style={{ color: colorMap[tone] }}>{value}</p>
+    </div>
+  );
+}
+
+function QuickActionButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="rounded-2xl px-4 py-3 text-left text-sm font-medium transition-opacity hover:opacity-85"
+      style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function AdvancedControlsTabs({ pathname, onNavigate }: { pathname: string; onNavigate: (href: string) => void }) {
+  const { t } = useI18n();
+  const tabs = [
+    { href: '/dashboard', label: t('nav.dashboard') },
+    { href: '/vaults', label: t('nav.spaces') },
+    { href: '/rules', label: t('nav.spending_rules') },
+    { href: '/automation', label: t('nav.automation') },
+    { href: '/agents', label: t('nav.automations') },
+    { href: '/budgets', label: t('nav.budgets') },
+  ];
+
+  return (
+    <div className="flex gap-2 overflow-x-auto pb-1">
+      {tabs.map((tab) => {
+        const active = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+        return (
+          <button
+            key={tab.href}
+            onClick={() => onNavigate(tab.href)}
+            className="whitespace-nowrap rounded-full px-3 py-2 text-sm font-medium transition-all"
+            style={{
+              background: active ? 'var(--primary)' : 'var(--card-mid)',
+              color: active ? '#fff' : 'var(--text)',
+              border: `1px solid ${active ? 'transparent' : 'var(--border)'}`,
+            }}
+          >
+            {tab.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const { t } = useI18n();
+  const { isAdvanced } = useMode();
   const { registry, account, isConnected, connect } = useWeb3();
   const { vaults, loading: vaultsLoading } = useVaults(registry, account);
   const { open: openOnboarding, completed: onboardingCompleted } = useOnboarding();
@@ -144,6 +212,17 @@ export default function DashboardPage() {
   const events         = isDemo ? demoEvents         : [];
   const vaultCount     = isDemo ? 2 : vaults.length;
   const selectedNode   = findNode(budgetNodes, selectedNodeId);
+  const graphSpaces = (isDemo
+    ? [
+        { label: 'Payments', status: 'active' as const, recipients: ['Alice', 'Bob'], agentLabel: 'Vaultia' },
+        { label: 'Subscriptions', status: 'active' as const, recipients: ['Services'], agentLabel: 'Scheduler' },
+        { label: 'Savings', status: 'pending' as const, recipients: ['Pool'] },
+      ]
+    : vaults.slice(0, 4).map((vault, index) => ({
+        label: vault.label || vault.safe.slice(0, 8),
+      status: index === 1 ? ('pending' as const) : ('active' as const),
+      }))
+  );
 
   const balanceDisplay = isDemo
     ? '13,247.00 LYX'
@@ -151,8 +230,115 @@ export default function DashboardPage() {
       ? `${totalBalance ?? '0.0000'} LYX`
       : '—';
 
+  if (!isAdvanced) {
+    return (
+      <div className="space-y-6">
+        <section
+          className="rounded-[28px] p-6 md:p-8"
+          style={{
+            background: 'linear-gradient(135deg, rgba(123,97,255,0.16) 0%, rgba(60,242,255,0.08) 55%, rgba(18,26,47,0.95) 100%)',
+            border: '1px solid var(--border)',
+          }}
+        >
+          <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+            <div className="space-y-2 max-w-2xl">
+              <p className="text-xs uppercase tracking-[0.2em]" style={{ color: 'var(--text-muted)' }}>
+                Smart Money Space
+              </p>
+              <h1 className="text-3xl md:text-4xl font-semibold" style={{ color: 'var(--text)' }}>
+                {balanceDisplay}
+              </h1>
+              <p className="text-sm md:text-base" style={{ color: 'var(--text-muted)' }}>
+                {t('dashboard.trust')}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {isConnected || isDemo ? (
+                <Link href="/vaults/create">
+                  <Button size="sm">{t('dashboard.new_vault')}</Button>
+                </Link>
+              ) : (
+                <Button size="sm" onClick={connect}>{t('dashboard.connect_wallet_btn')}</Button>
+              )}
+              <Button variant="secondary" size="sm" onClick={openOnboarding}>
+                {t('nav.setup_cta')}
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
+            <StatusChip label={t('dashboard.status.active')} value={String(vaultCount)} tone="success" />
+            <StatusChip label={t('dashboard.graph.title')} value={graphSpaces.length ? `${graphSpaces.length}` : '0'} tone="primary" />
+            <StatusChip label={t('dashboard.quick.title')} value={events.length ? `${events.length}` : '0'} tone="warning" />
+          </div>
+        </section>
+
+        <div className="grid grid-cols-1 xl:grid-cols-[1.4fr_0.9fr] gap-5">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('dashboard.graph.title')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PermissionGraph spaces={graphSpaces} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('dashboard.quick.title')}</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-3">
+              <QuickActionButton label={t('dashboard.quick.pause')} onClick={() => router.push('/automation')} />
+              <QuickActionButton label={t('dashboard.quick.add_recipient')} onClick={() => router.push('/rules')} />
+              <QuickActionButton label={t('dashboard.quick.update_limit')} onClick={() => router.push('/budgets')} />
+              <QuickActionButton label={t('dashboard.quick.run_now')} onClick={() => router.push('/missions/create')} />
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('dashboard.upcoming_payments')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {events.length > 0 ? <PaymentTimeline events={events} /> : <EmptyTimeline onEnable={enableDemo} />}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('dashboard.budget_tree')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {budgetNodes.length > 0 ? (
+                <BudgetTreeView
+                  nodes={budgetNodes}
+                  selectedId={selectedNodeId}
+                  onSelect={(node) => setSelectedNodeId(node.id)}
+                  onAddCategory={() => router.push('/budgets')}
+                />
+              ) : (
+                <EmptyBudgetTree onEnable={enableDemo} />
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('dashboard.advanced_controls')}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AdvancedControlsTabs pathname={pathname} onNavigate={(href) => router.push(href)} />
+        </CardContent>
+      </Card>
 
       {/* ─── Header: Balance total ─── */}
       <div className="flex items-end justify-between">
@@ -190,6 +376,21 @@ export default function DashboardPage() {
           <Button size="sm" onClick={connect}>{t('dashboard.connect_wallet_btn')}</Button>
         )}
       </div>
+
+      {/* ─── Permission Map ─── */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('dashboard.graph.title')}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <PermissionGraph
+            spaces={vaults.map((v) => ({
+              label: (v as { label?: string }).label ?? v.safe.slice(0, 8),
+              status: 'active' as const,
+            }))}
+          />
+        </CardContent>
+      </Card>
 
       {/* ─── Main: Budget tree + detail panel ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">

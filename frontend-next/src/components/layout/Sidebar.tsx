@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useMode } from '@/context/ModeContext';
+import { useTheme } from '@/context/ThemeContext';
 import { useI18n } from '@/context/I18nContext';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { useDemo } from '@/context/DemoContext';
@@ -14,22 +15,22 @@ import { cn } from '@/lib/utils/cn';
 type NavItem = { href: string; labelKey: string; icon: string };
 
 const CORE_ITEMS: NavItem[] = [
-  { href: '/dashboard',  labelKey: 'nav.dashboard',  icon: '📊' },
-  { href: '/vaults',     labelKey: 'nav.vaults',     icon: '🔐' },
-  { href: '/missions',   labelKey: 'nav.missions',   icon: '🎯' },
-  { href: '/rules',      labelKey: 'nav.rules',      icon: '🛡️' },
-  { href: '/activity',   labelKey: 'nav.activity',   icon: '📈' },
-  { href: '/profiles',   labelKey: 'nav.profiles',   icon: '👥' },
+  { href: '/dashboard',  labelKey: 'nav.dashboard',       icon: '◈' },
+  { href: '/vaults',     labelKey: 'nav.spaces',           icon: '✦' },
+  { href: '/missions',   labelKey: 'nav.active_automations', icon: '⚡' },
+  { href: '/rules',      labelKey: 'nav.spending_rules',   icon: '⬡' },
+  { href: '/activity',   labelKey: 'nav.activity',         icon: '◎' },
+  { href: '/profiles',   labelKey: 'nav.profiles',         icon: '◉' },
 ];
 
 const PRO_ITEMS: NavItem[] = [
-  { href: '/agents',     labelKey: 'nav.agents',     icon: '🤖' },
-  { href: '/automation', labelKey: 'nav.automation', icon: '⏰' },
-  { href: '/budgets',    labelKey: 'nav.budgets',    icon: '💰' },
+  { href: '/agents',     labelKey: 'nav.automations',      icon: '⬛' },
+  { href: '/automation', labelKey: 'nav.automation',       icon: '⏱' },
+  { href: '/budgets',    labelKey: 'nav.budgets',           icon: '◍' },
 ];
 
 const BOTTOM_ITEMS: NavItem[] = [
-  { href: '/settings',   labelKey: 'nav.settings',   icon: '⚙️' },
+  { href: '/settings',   labelKey: 'nav.settings',         icon: '⚙' },
 ];
 
 // ─── Single nav link ──────────────────────────────────────────────────────────
@@ -52,20 +53,33 @@ function NavLink({
       onClick={onClose}
       aria-current={isActive ? 'page' : undefined}
       className={cn(
-        'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors relative',
+        'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 relative group',
         isActive
-          ? 'bg-primary-600 text-white'
-          : 'text-neutral-300 hover:text-white hover:bg-neutral-800'
+          ? 'text-white'
+          : 'hover:text-white'
       )}
+      style={isActive ? {
+        background: 'linear-gradient(135deg, rgba(123,97,255,0.25) 0%, rgba(60,242,255,0.1) 100%)',
+        boxShadow: 'inset 0 0 0 1px rgba(123,97,255,0.4)',
+      } : undefined}
     >
       {/* Active indicator bar */}
       {isActive && (
-        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-white rounded-r-full" />
+        <span
+          className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full"
+          style={{ background: 'var(--accent)' }}
+        />
       )}
-      <span className="text-base" aria-hidden="true">{item.icon}</span>
-      <span className="flex-1">{t(item.labelKey as Parameters<typeof t>[0])}</span>
+      <span
+        className={cn('text-sm font-mono flex-shrink-0 w-5 text-center', isActive ? 'opacity-100' : 'opacity-50 group-hover:opacity-80')}
+      >
+        {item.icon}
+      </span>
+      <span className="flex-1" style={{ color: isActive ? 'var(--text)' : 'var(--text-muted)' }}>
+        {t(item.labelKey as Parameters<typeof t>[0])}
+      </span>
       {badge && (
-        <span className="text-xs px-1.5 py-0.5 rounded bg-neutral-700 text-neutral-400 font-normal">
+        <span className="text-xs px-1.5 py-0.5 rounded-md font-normal" style={{ background: 'rgba(123,97,255,0.2)', color: 'var(--accent)' }}>
           {badge}
         </span>
       )}
@@ -77,12 +91,30 @@ function NavLink({
 
 function SectionDivider({ label }: { label: string }) {
   return (
-    <div className="flex items-center gap-2 px-3 pt-4 pb-1">
-      <span className="text-xs font-semibold uppercase tracking-widest text-neutral-500">
+    <div className="flex items-center gap-2 px-3 pt-5 pb-1">
+      <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)', opacity: 0.6 }}>
         {label}
       </span>
-      <div className="flex-1 h-px bg-neutral-800" />
+      <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
     </div>
+  );
+}
+
+// ─── Theme toggle ─────────────────────────────────────────────────────────────
+
+function ThemeToggle() {
+  const { isDark, toggle } = useTheme();
+  const { t } = useI18n();
+  return (
+    <button
+      onClick={toggle}
+      title={t('settings.theme.toggle')}
+      className="flex items-center gap-2 text-xs transition-colors hover:opacity-80 w-full"
+      style={{ color: 'var(--text-muted)' }}
+    >
+      <span>{isDark ? '☀' : '☾'}</span>
+      <span>{isDark ? t('settings.theme.light') : t('settings.theme.dark')}</span>
+    </button>
   );
 }
 
@@ -103,7 +135,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
       {/* Mobile overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-20 bg-black/50 md:hidden"
+          className="fixed inset-0 z-20 bg-black/60 md:hidden backdrop-blur-sm"
           onClick={onClose}
         />
       )}
@@ -111,16 +143,31 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
       {/* Sidebar panel */}
       <div
         className={cn(
-          'fixed inset-y-0 left-0 z-30 w-64 bg-neutral-900 text-neutral-50 flex flex-col border-r border-neutral-800 overflow-y-auto transition-transform duration-300 md:relative md:translate-x-0 md:w-64',
+          'fixed inset-y-0 left-0 z-30 w-64 flex flex-col overflow-y-auto transition-transform duration-300 md:relative md:translate-x-0 md:w-64',
           isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
+        style={{
+          background: 'var(--bg-surface)',
+          borderRight: '1px solid var(--border)',
+        }}
       >
         {/* Header */}
-        <div className="px-5 py-5 border-b border-neutral-800 flex-shrink-0">
-          <h1 className="text-lg font-bold text-white tracking-tight">
-            💰 {t('nav.app_name')}
-          </h1>
-          <p className="text-xs text-neutral-400 mt-0.5">
+        <div className="px-5 py-5 flex-shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
+          {/* Granular sky logo mark */}
+          <div className="flex items-center gap-2.5 mb-1">
+            <div className="relative w-7 h-7 flex-shrink-0">
+              <div
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold"
+                style={{ background: 'linear-gradient(135deg, #7B61FF, #3CF2FF)' }}
+              >
+                V
+              </div>
+            </div>
+            <h1 className="text-base font-bold tracking-tight" style={{ color: 'var(--text)' }}>
+              {t('nav.app_name_vaultia')}
+            </h1>
+          </div>
+          <p className="text-xs pl-9" style={{ color: 'var(--text-muted)' }}>
             {t(isAdvanced ? 'nav.advanced_mode' : 'nav.simple_mode')}
           </p>
         </div>
@@ -142,14 +189,14 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                   item={item}
                   isActive={isActive(item.href)}
                   onClose={onClose}
-                  badge={item.href === '/agents' ? 'Advanced' : undefined}
+                  badge={item.href === '/agents' ? 'Pro' : undefined}
                 />
               ))}
             </>
           )}
 
           {/* Bottom items */}
-          <div className="pt-3 border-t border-neutral-800 mt-3 space-y-0.5">
+          <div className="pt-3 mt-3 space-y-0.5" style={{ borderTop: '1px solid var(--border)' }}>
             {BOTTOM_ITEMS.map((item) => (
               <NavLink key={item.href} item={item} isActive={isActive(item.href)} onClose={onClose} />
             ))}
@@ -157,38 +204,37 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
         </nav>
 
         {/* Footer */}
-        <div className="px-4 py-3 border-t border-neutral-800 bg-neutral-950 flex-shrink-0 space-y-2">
+        <div
+          className="px-4 py-3 flex-shrink-0 space-y-2.5"
+          style={{ borderTop: '1px solid var(--border)', background: 'var(--bg)' }}
+        >
+          {/* Theme toggle */}
+          <ThemeToggle />
+
           {/* Demo mode toggle */}
           <button
             onClick={() => { if (isDemo) { disableDemo(); } else { enableDemo(); } onClose(); }}
-            className={cn(
-              'w-full flex items-center gap-2 text-xs transition-colors',
-              isDemo
-                ? 'text-amber-400 hover:text-amber-300'
-                : 'text-neutral-500 hover:text-neutral-300'
-            )}
+            className={cn('w-full flex items-center gap-2 text-xs transition-colors')}
+            style={{ color: isDemo ? 'var(--warning)' : 'var(--text-muted)' }}
           >
-            <span>🎮</span>
+            <span>◎</span>
             <span>{t(isDemo ? 'demo.exit' : 'demo.try_demo')}</span>
           </button>
 
           {/* Setup guide */}
           <button
             onClick={() => { openOnboarding(); onClose(); }}
-            className={cn(
-              'w-full flex items-center gap-2 text-xs transition-colors',
-              completed || dismissed
-                ? 'text-neutral-500 hover:text-neutral-300'
-                : 'text-yellow-400 hover:text-yellow-300'
-            )}
+            className="w-full flex items-center gap-2 text-xs transition-colors"
+            style={{ color: completed || dismissed ? 'var(--text-muted)' : 'var(--warning)' }}
           >
-            <span>{completed ? '📖' : '⚡'}</span>
+            <span>{completed ? '◎' : '⚡'}</span>
             <span>{t(completed ? 'nav.setup_reopen' : 'nav.setup_cta')}</span>
           </button>
 
-          <p className="text-xs text-neutral-500">{t('nav.network')}</p>
+          <p className="text-xs" style={{ color: 'var(--text-muted)', opacity: 0.5 }}>{t('nav.network')}</p>
         </div>
       </div>
     </>
   );
 }
+

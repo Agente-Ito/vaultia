@@ -649,6 +649,120 @@ const es: Record<LocaleKey, string> = {
   'notifications.from': 'De',
   'notifications.block': 'Bloque',
   'notifications.error': 'No se pudo cargar la actividad. Verifica la conexión RPC.',
+
+  // ─── Vaultia UX Vocabulary (nueva capa v3) ─────────────────────────────────
+  'nav.app_name_vaultia': 'Vaultia',
+  'nav.spaces': 'Espacios de Dinero',
+  'nav.automations': 'Automatizaciones',
+  'nav.spending_rules': 'Reglas de Gasto',
+  'nav.permission_targets': 'Destinos Permitidos',
+  'nav.active_automations': 'Automatizaciones Activas',
+
+  // ─── Tema ────────────────────────────────────────────────────────────────────
+  'settings.theme.title': 'Apariencia',
+  'settings.theme.desc': 'Elige tu tema visual preferido',
+  'settings.theme.dark': 'Oscuro',
+  'settings.theme.light': 'Claro',
+  'settings.theme.toggle': 'Cambiar tema',
+
+  // ─── Página de inicio ────────────────────────────────────────────────────────
+  'landing.title': 'Crea tu Espacio de Dinero Inteligente',
+  'landing.subtitle': 'Automatiza pagos con reglas claras y control total.',
+  'landing.cta': 'Comenzar',
+  'landing.mode_toggle': 'Modo',
+  'landing.already_have': '¿Ya tienes un Espacio?',
+  'landing.connect_existing': 'Conectar billetera',
+  'landing.trust_message': 'Tus fondos siguen siendo tuyos. Vaultia solo ejecuta dentro de tus reglas.',
+
+  // ─── Asistente (flujo simple de 4 pasos) ────────────────────────────────────
+  'wizard.title': 'Configura tu Espacio de Dinero',
+  'wizard.mode.simple': 'Simple',
+  'wizard.mode.expert': 'Experto',
+  'wizard.step_label.goal': 'Objetivo',
+  'wizard.step_label.limits': 'Límites',
+  'wizard.step_label.automation': 'Automatización',
+  'wizard.step_label.review': 'Revisar',
+
+  // Paso 1 — Objetivo
+  'wizard.goal.title': '¿Qué quieres automatizar?',
+  'wizard.goal.subtitle': 'Elige un objetivo para configurar tu Espacio en segundos.',
+  'wizard.goal.pay_people': 'Pagar personas',
+  'wizard.goal.pay_people_desc': 'Envía dinero a amigos, familia o equipo de forma automática.',
+  'wizard.goal.pay_vendors': 'Pagar proveedores',
+  'wizard.goal.pay_vendors_desc': 'Automatiza pagos recurrentes a tus proveedores de servicios.',
+  'wizard.goal.subscriptions': 'Suscripciones',
+  'wizard.goal.subscriptions_desc': 'Gestiona suscripciones y pagos periódicos recurrentes.',
+  'wizard.goal.save_funds': 'Ahorrar fondos inactivos',
+  'wizard.goal.save_funds_desc': 'Pon a trabajar tus fondos no usados automáticamente.',
+
+  // Paso 2 — Límites
+  'wizard.limits.title': 'Define destinatarios y límites',
+  'wizard.limits.subtitle': 'Establece quién puede recibir pagos y cuánto.',
+  'wizard.limits.recipients': 'Destinatarios',
+  'wizard.limits.recipients_placeholder': 'Dirección o nombre de Perfil Universal…',
+  'wizard.limits.max_per_tx': 'Máximo por operación',
+  'wizard.limits.max_per_tx_helper': 'Recomendado para empezar: mínimo $1',
+  'wizard.limits.frequency': 'Frecuencia',
+  'wizard.limits.freq.daily': 'Diario',
+  'wizard.limits.freq.weekly': 'Semanal',
+  'wizard.limits.freq.monthly': 'Mensual',
+  'wizard.limits.cta': 'Guardar y continuar',
+
+  // Paso 3 — Automatización
+  'wizard.automation.title': 'Activar automatización',
+  'wizard.automation.subtitle': 'Tu agente ejecutará pagos dentro de tus reglas.',
+  'wizard.automation.toggle': 'Activar agente',
+  'wizard.automation.executor.title': '¿Quién ejecuta?',
+  'wizard.automation.executor.me': 'Yo (manual)',
+  'wizard.automation.executor.vaultia': 'Agente Vaultia',
+  'wizard.automation.executor.vaultia_desc': 'Recomendado — permite a Vaultia ejecutar pagos automáticamente.',
+  'wizard.automation.executor.my_agent': 'Mi propio agente',
+  'wizard.automation.safety': 'Nivel de seguridad',
+  'wizard.automation.safety.safe': 'Seguro',
+  'wizard.automation.safety.safe_desc': 'Permisos estrictos. Acceso mínimo, máxima protección.',
+  'wizard.automation.safety.flexible': 'Flexible',
+  'wizard.automation.safety.flexible_desc': 'Equilibrado — autonomía con límites.',
+  'wizard.automation.safety.advanced': 'Avanzado',
+  'wizard.automation.safety.advanced_desc': 'Control total. Requiere configuración experta.',
+  'wizard.automation.safety.advanced_warn': 'El modo avanzado requiere configuración experta.',
+  'wizard.automation.connect_later': 'Conectarás tu billetera en el siguiente paso.',
+  'wizard.automation.cta': 'Continuar',
+
+  // Paso 4 — Revisar y Activar
+  'wizard.review.title': 'Revisa y activa',
+  'wizard.review.summary': 'Tu agente puede pagar hasta {amount} a {count} destinatario(s) cada {period}.',
+  'wizard.review.summary_manual': 'Aprobarás manualmente los pagos de hasta {amount} cada {period}.',
+  'wizard.review.goal': 'Objetivo',
+  'wizard.review.recipients': 'Destinatarios',
+  'wizard.review.max_per_tx': 'Máximo por operación',
+  'wizard.review.frequency': 'Frecuencia',
+  'wizard.review.executor': 'Ejecutado por',
+  'wizard.review.safety': 'Nivel de seguridad',
+  'wizard.review.cta': 'Activar Autopilot',
+  'wizard.review.edit': 'Editar configuración',
+  'wizard.review.connect_prompt': 'Conecta tu billetera para activar.',
+
+  // ─── Dashboard v3 (Mapa de Permisos) ────────────────────────────────────────
+  'dashboard.status.active': 'Activo',
+  'dashboard.status.paused': 'Pausado',
+  'dashboard.status.blocked': 'Bloqueado por reglas',
+  'dashboard.graph.title': 'Mapa de Permisos',
+  'dashboard.graph.empty': 'Crea tu primer Espacio para ver tu grafo de permisos.',
+  'dashboard.graph.wallet': 'Tu billetera',
+  'dashboard.quick.title': 'Acciones rápidas',
+  'dashboard.quick.pause': 'Pausar',
+  'dashboard.quick.add_recipient': 'Agregar destinatario',
+  'dashboard.quick.update_limit': 'Actualizar límite',
+  'dashboard.quick.run_now': 'Ejecutar ahora',
+  'dashboard.advanced_controls': 'Controles Avanzados',
+  'dashboard.trust': 'Tus fondos siguen siendo tuyos. Vaultia solo ejecuta dentro de tus reglas.',
+
+  // ─── Mensajes de confianza / bloqueo ─────────────────────────────────────────
+  'trust.message': 'Tus fondos siguen siendo tuyos. Vaultia solo ejecuta dentro de tus reglas.',
+  'blocked.message': 'Operación bloqueada por tus reglas.',
+  'blocked.incomplete_rules': 'Completa los límites para habilitar la automatización.',
+  'blocked.permissions_failed': 'Activación fallida — los permisos no se aplicaron.',
 };
 
 export default es;
+

@@ -9,6 +9,32 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // ── Granular Sky dark palette ─────────────────────────────────────────
+        granular: {
+          'deep-space':  '#05070A',
+          'void-blue':   '#0B0F1A',
+          navy:          '#0B1020',
+          'card-dark':   '#121A2F',
+          'card-mid':    '#1A2747',
+          violet:        '#7B61FF',
+          plasma:        '#3CF2FF',
+          nebula:        '#A78BFA',
+          'accent-blue': '#6EA8FE',
+          'sky-blue':    '#8CC8FF',
+          'text-light':  '#EAF2FF',
+          success:       '#22FFB2',
+          blocked:       '#FF4D6D',
+          warning:       '#FFC857',
+        },
+        // ── Sky light palette ─────────────────────────────────────────────────
+        sky: {
+          bg:      '#F5F9FF',
+          card:    '#FFFFFF',
+          primary: '#3F7DFF',
+          accent:  '#6EA8FE',
+          text:    '#0F172A',
+          muted:   '#475569',
+        },
         // Financial OS primary colors
         primary: {
           50: '#f0f9ff',

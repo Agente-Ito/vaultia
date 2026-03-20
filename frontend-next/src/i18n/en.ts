@@ -647,6 +647,119 @@ const en = {
   'notifications.from': 'From',
   'notifications.block': 'Block',
   'notifications.error': 'Could not load activity. Check RPC connection.',
+
+  // ─── Vaultia UX Vocabulary (new v3 layer) ─────────────────────────────────
+  'nav.app_name_vaultia': 'Vaultia',
+  'nav.spaces': 'Smart Money Spaces',
+  'nav.automations': 'Automations',
+  'nav.spending_rules': 'Spending Rules',
+  'nav.permission_targets': 'Permission Targets',
+  'nav.active_automations': 'Active Automations',
+
+  // ─── Theme ────────────────────────────────────────────────────────────────
+  'settings.theme.title': 'Appearance',
+  'settings.theme.desc': 'Choose your preferred visual theme',
+  'settings.theme.dark': 'Dark',
+  'settings.theme.light': 'Light',
+  'settings.theme.toggle': 'Toggle theme',
+
+  // ─── Landing page ─────────────────────────────────────────────────────────
+  'landing.title': 'Create your Smart Money Space',
+  'landing.subtitle': 'Automate payments with clear rules and full control.',
+  'landing.cta': 'Get started',
+  'landing.mode_toggle': 'Mode',
+  'landing.already_have': 'Already have a Space?',
+  'landing.connect_existing': 'Connect wallet',
+  'landing.trust_message': 'Your funds stay yours. Vaultia only executes within your rules.',
+
+  // ─── Wizard (4-step Simple flow) ──────────────────────────────────────────
+  'wizard.title': 'Set up your Smart Money Space',
+  'wizard.mode.simple': 'Simple',
+  'wizard.mode.expert': 'Expert',
+  'wizard.step_label.goal': 'Goal',
+  'wizard.step_label.limits': 'Limits',
+  'wizard.step_label.automation': 'Automation',
+  'wizard.step_label.review': 'Review',
+
+  // Step 1 — Goal
+  'wizard.goal.title': 'What do you want to automate?',
+  'wizard.goal.subtitle': 'Pick a goal to set up your Space in seconds.',
+  'wizard.goal.pay_people': 'Pay people',
+  'wizard.goal.pay_people_desc': 'Send money to friends, family, or team members automatically.',
+  'wizard.goal.pay_vendors': 'Pay vendors',
+  'wizard.goal.pay_vendors_desc': 'Automate recurring payments to your service providers.',
+  'wizard.goal.subscriptions': 'Subscriptions',
+  'wizard.goal.subscriptions_desc': 'Manage recurring subscriptions and periodic payments.',
+  'wizard.goal.save_funds': 'Save idle funds',
+  'wizard.goal.save_funds_desc': 'Put unused funds to work automatically in yield strategies.',
+
+  // Step 2 — Limits
+  'wizard.limits.title': 'Set recipients and limits',
+  'wizard.limits.subtitle': 'Define who can receive payments and how much.',
+  'wizard.limits.recipients': 'Recipients',
+  'wizard.limits.recipients_placeholder': 'Address or Universal Profile name…',
+  'wizard.limits.max_per_tx': 'Max per transaction',
+  'wizard.limits.max_per_tx_helper': 'Recommended to start: minimum $1',
+  'wizard.limits.frequency': 'Frequency',
+  'wizard.limits.freq.daily': 'Daily',
+  'wizard.limits.freq.weekly': 'Weekly',
+  'wizard.limits.freq.monthly': 'Monthly',
+  'wizard.limits.cta': 'Save and continue',
+
+  // Step 3 — Automation
+  'wizard.automation.title': 'Enable automation',
+  'wizard.automation.subtitle': 'Your agent will execute payments within your rules.',
+  'wizard.automation.toggle': 'Enable agent',
+  'wizard.automation.executor.title': 'Who executes?',
+  'wizard.automation.executor.me': 'Me (manual)',
+  'wizard.automation.executor.vaultia': 'Vaultia Agent',
+  'wizard.automation.executor.vaultia_desc': 'Recommended — lets Vaultia run payments automatically.',
+  'wizard.automation.executor.my_agent': 'My own agent',
+  'wizard.automation.safety': 'Safety level',
+  'wizard.automation.safety.safe': 'Safe',
+  'wizard.automation.safety.safe_desc': 'Strict permissions. Minimal access, maximum protection.',
+  'wizard.automation.safety.flexible': 'Flexible',
+  'wizard.automation.safety.flexible_desc': 'Balanced — some autonomy with guardrails.',
+  'wizard.automation.safety.advanced': 'Advanced',
+  'wizard.automation.safety.advanced_desc': 'Full control. Requires expert configuration.',
+  'wizard.automation.safety.advanced_warn': 'Advanced mode requires expert configuration.',
+  'wizard.automation.connect_later': "You'll connect your wallet in the next step.",
+  'wizard.automation.cta': 'Continue',
+
+  // Step 4 — Review & Activate
+  'wizard.review.title': 'Review and activate',
+  'wizard.review.summary': 'Your agent can pay up to {amount} to {count} recipient(s) every {period}.',
+  'wizard.review.summary_manual': 'You will manually approve payments up to {amount} every {period}.',
+  'wizard.review.goal': 'Goal',
+  'wizard.review.recipients': 'Recipients',
+  'wizard.review.max_per_tx': 'Max per transaction',
+  'wizard.review.frequency': 'Frequency',
+  'wizard.review.executor': 'Executed by',
+  'wizard.review.safety': 'Safety level',
+  'wizard.review.cta': 'Activate Autopilot',
+  'wizard.review.edit': 'Edit setup',
+  'wizard.review.connect_prompt': 'Connect your wallet to activate.',
+
+  // ─── Dashboard v3 (Permission Map) ────────────────────────────────────────
+  'dashboard.status.active': 'Active',
+  'dashboard.status.paused': 'Paused',
+  'dashboard.status.blocked': 'Blocked by rules',
+  'dashboard.graph.title': 'Permission Map',
+  'dashboard.graph.empty': 'Create your first Smart Money Space to see your permission graph.',
+  'dashboard.graph.wallet': 'Your Wallet',
+  'dashboard.quick.title': 'Quick actions',
+  'dashboard.quick.pause': 'Pause',
+  'dashboard.quick.add_recipient': 'Add recipient',
+  'dashboard.quick.update_limit': 'Update limit',
+  'dashboard.quick.run_now': 'Run now',
+  'dashboard.advanced_controls': 'Advanced Controls',
+  'dashboard.trust': 'Your funds stay yours. Vaultia only executes within your rules.',
+
+  // ─── Trust / blocked states ────────────────────────────────────────────────
+  'trust.message': 'Your funds stay yours. Vaultia only executes within your rules.',
+  'blocked.message': 'Operation blocked by your rules.',
+  'blocked.incomplete_rules': 'Complete limits to enable automation.',
+  'blocked.permissions_failed': 'Activation failed — permissions were not applied.',
 } as const;
 
 export type LocaleKey = keyof typeof en;
