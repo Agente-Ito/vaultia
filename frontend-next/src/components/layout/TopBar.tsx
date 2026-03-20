@@ -3,7 +3,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useDisconnect } from 'wagmi';
 import { useMode } from '@/context/ModeContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -333,6 +333,16 @@ export function TopBar({ account, chainId, onMenuClick, onConnect }: TopBarProps
   const { t, locale, setLocale } = useI18n();
   const { isUniversalProfile } = useWeb3();
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleModeSwitch = (newMode: 'simple' | 'advanced') => {
+    setMode(newMode);
+    if (newMode === 'advanced' && pathname === '/setup') {
+      router.push('/vaults/create');
+    } else if (newMode === 'simple' && pathname === '/vaults/create') {
+      router.push('/setup');
+    }
+  };
 
   const pageMeta  = resolvePageMeta(pathname);
   const pageTitle = t(pageMeta.titleKey as Parameters<typeof t>[0]);
@@ -388,7 +398,7 @@ export function TopBar({ account, chainId, onMenuClick, onConnect }: TopBarProps
             {(['simple', 'advanced'] as const).map((m) => (
               <button
                 key={m}
-                onClick={() => setMode(m)}
+                onClick={() => handleModeSwitch(m)}
                 className={cn(
                   'px-sm py-xs text-xs font-medium rounded-md transition-all duration-150',
                   mode === m ? 'shadow-sm' : 'opacity-50 hover:opacity-70'

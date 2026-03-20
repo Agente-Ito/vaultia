@@ -329,32 +329,35 @@ export function SimpleSetupFlow() {
             {STEP_LABEL_KEYS.map((labelKey, idx) => {
               const isActive = idx === step;
               const isDone = idx < step;
-              const isClickable = isDone;
+              const isNext = idx === step + 1;
+              const isClickable = isDone || isNext;
+
+              const handlePillClick = () => {
+                if (isDone) {
+                  setStepError(null);
+                  setDeployError(null);
+                  setStep(idx);
+                } else if (isNext) {
+                  handleNext();
+                }
+              };
+
               return (
                 <div
                   key={labelKey}
                   role={isClickable ? 'button' : undefined}
                   tabIndex={isClickable ? 0 : undefined}
-                  onClick={() => {
-                    if (isClickable) {
-                      setStepError(null);
-                      setDeployError(null);
-                      setStep(idx);
-                    }
-                  }}
+                  onClick={isClickable ? handlePillClick : undefined}
                   onKeyDown={(e) => {
-                    if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
-                      setStepError(null);
-                      setDeployError(null);
-                      setStep(idx);
-                    }
+                    if (isClickable && (e.key === 'Enter' || e.key === ' ')) handlePillClick();
                   }}
                   className="rounded-2xl px-3 py-2 text-xs font-medium text-center transition-opacity"
                   style={{
                     background: isActive ? 'var(--card-mid)' : 'transparent',
-                    border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
+                    border: `1px solid ${isActive ? 'var(--accent)' : isNext ? 'var(--border)' : 'var(--border)'}`,
                     color: isDone ? 'var(--success)' : isActive ? 'var(--text)' : 'var(--text-muted)',
                     cursor: isClickable ? 'pointer' : 'default',
+                    opacity: isNext ? 0.7 : 1,
                   }}
                 >
                   {isDone ? '✓ ' : ''}{t(labelKey)}

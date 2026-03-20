@@ -73,7 +73,7 @@ export function GoalCard({ goalKey, selected, onSelect, comingSoon = false }: Go
       className={cn(
         'relative text-left rounded-2xl px-4 py-4 transition-all duration-200 focus:outline-none w-full',
         comingSoon
-          ? 'cursor-default opacity-50'
+          ? 'cursor-default opacity-70'
           : selected
             ? 'animate-pulse-node'
             : 'opacity-70 hover:opacity-90'
