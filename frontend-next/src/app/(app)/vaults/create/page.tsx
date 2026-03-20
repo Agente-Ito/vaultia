@@ -269,6 +269,7 @@ export default function CreateVaultPage() {
   const baseTokenOptions = getBaseTokenOptions(BASE_CHAIN_ID);
   const [baseToken, setBaseToken]                       = useState(baseTokenOptions[0].address);
   const selectedToken = baseTokenOptions.find((tok) => tok.address === baseToken) ?? baseTokenOptions[0];
+  const [luksoToken, setLuksoToken]                     = useState('');
 
   const [deployedBase, setDeployedBase]                 = useState<{ vault: string; policyEngine: string } | null>(null);
   const [label, setLabel]                               = useState('');
@@ -406,7 +407,8 @@ export default function CreateVaultPage() {
       const customAgentPermissions = agentMode === AgentMode.CUSTOM ? PERM_POWER_USER : ethers.ZeroHash;
       setStatus(t('create.status.sending'));
       setStatus(t('create.status.confirming'));
-      const { receipt, deployed: deployedVault } = await deployRegistryVault({ registry, owner, existingSafeAddresses, params: buildRegistryDeployParams({ budget: ethers.parseEther(budget), period: Number(period), expiration: expirationUnix, agents: agentList, agentBudgets: agentBudgetsList, merchants: merchantList, label, agentMode, allowSuperPermissions, customAgentPermissions, allowedCallsByAgent }) });
+      const budgetToken = luksoToken.trim() || ethers.ZeroAddress;
+      const { receipt, deployed: deployedVault } = await deployRegistryVault({ registry, owner, existingSafeAddresses, params: buildRegistryDeployParams({ budget: ethers.parseEther(budget), period: Number(period), budgetToken, expiration: expirationUnix, agents: agentList, agentBudgets: agentBudgetsList, merchants: merchantList, label, agentMode, allowSuperPermissions, customAgentPermissions, allowedCallsByAgent }) });
       const safeAddr = deployedVault?.safe ?? '';
       const kmAddr   = deployedVault?.keyManager ?? '';
       const peAddr   = deployedVault?.policyEngine ?? '';
@@ -649,6 +651,22 @@ export default function CreateVaultPage() {
                       </button>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {chain === 'lukso' && (
+                <div>
+                  <FieldLabel>{t('create.field.lukso_token')}</FieldLabel>
+                  <input
+                    className={`${inputClass} font-mono`}
+                    style={inputStyle}
+                    value={luksoToken}
+                    onChange={(e) => setLuksoToken(e.target.value)}
+                    placeholder={t('create.field.lukso_token_placeholder')}
+                  />
+                  <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                    {t('create.field.lukso_token_hint')}
+                  </p>
                 </div>
               )}
 
@@ -986,7 +1004,7 @@ export default function CreateVaultPage() {
             agentCount={rawAgentList.length}
             merchantCount={merchantCount}
             chain={chain}
-            tokenSymbol={chain === 'base' ? selectedToken.symbol : 'LYX'}
+            tokenSymbol={chain === 'base' ? selectedToken.symbol : (luksoToken.trim() ? `${luksoToken.slice(0, 6)}…` : 'LYX')}
             securityLabel={securityLabel}
             securityRisk={securityRisk}
           />

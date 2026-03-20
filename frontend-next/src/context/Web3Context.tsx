@@ -7,7 +7,7 @@ import { getRegistryContract, RegistryContract } from '@/lib/web3/contracts';
 import { walletClientToSigner } from '@/lib/web3/signerBridge';
 
 const REGISTRY_ADDRESS = process.env.NEXT_PUBLIC_REGISTRY_ADDRESS ?? '';
-const SUPPORTED_CHAIN_IDS = [4201, 42];
+const SUPPORTED_CHAIN_IDS = [4201, 42, 8453, 84532];
 
 // ─── Context type (interface unchanged — downstream components unaffected) ────
 

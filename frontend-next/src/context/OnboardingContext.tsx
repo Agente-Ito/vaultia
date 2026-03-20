@@ -47,6 +47,10 @@ interface OnboardingState {
   wizardVaultName: string;
   goal: GoalKey | null;
   recipientNetwork: RecipientNetwork;
+  /** Token address for Base vaults (ZeroAddress = native ETH) */
+  baseToken: string;
+  /** Token address for LUKSO vaults (empty string = native LYX) */
+  luksoToken: string;
   recipients: RecipientEntry[];
   maxPerTx: string;
   frequency: FrequencyKey;
@@ -74,6 +78,8 @@ interface OnboardingContextType extends OnboardingState {
   setWizardVaultName: (s: string) => void;
   setGoal: (g: GoalKey | null) => void;
   setRecipientNetwork: (n: RecipientNetwork) => void;
+  setBaseToken: (addr: string) => void;
+  setLuksoToken: (addr: string) => void;
   addRecipient: (r: RecipientEntry) => void;
   removeRecipient: (address: string) => void;
   setMaxPerTx: (s: string) => void;
@@ -97,6 +103,8 @@ const WIZARD_DEFAULTS = {
   wizardVaultName: '',
   goal: null as GoalKey | null,
   recipientNetwork: 'up' as RecipientNetwork,
+  baseToken: '0x0000000000000000000000000000000000000000', // native ETH
+  luksoToken: '', // empty = native LYX
   recipients: [] as RecipientEntry[],
   maxPerTx: '',
   frequency: 'monthly' as FrequencyKey,
@@ -156,6 +164,8 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const [wizardVaultName, setWizardVaultNameState] = useState<string>(WIZARD_DEFAULTS.wizardVaultName);
   const [goal, setGoalState]                       = useState<GoalKey | null>(WIZARD_DEFAULTS.goal);
   const [recipientNetwork, setRecipientNetworkState] = useState<RecipientNetwork>(WIZARD_DEFAULTS.recipientNetwork);
+  const [baseToken, setBaseTokenState]             = useState<string>(WIZARD_DEFAULTS.baseToken);
+  const [luksoToken, setLuksoTokenState]           = useState<string>(WIZARD_DEFAULTS.luksoToken);
   const [recipients, setRecipients]            = useState<RecipientEntry[]>(WIZARD_DEFAULTS.recipients);
   const [maxPerTx, setMaxPerTxState]           = useState<string>(WIZARD_DEFAULTS.maxPerTx);
   const [frequency, setFrequencyState]         = useState<FrequencyKey>(WIZARD_DEFAULTS.frequency);
@@ -174,6 +184,8 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     if (saved.wizardVaultName !== undefined) setWizardVaultNameState(saved.wizardVaultName);
     if (saved.goal)         setGoalState(saved.goal);
     if (saved.recipientNetwork) setRecipientNetworkState(saved.recipientNetwork);
+    if (saved.baseToken)    setBaseTokenState(saved.baseToken);
+    if (saved.luksoToken !== undefined) setLuksoTokenState(saved.luksoToken);
     if (saved.recipients)   setRecipients(normalizeStoredRecipients(saved.recipients));
     if (saved.maxPerTx)     setMaxPerTxState(saved.maxPerTx);
     if (saved.frequency)    setFrequencyState(saved.frequency);
@@ -190,10 +202,10 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     if (!hydrated) return;
     try {
       localStorage.setItem(STORAGE_WIZARD, JSON.stringify({
-        wizardVaultName, goal, recipientNetwork, recipients, maxPerTx, frequency, wizardMode, executor, safetyLevel, agentEnabled,
+        wizardVaultName, goal, recipientNetwork, baseToken, luksoToken, recipients, maxPerTx, frequency, wizardMode, executor, safetyLevel, agentEnabled,
       }));
     } catch { /* ignore */ }
-  }, [wizardVaultName, goal, recipientNetwork, recipients, maxPerTx, frequency, wizardMode, executor, safetyLevel, agentEnabled, hydrated]);
+  }, [wizardVaultName, goal, recipientNetwork, baseToken, luksoToken, recipients, maxPerTx, frequency, wizardMode, executor, safetyLevel, agentEnabled, hydrated]);
 
   const open = useCallback(() => {
     setVisible(true);
@@ -248,6 +260,8 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const setWizardVaultName  = useCallback((s: string) => setWizardVaultNameState(s), []);
   const setGoal             = useCallback((g: GoalKey | null) => setGoalState(g), []);
   const setRecipientNetwork = useCallback((n: RecipientNetwork) => setRecipientNetworkState(n), []);
+  const setBaseToken        = useCallback((addr: string) => setBaseTokenState(addr), []);
+  const setLuksoToken       = useCallback((addr: string) => setLuksoTokenState(addr), []);
   const addRecipient    = useCallback((recipient: RecipientEntry) => {
     setRecipients((prev) =>
       prev.some((entry) => entry.address.toLowerCase() === recipient.address.toLowerCase())
@@ -270,12 +284,12 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         step, visible: hydrated && visible, completed, dismissed,
         entityType, entityProfile, vaultName, vaultEmoji,
         selectedSubVaults, rootBudget, budgetPeriod,
-        wizardMode, wizardVaultName, goal, recipientNetwork, recipients, maxPerTx, frequency,
+        wizardMode, wizardVaultName, goal, recipientNetwork, baseToken, luksoToken, recipients, maxPerTx, frequency,
         agentEnabled, executor, safetyLevel,
         open, close, next, back, finish, dismissPermanently,
         setEntityType, setEntityProfile, setVaultName, setVaultEmoji,
         toggleSubVault, setRootBudget, setBudgetPeriod,
-        setWizardMode, setWizardVaultName, setGoal, setRecipientNetwork, addRecipient, removeRecipient,
+        setWizardMode, setWizardVaultName, setGoal, setRecipientNetwork, setBaseToken, setLuksoToken, addRecipient, removeRecipient,
         setMaxPerTx, setFrequency, setAgentEnabled, setExecutor, setSafetyLevel,
       }}
     >

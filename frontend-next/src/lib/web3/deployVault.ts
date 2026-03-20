@@ -65,6 +65,8 @@ export interface SimpleWizardDeployInput {
   agentEnabled: boolean;
   executor: SimpleExecutor;
   safetyLevel: SimpleSafetyLevel;
+  /** Custom LSP7 token address. Empty string = native LYX (ZeroAddress). */
+  luksoToken?: string;
 }
 
 interface ValidateSimpleWizardOptions {
@@ -210,15 +212,45 @@ export function buildSimpleWizardDeployParams(input: SimpleWizardDeployInput): R
 
   const label = input.vaultName?.trim() || SIMPLE_GOAL_LABELS[goal];
 
+  const budgetToken = input.luksoToken?.trim() || ethers.ZeroAddress;
   return buildRegistryDeployParams({
     budget: parseBudgetToWei(input.maxPerTx, '1'),
     period: PERIOD_MAP[input.frequency],
+    budgetToken,
     merchants,
     label,
     agentMode,
     allowSuperPermissions: advanced && !manualExecution,
     customAgentPermissions: advanced && !manualExecution ? PERM_POWER_USER : ethers.ZeroHash,
   });
+}
+
+export interface BaseSimpleDeployInput {
+  vaultName?: string;
+  goal: SimpleWizardGoal | null;
+  recipients: RecipientEntry[];
+  maxPerTx: string;
+  frequency: DeployPeriodKey;
+  baseToken: string;
+}
+
+export function buildBaseSimpleDeployParams(input: BaseSimpleDeployInput) {
+  const goal = input.goal ?? 'pay_people';
+  const merchants = input.recipients
+    .filter((r) => !validateRecipient(r.address))
+    .map((r) => normalizeRecipient(r.address));
+  const label = input.vaultName?.trim() || SIMPLE_GOAL_LABELS[goal];
+  return {
+    label,
+    token: input.baseToken,
+    budget: parseBudgetToWei(input.maxPerTx, '1'),
+    period: PERIOD_MAP[input.frequency],
+    tokenBudgets: [] as Array<{ token: string; limit: bigint; period: number }>,
+    expiration: BigInt(0),
+    agents: [] as string[],
+    agentBudgets: [] as bigint[],
+    merchants,
+  };
 }
 
 function extractDeployedVault(receipt: ContractTransactionReceipt, registry: RegistryContract) {

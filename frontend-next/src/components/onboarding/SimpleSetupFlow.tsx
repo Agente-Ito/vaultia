@@ -14,7 +14,8 @@ import { useI18n } from '@/context/I18nContext';
 import { useOnboarding } from '@/context/OnboardingContext';
 import type { FrequencyKey, ExecutorType, GoalKey, RecipientNetwork } from '@/context/OnboardingContext';
 import { useWeb3 } from '@/context/Web3Context';
-import { buildSimpleWizardDeployParams, deployRegistryVault, validateSimpleWizardInput } from '@/lib/web3/deployVault';
+import { buildSimpleWizardDeployParams, buildBaseSimpleDeployParams, deployRegistryVault, validateSimpleWizardInput } from '@/lib/web3/deployVault';
+import { getBaseVaultFactoryContract, getBaseSigner, getBaseTokenOptions, isBaseFactoryConfigured, switchToBase, BASE_CHAIN_ID } from '@/lib/web3/baseContracts';
 
 // ─── Step indices ─────────────────────────────────────────────────────────────
 // 0: Vault name
@@ -66,6 +67,10 @@ export function SimpleSetupFlow() {
     setGoal,
     recipientNetwork,
     setRecipientNetwork,
+    baseToken,
+    setBaseToken,
+    luksoToken,
+    setLuksoToken,
     recipients,
     addRecipient,
     removeRecipient,
@@ -82,14 +87,15 @@ export function SimpleSetupFlow() {
     setWizardMode,
     finish,
   } = useOnboarding();
-  const { registry, signer, isConnected, isRegistryConfigured, connect, hasUPExtension } = useWeb3();
+  const { registry, signer, chainId, isConnected, isRegistryConfigured, connect, hasUPExtension } = useWeb3();
   const { t } = useI18n();
 
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(() => (goal ? 1 : 0));
   const [stepError, setStepError] = useState<string | null>(null);
   const [deployError, setDeployError] = useState<string | null>(null);
   const [deploying, setDeploying] = useState(false);
   const [goalsExpanded, setGoalsExpanded] = useState(false);
+  const [customTokenOpen, setCustomTokenOpen] = useState(false);
 
   useEffect(() => {
     setWizardMode('simple');
@@ -97,11 +103,13 @@ export function SimpleSetupFlow() {
 
   const progressValue = ((step + 1) / TOTAL_STEPS) * 100;
   const isLastStep = step === TOTAL_STEPS - 1;
-  const canDeploy = isConnected && isRegistryConfigured && !deploying;
+  const canDeploy = isConnected && (recipientNetwork === 'base' || isRegistryConfigured) && !deploying;
 
   const placeholder = recipientNetwork === 'base'
     ? t('wizard.limits.recipients_placeholder_base')
     : t('wizard.limits.recipients_placeholder_up');
+
+  const baseTokenOptions = getBaseTokenOptions(chainId ?? BASE_CHAIN_ID);
 
   const connectLabel = recipientNetwork === 'base'
     ? t('wizard.review.connect_base')
@@ -190,38 +198,61 @@ export function SimpleSetupFlow() {
   };
 
   const handleDeploy = async () => {
-    if (recipientNetwork === 'base') {
-      handleContinueToExpert();
-      return;
-    }
-
     const validationErrors = validateSimple(true);
     if (validationErrors.length > 0) {
       setDeployError(translateSimpleError(validationErrors[0]));
       return;
     }
 
-    if (!isRegistryConfigured || !registry || !signer) {
+    if (!isConnected) {
       setDeployError(t('onboarding.connect_wallet'));
       return;
     }
 
     setDeploying(true);
     setDeployError(null);
+
     try {
-      await deployRegistryVault({
-        registry,
-        params: buildSimpleWizardDeployParams({
+      if (recipientNetwork === 'base') {
+        if (!isBaseFactoryConfigured()) {
+          setDeployError('Base vault factory not configured.');
+          return;
+        }
+        if (chainId !== BASE_CHAIN_ID) {
+          await switchToBase();
+        }
+        const baseSigner = await getBaseSigner();
+        const factory = getBaseVaultFactoryContract(baseSigner);
+        const params = buildBaseSimpleDeployParams({
           vaultName: wizardVaultName,
           goal,
           recipients,
           maxPerTx,
           frequency,
-          agentEnabled,
-          executor,
-          safetyLevel,
-        }),
-      });
+          baseToken,
+        });
+        const tx = await factory.deployVault(params);
+        await tx.wait();
+      } else {
+        if (!isRegistryConfigured || !registry || !signer) {
+          setDeployError(t('onboarding.connect_wallet'));
+          return;
+        }
+        await deployRegistryVault({
+          registry,
+          params: buildSimpleWizardDeployParams({
+            vaultName: wizardVaultName,
+            goal,
+            recipients,
+            maxPerTx,
+            frequency,
+            agentEnabled,
+            executor,
+            safetyLevel,
+            luksoToken,
+          }),
+        });
+      }
       finish();
       router.push('/dashboard');
     } catch (error: unknown) {
@@ -268,7 +299,7 @@ export function SimpleSetupFlow() {
               {step === 0
                 ? t('wizard.goal.subtitle')
                 : step === 1
-                  ? t('wizard.vault.subtitle')
+                  ? t('wizard.vault.setup_subtitle')
                   : step === 2
                     ? t('wizard.limits.subtitle')
                     : step === 3
@@ -399,9 +430,70 @@ export function SimpleSetupFlow() {
               </div>
             )}
 
-            {/* ── Step 1: Vault Name ─────────────────────────────────────────── */}
+            {/* ── Step 1: Network + Name ─────────────────────────────────────── */}
             {step === 1 && (
               <div className="space-y-6 max-w-lg">
+                {/* Network selector */}
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+                    {t('wizard.limits.network.label')}
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {RECIPIENT_NETWORKS.map((network) => {
+                      const active = recipientNetwork === network.key;
+                      return (
+                        <button
+                          key={network.key}
+                          type="button"
+                          onClick={() => setRecipientNetwork(network.key)}
+                          className="rounded-xl px-3 py-3 text-left text-sm font-medium transition-all"
+                          style={{
+                            background: active ? 'var(--card-mid)' : 'var(--bg)',
+                            border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                            color: active ? 'var(--text)' : 'var(--text-muted)',
+                          }}
+                        >
+                          {t(network.labelKey as Parameters<typeof t>[0])}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    {t(`wizard.limits.network.${recipientNetwork}_hint` as Parameters<typeof t>[0])}
+                  </p>
+                </div>
+
+                {/* Token selector — only for Base */}
+                {recipientNetwork === 'base' && (
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+                      {t('wizard.vault.base_token_label')}
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {baseTokenOptions.map((opt) => {
+                        const active = baseToken === opt.address;
+                        return (
+                          <button
+                            key={opt.address}
+                            type="button"
+                            onClick={() => setBaseToken(opt.address)}
+                            className="flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-all"
+                            style={{
+                              background: active ? 'var(--card-mid)' : 'var(--bg)',
+                              border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                              color: active ? 'var(--text)' : 'var(--text-muted)',
+                            }}
+                          >
+                            <span>{opt.emoji}</span>
+                            <span>{opt.symbol}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Vault name */}
                 <div className="space-y-2">
                   <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
                     {t('wizard.vault.name_label')}
@@ -424,46 +516,51 @@ export function SimpleSetupFlow() {
                     {t('wizard.vault.name_hint')}
                   </p>
                 </div>
+
+                {/* Custom token — hidden by default, discoverable */}
+                {recipientNetwork === 'up' && (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setCustomTokenOpen((v) => !v)}
+                      className="flex items-center gap-1.5 text-xs transition-opacity hover:opacity-80"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      <span
+                        className="inline-block transition-transform duration-200"
+                        style={{ transform: customTokenOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+                      >▶</span>
+                      {t('wizard.vault.custom_token_cta')}
+                    </button>
+                    {customTokenOpen && (
+                      <div className="mt-2 space-y-1">
+                        <input
+                          type="text"
+                          value={luksoToken}
+                          onChange={(e) => setLuksoToken(e.target.value)}
+                          placeholder={t('wizard.vault.lukso_token_placeholder')}
+                          className="w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none font-mono"
+                          style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                        />
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                          {t('wizard.vault.lukso_token_hint')}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {stepError && (
                   <p className="text-sm" style={{ color: 'var(--blocked)' }}>{stepError}</p>
                 )}
               </div>
             )}
 
-            {/* ── Step 2: Who + Limits ───────────────────────────────────────── */}
+            {/* ── Step 2: Recipients + Limits ────────────────────────────────── */}
             {step === 2 && (
               <div className="space-y-6">
                 <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(260px,0.9fr)]">
                   <div className="space-y-5">
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
-                        {t('wizard.limits.network.label')}
-                      </label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {RECIPIENT_NETWORKS.map((network) => {
-                          const active = recipientNetwork === network.key;
-                          return (
-                            <button
-                              key={network.key}
-                              type="button"
-                              onClick={() => setRecipientNetwork(network.key)}
-                              className="rounded-xl px-3 py-3 text-left text-sm font-medium transition-all"
-                              style={{
-                                background: active ? 'var(--card-mid)' : 'var(--bg)',
-                                border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-                                color: active ? 'var(--text)' : 'var(--text-muted)',
-                              }}
-                            >
-                              {t(network.labelKey as Parameters<typeof t>[0])}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                        {t(`wizard.limits.network.${recipientNetwork}_hint` as Parameters<typeof t>[0])}
-                      </p>
-                    </div>
-
                     <div className="space-y-1">
                       <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
                         {t('wizard.limits.recipients')}
@@ -521,15 +618,6 @@ export function SimpleSetupFlow() {
                     </div>
                   </div>
                 </div>
-
-                {recipientNetwork === 'base' && (
-                  <div
-                    className="rounded-xl px-4 py-3 text-sm"
-                    style={{ background: 'rgba(255,200,87,0.1)', border: '1px solid rgba(255,200,87,0.3)', color: 'var(--warning)' }}
-                  >
-                    {t('wizard.limits.base_expert_notice')}
-                  </div>
-                )}
 
                 {stepError && (
                   <p className="text-sm" style={{ color: 'var(--blocked)' }}>{stepError}</p>
@@ -724,7 +812,7 @@ export function SimpleSetupFlow() {
                     </div>
                   )}
 
-                  {!isRegistryConfigured && isConnected && (
+                  {recipientNetwork !== 'base' && !isRegistryConfigured && isConnected && (
                     <Alert variant="warning">
                       <AlertDescription>{t('onboarding.registry_not_configured')}</AlertDescription>
                     </Alert>
@@ -739,11 +827,11 @@ export function SimpleSetupFlow() {
 
                 <div className="rounded-2xl p-5" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
                   <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                    {recipientNetwork === 'base' ? t('wizard.review.base_notice') : t('wizard.review.activation_ready')}
+                    {t('wizard.review.activation_ready')}
                   </p>
                   <p className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
                     {recipientNetwork === 'base'
-                      ? t('wizard.automation.error.base_requires_expert')
+                      ? t('wizard.review.base_deploy_hint')
                       : t('wizard.automation.connect_later')}
                   </p>
                 </div>
@@ -768,10 +856,6 @@ export function SimpleSetupFlow() {
             {!isLastStep ? (
               <Button size="sm" onClick={handleNext}>
                 {t('onboarding.btn.next')}
-              </Button>
-            ) : recipientNetwork === 'base' ? (
-              <Button size="sm" onClick={handleContinueToExpert}>
-                {t('wizard.review.base_cta')}
               </Button>
             ) : (
               <Button size="sm" variant="success" onClick={handleDeploy} disabled={!canDeploy}>

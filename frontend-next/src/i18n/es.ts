@@ -617,6 +617,9 @@ const es: Record<LocaleKey, string> = {
   'create.chain.hint': 'Elige la red para tu bóveda',
   'create.field.token': 'Token',
   'create.field.budget_token': 'Presupuesto',
+  'create.field.lukso_token': 'Token del presupuesto',
+  'create.field.lukso_token_placeholder': 'Dirección del token (vacío = LYX nativo)',
+  'create.field.lukso_token_hint': 'Cualquier token compatible con LSP7. Vacío para LYX nativo.',
   'create.base.subtitle': 'Despliega una bóveda en Base con USDC, WETH, ETH o cbBTC.',
   'create.base.switch_network': 'Cambiar a Base',
   'create.base.switching': 'Cambiando red…',
@@ -747,6 +750,11 @@ const es: Record<LocaleKey, string> = {
   'wizard.vault.name_hint': 'Dale un nombre memorable. Siempre puedes cambiarlo después.',
 
   'wizard.vault.subtitle': 'Dale un nombre a tu espacio de dinero inteligente.',
+  'wizard.vault.setup_subtitle': 'Elige dónde vivirá tu bóveda y dale un nombre.',
+  'wizard.vault.base_token_label': 'Token',
+  'wizard.vault.custom_token_cta': 'Token personalizado (opcional)',
+  'wizard.vault.lukso_token_placeholder': 'Dirección del contrato LSP7',
+  'wizard.vault.lukso_token_hint': 'Deja vacío para usar LYX nativo.',
 
   // Paso 1 — Objetivo
   'wizard.goal.title': '¿Qué quieres automatizar?',
@@ -857,6 +865,7 @@ const es: Record<LocaleKey, string> = {
   'wizard.review.activation_ready': 'Listo para activar',
   'wizard.review.base_notice': 'La configuración de Base continúa en el modo avanzado',
   'wizard.review.base_cta': 'Continuar en configuración avanzada',
+  'wizard.review.base_deploy_hint': 'Tu wallet te pedirá cambiar a la red Base antes de firmar.',
   'wizard.review.edit': 'Editar configuración',
   'wizard.review.connect_prompt': 'Conecta tu billetera para activar.',
   'wizard.review.connect_up': 'Conectar billetera LUKSO',
