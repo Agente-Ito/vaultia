@@ -12,14 +12,11 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Button } from '@/components/common/Button';
 import { type BudgetNode } from '@/components/dashboard/BudgetTreeView';
 import { cn } from '@/lib/utils/cn';
+import { useI18n } from '@/context/I18nContext';
 
 const EMOJIS = ['💰', '🏠', '🛒', '📈', '🎯', '✈️', '🏥', '🎓', '🎵', '⚡', '🍔', '🎮'];
 
-const PERIODS = [
-  { value: 'daily', label: 'Diario' },
-  { value: 'weekly', label: 'Semanal' },
-  { value: 'monthly', label: 'Mensual' },
-] as const;
+const PERIOD_VALUES = ['daily', 'weekly', 'monthly'] as const;
 
 interface CreateBudgetModalProps {
   open: boolean;
@@ -28,15 +25,15 @@ interface CreateBudgetModalProps {
   onSave: (parentId: string, node: BudgetNode) => void;
 }
 
-function MiniTreePreview({ nodes, highlightId }: { nodes: BudgetNode[]; highlightId?: string }) {
+function MiniTreePreview({ nodes, highlightId, newTag }: { nodes: BudgetNode[]; highlightId?: string; newTag: string }) {
   return (
     <div className="text-xs font-mono space-y-0.5 text-neutral-600 dark:text-neutral-400">
-      {nodes.map((n) => <MiniNode key={n.id} node={n} depth={0} highlightId={highlightId} />)}
+      {nodes.map((n) => <MiniNode key={n.id} node={n} depth={0} highlightId={highlightId} newTag={newTag} />)}
     </div>
   );
 }
 
-function MiniNode({ node, depth, highlightId }: { node: BudgetNode; depth: number; highlightId?: string }) {
+function MiniNode({ node, depth, highlightId, newTag }: { node: BudgetNode; depth: number; highlightId?: string; newTag: string }) {
   const indent = depth * 12;
   return (
     <>
@@ -49,10 +46,10 @@ function MiniNode({ node, depth, highlightId }: { node: BudgetNode; depth: numbe
       >
         <span>{depth > 0 ? '└─ ' : ''}</span>
         <span>{node.emoji} {node.label}</span>
-        {node.id === highlightId && <span className="text-primary-400">(nuevo)</span>}
+        {node.id === highlightId && <span className="text-primary-400">{newTag}</span>}
       </div>
       {node.children?.map((c) => (
-        <MiniNode key={c.id} node={c} depth={depth + 1} highlightId={highlightId} />
+        <MiniNode key={c.id} node={c} depth={depth + 1} highlightId={highlightId} newTag={newTag} />
       ))}
     </>
   );
@@ -68,6 +65,7 @@ function flattenForSelect(nodes: BudgetNode[], result: { id: string; label: stri
 
 export function CreateBudgetModal({ open, onClose, existingNodes, onSave }: CreateBudgetModalProps) {
   const uid = useId();
+  const { t } = useI18n();
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState('💰');
   const [amount, setAmount] = useState('');
@@ -76,10 +74,16 @@ export function CreateBudgetModal({ open, onClose, existingNodes, onSave }: Crea
 
   const flatOptions = flattenForSelect(existingNodes);
 
+  const PERIODS = [
+    { value: 'daily' as const, label: t('budget_modal.period.daily') },
+    { value: 'weekly' as const, label: t('budget_modal.period.weekly') },
+    { value: 'monthly' as const, label: t('budget_modal.period.monthly') },
+  ];
+
   const previewId = `preview-${uid}`;
   const previewNode: BudgetNode = {
     id: previewId,
-    label: name || 'Nueva categoría',
+    label: name || t('budget_modal.new_category_default'),
     emoji,
     spent: 0,
     total: parseFloat(amount) || 0,
@@ -120,7 +124,7 @@ export function CreateBudgetModal({ open, onClose, existingNodes, onSave }: Crea
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-2xl w-full p-0">
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-neutral-200 dark:border-neutral-700">
-          <DialogTitle>Crear nueva categoría de presupuesto</DialogTitle>
+          <DialogTitle>{t('budget_modal.title')}</DialogTitle>
         </DialogHeader>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-0 divide-y md:divide-y-0 md:divide-x divide-neutral-200 dark:divide-neutral-700">
@@ -128,13 +132,13 @@ export function CreateBudgetModal({ open, onClose, existingNodes, onSave }: Crea
           <div className="p-6 space-y-4">
             {/* Name + emoji */}
             <div>
-              <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 block mb-1">Nombre</label>
+              <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 block mb-1">{t('budget_modal.name_label')}</label>
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Ej. Alimentación"
+                  placeholder={t('budget_modal.name_placeholder')}
                   className="flex-1 h-10 rounded-md border border-neutral-300 px-3 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-50"
                 />
                 <div className="relative">
@@ -152,7 +156,7 @@ export function CreateBudgetModal({ open, onClose, existingNodes, onSave }: Crea
 
             {/* Amount */}
             <div>
-              <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 block mb-1">Monto mensual</label>
+              <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 block mb-1">{t('budget_modal.amount_label')}</label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-sm">$</span>
                 <input
@@ -168,7 +172,7 @@ export function CreateBudgetModal({ open, onClose, existingNodes, onSave }: Crea
 
             {/* Period */}
             <div>
-              <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 block mb-2">Período</label>
+              <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 block mb-2">{t('budget_modal.period_label')}</label>
               <div className="flex gap-2">
                 {PERIODS.map((p) => (
                   <button
@@ -190,11 +194,11 @@ export function CreateBudgetModal({ open, onClose, existingNodes, onSave }: Crea
             {/* Parent */}
             <div>
               <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 block mb-1">
-                ¿Dentro de qué presupuesto?
+                {t('budget_modal.parent_label')}
               </label>
               <Select value={parentId} onValueChange={setParentId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar padre…" />
+                  <SelectValue placeholder={t('budget_modal.parent_placeholder')} />
                 </SelectTrigger>
                 <SelectContent>
                   {flatOptions.map((opt) => (
@@ -210,21 +214,21 @@ export function CreateBudgetModal({ open, onClose, existingNodes, onSave }: Crea
           {/* Live preview */}
           <div className="p-6">
             <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-3">
-              Vista previa del árbol
+              {t('budget_modal.preview_title')}
             </p>
             <div className="bg-neutral-50 dark:bg-neutral-900/50 rounded-lg p-3 overflow-auto max-h-64">
-              <MiniTreePreview nodes={previewTree} highlightId={previewId} />
+              <MiniTreePreview nodes={previewTree} highlightId={previewId} newTag={t('budget_modal.new_tag')} />
             </div>
             <p className="text-xs text-neutral-400 mt-2">
-              Los nodos nuevos aparecerán resaltados una vez creados.
+              {t('budget_modal.preview_hint')}
             </p>
           </div>
         </div>
 
         <DialogFooter className="px-6 py-4 border-t border-neutral-200 dark:border-neutral-700">
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>{t('budget_modal.cancel_btn')}</Button>
           <Button onClick={handleSave} disabled={!name.trim() || !amount}>
-            Crear categoría
+            {t('budget_modal.create_btn')}
           </Button>
         </DialogFooter>
       </DialogContent>

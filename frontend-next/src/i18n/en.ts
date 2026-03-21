@@ -857,6 +857,71 @@ const en = {
   // ─── Common accessibility ──────────────────────────────────────────────────
   'common.collapse': 'Collapse',
   'common.expand': 'Expand',
+
+  // ─── Budget Modal ──────────────────────────────────────────────────────────
+  'budget_modal.title': 'Create budget category',
+  'budget_modal.name_label': 'Name',
+  'budget_modal.name_placeholder': 'e.g. Food & Groceries',
+  'budget_modal.amount_label': 'Monthly amount',
+  'budget_modal.period_label': 'Period',
+  'budget_modal.parent_label': 'Which budget does this belong to?',
+  'budget_modal.parent_placeholder': 'Select parent…',
+  'budget_modal.preview_title': 'Tree preview',
+  'budget_modal.preview_hint': 'New nodes will appear highlighted once created.',
+  'budget_modal.new_tag': '(new)',
+  'budget_modal.new_category_default': 'New category',
+  'budget_modal.period.daily': 'Daily',
+  'budget_modal.period.weekly': 'Weekly',
+  'budget_modal.period.monthly': 'Monthly',
+  'budget_modal.cancel_btn': 'Cancel',
+  'budget_modal.create_btn': 'Create category',
+
+  // ─── Task Wizard Modal ─────────────────────────────────────────────────────
+  'task_wizard.title': 'New automation task',
+  'task_wizard.step.action': 'Action',
+  'task_wizard.step.vault': 'Vault',
+  'task_wizard.step.frequency': 'Frequency',
+  'task_wizard.action.fixed_payment.title': 'Fixed payment',
+  'task_wizard.action.fixed_payment.desc': 'Transfer an exact amount on a recurring basis',
+  'task_wizard.action.rebalance.title': 'Rebalance',
+  'task_wizard.action.rebalance.desc': 'Adjust portfolio to a target ratio',
+  'task_wizard.action.recurring_purchase.title': 'Recurring purchase',
+  'task_wizard.action.recurring_purchase.desc': 'Periodic payment to a specific merchant',
+  'task_wizard.step1.title': 'What do you want to automate?',
+  'task_wizard.step2.title': 'Which vault?',
+  'task_wizard.step2.no_vaults': 'No vaults available. Create one first in the Vaults section.',
+  'task_wizard.step2.select_placeholder': 'Select vault…',
+  'task_wizard.step3.title': 'How often?',
+  'task_wizard.freq.five_minutes': 'Every 5 minutes (demo)',
+  'task_wizard.freq.hourly': 'Every hour (demo)',
+  'task_wizard.freq.daily': 'Every day',
+  'task_wizard.freq.weekly': 'Every week',
+  'task_wizard.freq.monthly': 'Every month',
+  'task_wizard.freq.custom_blocks': 'Every N blocks',
+  'task_wizard.freq.advanced_mode': 'Advanced Mode',
+  'task_wizard.freq.custom_blocks_placeholder': 'e.g. 7200 (≈ 1 hour)',
+  'task_wizard.btn.back': '← Back',
+  'task_wizard.btn.cancel': 'Cancel',
+  'task_wizard.btn.next': 'Next →',
+  'task_wizard.btn.create': 'Create task ✓',
+
+  // ─── Agent Remove (AddAgentModal) ──────────────────────────────────────────
+  'add_agent.remove_title': 'Remove agent',
+  'add_agent.remove_placeholder': '0x… agent address to remove',
+  'add_agent.remove_btn': 'Remove agent',
+  'add_agent.remove_loading': 'Removing…',
+  'add_agent.remove_success': 'Agent removed successfully.',
+  'add_agent.remove_error_prefix': 'Remove failed:',
+
+  // ─── Recipient count ───────────────────────────────────────────────────────
+  'wizard.limits.recipients_count': '{count} added',
+
+  // ─── Error page ────────────────────────────────────────────────────────────
+  'error.title': 'Something went wrong',
+  'error.cta': 'Try again',
+
+  // ─── Profile Picker search ─────────────────────────────────────────────────
+  'picker.search_placeholder': 'Search by name or address…',
 } as const;
 
 export type LocaleKey = keyof typeof en;

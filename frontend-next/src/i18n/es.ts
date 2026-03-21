@@ -864,6 +864,71 @@ const es: Record<LocaleKey, string> = {
   // ─── Common accessibility ──────────────────────────────────────────────────
   'common.collapse': 'Contraer',
   'common.expand': 'Expandir',
+
+  // ─── Budget Modal ──────────────────────────────────────────────────────────
+  'budget_modal.title': 'Crear categoría de presupuesto',
+  'budget_modal.name_label': 'Nombre',
+  'budget_modal.name_placeholder': 'ej. Alimentación',
+  'budget_modal.amount_label': 'Monto mensual',
+  'budget_modal.period_label': 'Período',
+  'budget_modal.parent_label': '¿Dentro de qué presupuesto?',
+  'budget_modal.parent_placeholder': 'Seleccionar padre…',
+  'budget_modal.preview_title': 'Vista previa del árbol',
+  'budget_modal.preview_hint': 'Los nodos nuevos aparecerán resaltados una vez creados.',
+  'budget_modal.new_tag': '(nuevo)',
+  'budget_modal.new_category_default': 'Nueva categoría',
+  'budget_modal.period.daily': 'Diario',
+  'budget_modal.period.weekly': 'Semanal',
+  'budget_modal.period.monthly': 'Mensual',
+  'budget_modal.cancel_btn': 'Cancelar',
+  'budget_modal.create_btn': 'Crear categoría',
+
+  // ─── Task Wizard Modal ─────────────────────────────────────────────────────
+  'task_wizard.title': 'Nueva tarea automática',
+  'task_wizard.step.action': 'Acción',
+  'task_wizard.step.vault': 'Bóveda',
+  'task_wizard.step.frequency': 'Frecuencia',
+  'task_wizard.action.fixed_payment.title': 'Pago fijo',
+  'task_wizard.action.fixed_payment.desc': 'Transfiere un monto exacto de forma recurrente',
+  'task_wizard.action.rebalance.title': 'Rebalanceo',
+  'task_wizard.action.rebalance.desc': 'Ajusta portfolio a un ratio objetivo',
+  'task_wizard.action.recurring_purchase.title': 'Compra recurrente',
+  'task_wizard.action.recurring_purchase.desc': 'Pago periódico a un merchant específico',
+  'task_wizard.step1.title': '¿Qué quieres automatizar?',
+  'task_wizard.step2.title': '¿Desde qué bóveda?',
+  'task_wizard.step2.no_vaults': 'No tienes bóvedas disponibles. Crea una primero desde la sección Vaults.',
+  'task_wizard.step2.select_placeholder': 'Seleccionar bóveda…',
+  'task_wizard.step3.title': '¿Con qué frecuencia?',
+  'task_wizard.freq.five_minutes': 'Cada 5 minutos (demo)',
+  'task_wizard.freq.hourly': 'Cada hora (demo)',
+  'task_wizard.freq.daily': 'Cada día',
+  'task_wizard.freq.weekly': 'Cada semana',
+  'task_wizard.freq.monthly': 'Cada mes',
+  'task_wizard.freq.custom_blocks': 'Cada N bloques',
+  'task_wizard.freq.advanced_mode': 'Modo Avanzado',
+  'task_wizard.freq.custom_blocks_placeholder': 'Ej. 7200 (≈ 1 hora)',
+  'task_wizard.btn.back': '← Volver',
+  'task_wizard.btn.cancel': 'Cancelar',
+  'task_wizard.btn.next': 'Siguiente →',
+  'task_wizard.btn.create': 'Crear tarea ✓',
+
+  // ─── Agent Remove (AddAgentModal) ──────────────────────────────────────────
+  'add_agent.remove_title': 'Quitar agente',
+  'add_agent.remove_placeholder': '0x… dirección del agente a quitar',
+  'add_agent.remove_btn': 'Quitar agente',
+  'add_agent.remove_loading': 'Quitando…',
+  'add_agent.remove_success': 'Agente quitado correctamente.',
+  'add_agent.remove_error_prefix': 'Error al quitar:',
+
+  // ─── Recipient count ───────────────────────────────────────────────────────
+  'wizard.limits.recipients_count': '{count} añadidos',
+
+  // ─── Error page ────────────────────────────────────────────────────────────
+  'error.title': 'Algo salió mal',
+  'error.cta': 'Reintentar',
+
+  // ─── Profile Picker search ─────────────────────────────────────────────────
+  'picker.search_placeholder': 'Buscar por nombre o dirección…',
 };
 
 export default es;

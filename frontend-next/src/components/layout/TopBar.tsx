@@ -16,6 +16,7 @@ import { Badge } from '@/components/common/Badge';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { cn } from '@/lib/utils/cn';
 import { lookupBasename, BASENAME_CHAINS } from '@/lib/web3/basename';
+import { useContacts } from '@/hooks/useContacts';
 
 // ─── Page meta ────────────────────────────────────────────────────────────────
 
@@ -178,6 +179,7 @@ function ConnectedAccount({
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [basename, setBasename] = useState<string | null>(null);
+  const { findContact } = useContacts();
 
   // Resolve basename for Base chains
   useEffect(() => {
@@ -203,10 +205,9 @@ function ConnectedAccount({
   const chainLabel = chainId ? (CHAIN_LABELS[chainId] ?? `Chain ${chainId}`) : null;
   const isKnownChain = chainId ? chainId in CHAIN_LABELS : false;
 
-  // Priority: UP name → basename → short address
-  const displayName = (isUniversalProfile && profile?.name)
-    ? profile.name
-    : basename ?? null;
+  // Priority: contact alias → UP name → basename → short address
+  const contactAlias = findContact(account)?.name ?? null;
+  const displayName = contactAlias ?? (isUniversalProfile && profile?.name ? profile.name : null) ?? basename ?? null;
 
   return (
     <ConnectButton.Custom>

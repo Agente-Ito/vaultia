@@ -294,13 +294,13 @@ export function AddAgentModal({ vault, open, onClose, onSuccess }: AddAgentModal
           {/* Remove agent section */}
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
-              Remove agent
+              {t('add_agent.remove_title')}
             </p>
             <input
               type="text"
               value={removeAddress}
               onChange={(e) => setRemoveAddress(e.target.value)}
-              placeholder="0x… agent address to remove"
+              placeholder={t('add_agent.remove_placeholder')}
               className="w-full rounded-xl px-3 py-2 text-xs font-mono focus:outline-none"
               style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
             />
@@ -318,23 +318,23 @@ export function AddAgentModal({ vault, open, onClose, onSuccess }: AddAgentModal
               }}
               disabled={removing || !ethers.isAddress(removeAddress) || removeSuccess}
             >
-              {removing ? 'Removing…' : 'Remove agent'}
+              {removing ? t('add_agent.remove_loading') : t('add_agent.remove_btn')}
             </Button>
             {removeSuccess && (
               <Alert variant="success">
-                <AlertDescription>Agent removed successfully.</AlertDescription>
+                <AlertDescription>{t('add_agent.remove_success')}</AlertDescription>
               </Alert>
             )}
             {removeError && (
               <Alert variant="warning">
-                <AlertDescription>Remove failed: {removeError}</AlertDescription>
+                <AlertDescription>{t('add_agent.remove_error_prefix')} {removeError}</AlertDescription>
               </Alert>
             )}
           </div>
         </SheetBody>
 
         {/* Footer */}
-        <SheetFooter className="px-6 pb-6 pt-4 border-t border-neutral-200 dark:border-neutral-700 flex gap-3">
+        <SheetFooter className="px-6 pb-6 pt-4 flex gap-3" style={{ borderTop: '1px solid var(--border)' }}>
           <Button variant="secondary" onClick={onClose} disabled={adding}>
             {t('common.cancel')}
           </Button>

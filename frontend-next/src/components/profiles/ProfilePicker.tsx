@@ -103,6 +103,7 @@ export function ProfilePicker({ isOpen, onClose, onConfirm, mode = 'contacts', p
   const allowedCategories = MODE_CATEGORIES[mode];
   const [activeCategory, setActiveCategory] = useState<ContactCategory | 'all'>('all');
   const [selected, setSelected] = useState<Set<string>>(() => new Set(preSelected.map((a) => a.toLowerCase())));
+  const [searchQuery, setSearchQuery] = useState('');
 
   const titleKey = mode === 'agents'
     ? 'picker.title.agents'
@@ -116,11 +117,15 @@ export function ProfilePicker({ isOpen, onClose, onConfirm, mode = 'contacts', p
     [contacts, allowedCategories]
   );
 
-  // Further filter by active category pill
-  const visible = useMemo(
-    () => activeCategory === 'all' ? eligible : eligible.filter((c) => c.category === activeCategory),
-    [eligible, activeCategory]
-  );
+  // Further filter by active category pill + search query
+  const visible = useMemo(() => {
+    const byCategory = activeCategory === 'all' ? eligible : eligible.filter((c) => c.category === activeCategory);
+    if (!searchQuery.trim()) return byCategory;
+    const q = searchQuery.toLowerCase();
+    return byCategory.filter((c) =>
+      (c.name ?? '').toLowerCase().includes(q) || c.address.toLowerCase().includes(q)
+    );
+  }, [eligible, activeCategory, searchQuery]);
 
   const toggle = (address: string) => {
     const key = address.toLowerCase();
@@ -145,9 +150,9 @@ export function ProfilePicker({ isOpen, onClose, onConfirm, mode = 'contacts', p
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
       {/* Panel */}
-      <div className="relative bg-white dark:bg-neutral-800 rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col">
+      <div className="relative rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col" style={{ background: 'var(--card)' }}>
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-200 dark:border-neutral-700 flex-shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 flex-shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
           <h2 className="text-base font-semibold text-neutral-900 dark:text-neutral-50">
             {t(titleKey as Parameters<typeof t>[0])}
           </h2>
@@ -158,6 +163,18 @@ export function ProfilePicker({ isOpen, onClose, onConfirm, mode = 'contacts', p
           >
             ✕
           </button>
+        </div>
+
+        {/* Search */}
+        <div className="px-5 pt-3 pb-1 flex-shrink-0">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t('picker.search_placeholder')}
+            className="w-full h-8 rounded-lg px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500"
+            style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
+          />
         </div>
 
         {/* Category filter pills — only shown when mode=contacts or multiple categories available */}
@@ -228,7 +245,7 @@ export function ProfilePicker({ isOpen, onClose, onConfirm, mode = 'contacts', p
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-4 border-t border-neutral-200 dark:border-neutral-700 flex items-center justify-between flex-shrink-0">
+        <div className="px-5 py-4 flex items-center justify-between flex-shrink-0" style={{ borderTop: '1px solid var(--border)' }}>
           <span className="text-sm text-neutral-500 dark:text-neutral-400">
             {selected.size > 0 ? `${selected.size} ${t('picker.selected')}` : ''}
           </span>

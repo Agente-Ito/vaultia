@@ -65,7 +65,7 @@ export function RecipientField({ recipients, onAdd, onRemove, placeholder }: Rec
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2 mb-1">
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          {recipients.length > 0 ? `${recipients.length} added` : ''}
+          {recipients.length > 0 ? t('wizard.limits.recipients_count').replace('{count}', String(recipients.length)) : ''}
         </span>
         <button
           type="button"
