@@ -10,41 +10,44 @@ import { useI18n } from '@/context/I18nContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useVaults } from '@/hooks/useVaults';
 import { cn } from '@/lib/utils/cn';
-import { ParticleField } from '@/components/common/ParticleField';
 
-// ─── Goal option dots (mini-constellation) ─────────────────────────────────────
-
-function ConstellationIcon({ count }: { count: number }) {
-  const pts = Array.from({ length: count }, (_, i) => ({
-    cx: 10 + (i % 3) * 12,
-    cy: 10 + Math.floor(i / 3) * 12,
-  }));
-  return (
-    <svg width="44" height="36" viewBox="0 0 44 36" aria-hidden="true">
-      {pts.map((p, i) => pts.slice(i + 1).map((q, j) => (
-        <line
-          key={`${i}-${j}`}
-          x1={p.cx} y1={p.cy} x2={q.cx} y2={q.cy}
-          stroke="var(--accent)" strokeWidth="0.8" strokeOpacity="0.4" strokeDasharray="2 4"
-        />
-      )))}
-      {pts.map((p, i) => (
-        <circle key={i} cx={p.cx} cy={p.cy} r={i === 0 ? 3.5 : 2} fill="var(--primary)" opacity="0.85" />
-      ))}
-    </svg>
-  );
-}
-
-// ─── Goal card ────────────────────────────────────────────────────────────────
+// ─── Goal icons ──────────────────────────────────────────────────────────────
 
 type GoalKey = 'pay_people' | 'pay_vendors' | 'subscriptions' | 'save_funds';
 
-const GOAL_DOTS: Record<GoalKey, number> = {
-  pay_people:    3,
-  pay_vendors:   4,
-  subscriptions: 5,
-  save_funds:    6,
-};
+function GoalIcon({ goalKey }: { goalKey: GoalKey }) {
+  const icons: Record<GoalKey, React.ReactNode> = {
+    pay_people: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+        <circle cx="9" cy="7" r="3" />
+        <path d="M3 20c0-4 2.7-7 6-7h2" />
+        <circle cx="17" cy="14" r="2.5" />
+        <path d="M17 19v-1m0-8v1" />
+      </svg>
+    ),
+    pay_vendors: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+        <rect x="4" y="8" width="16" height="12" rx="1.5" />
+        <path d="M8 8V6a4 4 0 0 1 8 0v2" />
+        <path d="M9 14h6M12 14v3" />
+      </svg>
+    ),
+    subscriptions: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+        <path d="M4 12h16M4 12l3-3M4 12l3 3M20 12l-3-3M20 12l-3 3" />
+        <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+      </svg>
+    ),
+    save_funds: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+        <path d="M12 3 L20 9 L20 20 L4 20 L4 9 Z" />
+        <path d="M9 20v-6h6v6" />
+        <line x1="12" y1="3" x2="12" y2="9" />
+      </svg>
+    ),
+  };
+  return <>{icons[goalKey]}</>;
+}
 
 function GoalCard({
   goalKey,
@@ -64,41 +67,47 @@ function GoalCard({
       disabled={comingSoon}
       aria-disabled={comingSoon}
       className={cn(
-        'relative text-left rounded-2xl px-4 py-4 transition-all duration-200 focus:outline-none group',
-        comingSoon
-          ? 'cursor-default opacity-70'
-          : selected
-            ? 'ring-2'
-            : 'opacity-70 hover:opacity-90'
+        'relative text-left rounded-xl px-4 py-4 transition-all duration-200 focus:outline-none',
+        comingSoon ? 'cursor-default opacity-55' : selected ? 'cursor-pointer' : 'cursor-pointer',
       )}
       style={{
-        background: selected
-          ? 'linear-gradient(135deg, rgba(123,97,255,0.2) 0%, rgba(60,242,255,0.08) 100%)'
-          : 'var(--card)',
-        border: '1px solid var(--border)',
-        boxShadow: selected ? '0 0 0 2px var(--accent)' : 'none',
+        background: selected ? 'rgba(16,185,129,0.05)' : 'var(--card)',
+        border: `1px solid ${selected ? '#10B981' : '#EDEDED'}`,
+      }}
+      onMouseEnter={(e) => {
+        if (!comingSoon && !selected)
+          (e.currentTarget as HTMLElement).style.borderColor = '#FFB000';
+      }}
+      onMouseLeave={(e) => {
+        if (!comingSoon && !selected)
+          (e.currentTarget as HTMLElement).style.borderColor = '#EDEDED';
       }}
     >
-      <ConstellationIcon count={GOAL_DOTS[goalKey]} />
-      <p className="text-sm font-semibold mt-2" style={{ color: comingSoon ? 'var(--text-muted)' : 'var(--text)' }}>
+      <span style={{ color: selected ? '#10B981' : comingSoon ? '#AEAEB2' : '#6B7280', display: 'block', marginBottom: 8 }}>
+        <GoalIcon goalKey={goalKey} />
+      </span>
+      <p
+        className="text-sm"
+        style={{ fontWeight: 400, letterSpacing: '0.04em', color: comingSoon ? 'var(--text-muted)' : 'var(--text)' }}
+      >
         {t(`wizard.goal.${goalKey}` as Parameters<typeof t>[0])}
       </p>
-      <p className="text-xs mt-0.5 leading-snug" style={{ color: 'var(--text-muted)' }}>
+      <p className="text-xs mt-0.5 leading-snug" style={{ color: 'var(--text-muted)', fontWeight: 300 }}>
         {t(`wizard.goal.${goalKey}_desc` as Parameters<typeof t>[0])}
       </p>
       {selected && !comingSoon && (
         <span
-          className="absolute top-3 right-3 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white"
-          style={{ background: 'var(--accent)', color: '#000' }}
-        >
-          ✓
-        </span>
+          style={{
+            position: 'absolute', top: 10, right: 10,
+            width: 7, height: 7, borderRadius: '50%',
+            background: '#10B981', boxShadow: '0 0 6px rgba(16,185,129,0.5)',
+          }}
+        />
       )}
-
       {comingSoon && (
         <span
-          className="absolute top-3 right-3 text-xs px-2 py-0.5 rounded-full font-semibold"
-          style={{ background: 'rgba(255,200,87,0.15)', color: 'var(--warning)', border: '1px solid rgba(255,200,87,0.3)' }}
+          className="absolute top-3 right-3 text-xs px-2 py-0.5 rounded-full"
+          style={{ background: 'rgba(255,176,0,0.1)', color: '#FFB000', border: '1px solid rgba(255,176,0,0.2)', fontSize: '0.65rem', letterSpacing: '0.06em' }}
         >
           {t('wizard.goal.coming_soon')}
         </span>
@@ -149,55 +158,62 @@ export default function LandingPage() {
       className="relative min-h-screen flex flex-col"
       style={{ background: 'var(--bg)' }}
     >
-      <ParticleField />
+      {/* Header */}
+      <header
+        className="flex items-center justify-between px-8 py-5"
+        style={{ borderBottom: '1px solid var(--border)' }}
+      >
+        {/* Wordmark */}
+        <span
+          style={{
+            fontSize: 13, fontWeight: 300, letterSpacing: '0.22em',
+            textTransform: 'uppercase', color: 'var(--text)',
+          }}
+        >
+          VΛULTIΛ
+        </span>
 
-      {/* Top bar: logo + mode toggle + language */}
-      <header className="relative z-10 flex items-center justify-between px-8 py-5">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
+          {/* Mode pill group */}
           <div
-            className="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-white text-sm animate-glow-pulse"
-            style={{ background: 'linear-gradient(135deg, #7B61FF, #3CF2FF)' }}
+            className="flex items-center gap-0.5 rounded p-0.5"
+            style={{ background: 'var(--inactive)', border: '1px solid var(--border)' }}
           >
-            V
-          </div>
-          <span className="font-bold text-lg" style={{ color: 'var(--text)' }}>
-            {t('nav.app_name_vaultia')}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* Mode toggle */}
-          <div className="flex items-center gap-1 rounded-lg p-1" style={{ background: 'var(--card)' }}>
             {(['simple', 'advanced'] as const).map((m) => (
               <button
                 key={m}
                 onClick={() => setMode(m)}
-                className={cn('px-3 py-1 text-xs font-medium rounded-md transition-all duration-150',
-                  mode === m ? '' : 'opacity-50 hover:opacity-70'
-                )}
-                style={mode === m
-                  ? { background: 'var(--primary)', color: '#fff' }
-                  : { color: 'var(--text-muted)' }
-                }
+                style={{
+                  fontSize: '0.7rem', fontWeight: mode === m ? 400 : 300,
+                  letterSpacing: '0.07em', textTransform: 'uppercase',
+                  padding: '4px 10px', borderRadius: 4, transition: 'all 0.15s',
+                  background: mode === m ? 'var(--text)' : 'transparent',
+                  color: mode === m ? 'var(--bg)' : 'var(--text-muted)',
+                  cursor: 'pointer', border: 'none',
+                }}
               >
                 {t(m === 'simple' ? 'wizard.mode.simple' : 'wizard.mode.expert')}
               </button>
             ))}
           </div>
 
-          {/* Language toggle */}
-          <div className="flex items-center gap-1 rounded-lg p-1" style={{ background: 'var(--card)' }}>
+          {/* Language pill group */}
+          <div
+            className="flex items-center gap-0.5 rounded p-0.5"
+            style={{ background: 'var(--inactive)', border: '1px solid var(--border)' }}
+          >
             {(['en', 'es'] as const).map((l) => (
               <button
                 key={l}
                 onClick={() => setLocale(l)}
-                className={cn('px-3 py-1 text-xs font-medium rounded-md transition-all duration-150',
-                  locale === l ? '' : 'opacity-50 hover:opacity-70'
-                )}
-                style={locale === l
-                  ? { background: 'var(--primary)', color: '#fff' }
-                  : { color: 'var(--text-muted)' }
-                }
+                style={{
+                  fontSize: '0.7rem', fontWeight: locale === l ? 400 : 300,
+                  letterSpacing: '0.07em', textTransform: 'uppercase',
+                  padding: '4px 10px', borderRadius: 4, transition: 'all 0.15s',
+                  background: locale === l ? 'var(--text)' : 'transparent',
+                  color: locale === l ? 'var(--bg)' : 'var(--text-muted)',
+                  cursor: 'pointer', border: 'none',
+                }}
               >
                 {l.toUpperCase()}
               </button>
@@ -207,8 +223,8 @@ export default function LandingPage() {
           {/* Theme toggle */}
           <button
             onClick={toggleTheme}
-            className="p-1.5 rounded-lg transition-colors hover:opacity-70 flex items-center justify-center"
-            style={{ color: 'var(--text-muted)', background: 'var(--card)' }}
+            className="flex items-center justify-center p-1.5 rounded transition-opacity hover:opacity-50"
+            style={{ color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}
             aria-label={t('settings.theme.toggle')}
           >
             {isDark ? (
@@ -226,16 +242,37 @@ export default function LandingPage() {
       </header>
 
       {/* Hero */}
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 pt-12 pb-20 text-center">
+      <main className="flex-1 flex flex-col items-center justify-center px-6 pt-16 pb-20 text-center">
+        {/* 7-dot node mark */}
+        <div style={{ display: 'flex', gap: 7, marginBottom: 28 }}>
+          {Array.from({ length: 7 }).map((_, i) => (
+            <span
+              key={i}
+              style={{
+                width: 7, height: 7, borderRadius: '50%',
+                background: i < 3 ? '#10B981' : '#EDEDED',
+                boxShadow: i < 3 ? '0 0 6px rgba(16,185,129,0.4)' : 'none',
+              }}
+            />
+          ))}
+        </div>
+
         {/* Headline */}
-        <div className="max-w-2xl mx-auto mb-10">
+        <div className="max-w-xl mx-auto mb-10">
           <h1
-            className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight mb-4"
-            style={{ color: 'var(--text)' }}
+            style={{
+              fontSize: 'clamp(1.7rem, 4vw, 2.6rem)',
+              fontWeight: 300,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              lineHeight: 1.25,
+              color: 'var(--text)',
+              marginBottom: 16,
+            }}
           >
             {t('landing.title')}
           </h1>
-          <p className="text-lg sm:text-xl" style={{ color: 'var(--text-muted)' }}>
+          <p style={{ fontSize: '1rem', fontWeight: 300, color: 'var(--text-muted)', letterSpacing: '0.02em', lineHeight: 1.65 }}>
             {t('landing.subtitle')}
           </p>
         </div>
@@ -256,11 +293,20 @@ export default function LandingPage() {
         {/* CTA */}
         <button
           onClick={handleGetStarted}
-          className="vaultia-btn-primary text-base px-10 py-3 mb-4 animate-glow-pulse"
-          style={{ animationDuration: '3s' }}
           disabled={mode === 'simple' && !selectedGoal}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            background: (mode === 'simple' && !selectedGoal) ? 'var(--inactive)' : 'var(--text)',
+            color: (mode === 'simple' && !selectedGoal) ? 'var(--text-muted)' : 'var(--bg)',
+            border: 'none', borderRadius: 6, padding: '12px 32px',
+            fontSize: '0.8rem', fontWeight: 400, letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            cursor: (mode === 'simple' && !selectedGoal) ? 'not-allowed' : 'pointer',
+            transition: 'all 0.2s', marginBottom: 16,
+          }}
         >
-          {t('landing.cta')} →
+          {t('landing.cta')}
+          <span style={{ fontSize: 12, opacity: 0.7 }}>→</span>
         </button>
 
         {/* Already connected? */}
@@ -273,8 +319,7 @@ export default function LandingPage() {
                   onClick={() => {
                     openConnectModal();
                   }}
-                  className="underline underline-offset-2 transition-opacity hover:opacity-70"
-                  style={{ color: 'var(--accent)' }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#10B981', fontWeight: 400, fontSize: 'inherit', textDecoration: 'underline', textUnderlineOffset: 3 }}
                 >
                   {t('landing.connect_existing')}
                 </button>
@@ -284,7 +329,7 @@ export default function LandingPage() {
         </div>
 
         {/* Trust message */}
-        <p className="mt-8 text-xs max-w-sm" style={{ color: 'var(--text-muted)', opacity: 0.6 }}>
+        <p className="mt-10 text-xs max-w-xs" style={{ color: 'var(--text-muted)', opacity: 0.5, fontWeight: 300, letterSpacing: '0.03em' }}>
           {t('landing.trust_message')}
         </p>
       </main>

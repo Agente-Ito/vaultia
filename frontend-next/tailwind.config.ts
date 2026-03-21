@@ -9,7 +9,15 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // ── Granular Sky dark palette ─────────────────────────────────────────
+        // ── Vaultia Celestial Vault — Semantic Palette ────────────────────────
+        vaultia: {
+          white:  '#F9F9F9',   // Main canvas / background
+          black:  '#1D1D1F',   // Primary text / logos / icons
+          grey:   '#EDEDED',   // Inactive state / borders / placeholders
+          amber:  '#FFB000',   // Pending state / simulation / hover
+          green:  '#10B981',   // Active state / success / execution
+        },
+        // ── Legacy aliases (kept for gradual migration) ───────────────────────
         granular: {
           'deep-space':  '#05070A',
           'void-blue':   '#0B0F1A',

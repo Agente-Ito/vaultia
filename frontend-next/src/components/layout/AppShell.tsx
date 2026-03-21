@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { SidebarClient } from './SidebarClient';
 import { TopBar } from './TopBar';
-import { ParticleField } from '@/components/common/ParticleField';
+import { CelestialFlash } from '@/components/common/CelestialFlash';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -14,10 +14,12 @@ interface AppShellProps {
 
 export function AppShell({ children, account, chainId, onConnect }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [splashDone, setSplashDone] = useState(false);
 
   return (
     <div className="relative flex h-screen" style={{ background: 'var(--bg)' }}>
-      <ParticleField />
+      {/* Celestial Flash — runs once per session */}
+      {!splashDone && <CelestialFlash onDone={() => setSplashDone(true)} />}
 
       {/* Sidebar */}
       <SidebarClient isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />

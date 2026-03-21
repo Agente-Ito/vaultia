@@ -81,15 +81,15 @@ function EmptyBudgetTree({ onEnable }: { onEnable: () => void }) {
 
 function StatusChip({ label, value, tone }: { label: string; value: string; tone: 'primary' | 'success' | 'warning' }) {
   const colorMap = {
-    primary: 'var(--primary)',
+    primary: 'var(--text)',
     success: 'var(--success)',
     warning: 'var(--warning)',
   } as const;
 
   return (
     <div
-      className="rounded-2xl px-4 py-4 space-y-1"
-      style={{ background: 'var(--card-mid)', border: '1px solid var(--border)' }}
+      className="rounded-xl px-4 py-4 space-y-1"
+      style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
     >
       <p className="text-xs uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>{label}</p>
       <p className="text-2xl font-semibold" style={{ color: colorMap[tone] }}>{value}</p>
@@ -102,7 +102,7 @@ function QuickActionButton({ label, onClick }: { label: string; onClick: () => v
     <button
       onClick={onClick}
       className="rounded-2xl px-4 py-3 text-left text-sm font-medium transition-opacity hover:opacity-85"
-      style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
+      style={{ background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--text)' }}
     >
       {label}
     </button>
@@ -130,8 +130,8 @@ function AdvancedControlsTabs({ pathname, onNavigate }: { pathname: string; onNa
             onClick={() => onNavigate(tab.href)}
             className="whitespace-nowrap rounded-full px-3 py-2 text-sm font-medium transition-all"
             style={{
-              background: active ? 'var(--primary)' : 'var(--card-mid)',
-              color: active ? '#fff' : 'var(--text)',
+              background: active ? 'var(--text)' : 'var(--card)',
+              color: active ? 'var(--bg)' : 'var(--text)',
               border: `1px solid ${active ? 'transparent' : 'var(--border)'}`,
             }}
           >
@@ -242,8 +242,9 @@ export default function DashboardPage() {
         <section
           className="rounded-[28px] p-6 md:p-8"
           style={{
-            background: 'linear-gradient(135deg, rgba(123,97,255,0.16) 0%, rgba(60,242,255,0.08) 55%, rgba(18,26,47,0.95) 100%)',
+            background: 'var(--card)',
             border: '1px solid var(--border)',
+            borderLeft: '3px solid #10B981',
           }}
         >
           <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
@@ -251,7 +252,9 @@ export default function DashboardPage() {
               <p className="text-xs uppercase tracking-[0.2em]" style={{ color: 'var(--text-muted)' }}>
                 Smart Money Space
               </p>
-              <h1 className="text-3xl md:text-4xl font-semibold" style={{ color: 'var(--text)' }}>
+              <h1
+                style={{ fontSize: 'clamp(1.6rem, 3.5vw, 2.2rem)', fontWeight: 300, letterSpacing: '0.05em', color: 'var(--text)' }}
+              >
                 {balanceDisplay}
               </h1>
               <p className="text-sm md:text-base" style={{ color: 'var(--text-muted)' }}>
@@ -335,8 +338,8 @@ export default function DashboardPage() {
         <div
           className="rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
           style={{
-            background: 'linear-gradient(135deg, rgba(123,97,255,0.1) 0%, rgba(60,242,255,0.05) 100%)',
-            border: '1px solid rgba(123,97,255,0.3)',
+            background: 'rgba(255,176,0,0.05)',
+            border: '1px solid rgba(255,176,0,0.2)',
           }}
         >
           <div className="space-y-0.5">

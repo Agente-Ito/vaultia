@@ -22,6 +22,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'Vaultia — Smart Money Spaces',
   description: 'Automate payments with clear rules and full control.',
+  icons: [
+    { rel: 'icon', url: '/favicon-light.svg', media: '(prefers-color-scheme: light)', type: 'image/svg+xml' },
+    { rel: 'icon', url: '/favicon-dark.svg',  media: '(prefers-color-scheme: dark)',  type: 'image/svg+xml' },
+    { rel: 'icon', url: '/favicon.ico' },
+  ],
 };
 
 export default function RootLayout({
@@ -30,7 +35,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning data-theme="dark">
+    <html lang="en" suppressHydrationWarning data-theme="light">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ThemeProvider>
           <Web3Providers>

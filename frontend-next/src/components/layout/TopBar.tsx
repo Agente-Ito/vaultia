@@ -133,13 +133,11 @@ function RainbowConnectButton({ onConnect }: { onConnect?: () => void }) {
             <div className="relative inline-flex">
               <button
                 onClick={handleClick}
-                className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-white text-xs font-semibold shadow-sm hover:opacity-90 transition-opacity z-10"
-                style={{ background: 'linear-gradient(135deg, #7B61FF 0%, #3CF2FF 100%)' }}
+                className="relative flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-light tracking-widest uppercase z-10 transition-opacity hover:opacity-75"
+                style={{ background: 'var(--text)', color: 'var(--bg)', letterSpacing: '0.08em' }}
               >
-                <span>⬡</span>
                 {t('up.login_button')}
               </button>
-              <OrbitRing connected={false} />
             </div>
           );
         }
@@ -148,7 +146,6 @@ function RainbowConnectButton({ onConnect }: { onConnect?: () => void }) {
             <Button size="sm" variant="primary" onClick={handleClick}>
               {t('common.connect_wallet')}
             </Button>
-            <OrbitRing connected={false} />
           </div>
         );
       }}
@@ -224,20 +221,21 @@ function ConnectedAccount({
             >
               <Badge
                 variant={isKnownChain ? 'success' : 'danger'}
-                className="cursor-pointer hover:opacity-80 transition-opacity"
+                className="cursor-pointer hover:opacity-70 transition-opacity"
+                style={{ fontSize: '0.65rem', letterSpacing: '0.06em' }}
               >
-                {chainLabel ?? `${t('topbar.wrong_chain')} ${chainId}`}
+                {chainLabel}
               </Badge>
             </button>
           )}
 
-          {/* Account section */}
+          {/* Identity button — opens dropdown */}
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setMenuOpen((v) => !v)}
               className="flex items-center gap-sm focus:outline-none"
             >
-              {/* Identity text — address hidden in header, only name / follower count */}
+              {/* Identity text */}
               <div className="hidden sm:block text-right">
                 {displayName ? (
                   <>
@@ -267,10 +265,11 @@ function ConnectedAccount({
             {/* Dropdown menu */}
             {menuOpen && (
               <div
-                className="absolute right-0 top-full mt-2 w-56 rounded-xl overflow-hidden z-50 shadow-xl"
+                className="absolute right-0 top-full mt-2 w-56 rounded-xl overflow-hidden z-50"
                 style={{
                   background: 'var(--card)',
                   border: '1px solid var(--border)',
+                  boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
                 }}
               >
                 {/* Profile info */}
@@ -285,7 +284,7 @@ function ConnectedAccount({
                   </div>
                 )}
 
-                {/* Address row — full address only in dropdown */}
+                {/* Address row */}
                 <div className="px-3 py-2" style={{ borderBottom: '1px solid var(--border)' }}>
                   <p className="text-xs font-mono truncate" style={{ color: 'var(--text-muted)' }}>{account}</p>
                 </div>
@@ -361,22 +360,31 @@ export function TopBar({ account, chainId, onMenuClick, onConnect }: TopBarProps
         borderBottom: '1px solid var(--border)',
       }}
     >
-      <div className="px-lg py-md flex items-center gap-md">
+      <div className="px-lg py-3 flex items-center gap-md">
         {/* Mobile menu */}
         <button
           onClick={onMenuClick}
-          className="md:hidden p-xs rounded-md flex-shrink-0 transition-colors hover:opacity-70"
+          className="md:hidden p-xs rounded flex-shrink-0 transition-opacity hover:opacity-50"
           aria-label="Toggle menu"
           style={{ color: 'var(--text-muted)' }}
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
 
         {/* Page title + context CTA */}
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <h2 className="text-base font-semibold truncate" style={{ color: 'var(--text)' }}>
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+          <h2
+            className="truncate"
+            style={{
+              fontSize: '0.8rem',
+              fontWeight: 300,
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              color: 'var(--text)',
+            }}
+          >
             {pageTitle}
           </h2>
           {pageMeta.ctaHref && pageMeta.ctaLabelKey && (
@@ -392,22 +400,24 @@ export function TopBar({ account, chainId, onMenuClick, onConnect }: TopBarProps
         <div className="flex items-center gap-3 flex-shrink-0">
           {/* Mode toggle */}
           <div
-            className="hidden sm:flex items-center gap-xs rounded-lg p-xs"
-            style={{ background: 'var(--card)' }}
+            className="hidden sm:flex items-center gap-1 rounded-md p-0.5"
+            style={{ background: 'var(--inactive)', border: '1px solid var(--border)' }}
           >
             {(['simple', 'advanced'] as const).map((m) => (
               <button
                 key={m}
                 onClick={() => handleModeSwitch(m)}
                 className={cn(
-                  'px-sm py-xs text-xs font-medium rounded-md transition-all duration-150',
-                  mode === m ? 'shadow-sm' : 'opacity-50 hover:opacity-70'
+                  'px-2.5 py-1 rounded transition-all duration-150',
                 )}
-                style={mode === m ? {
-                  background: 'var(--primary)',
-                  color: '#fff',
-                } : {
-                  color: 'var(--text-muted)',
+                style={{
+                  fontSize: '0.7rem',
+                  fontWeight: mode === m ? 400 : 300,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  background: mode === m ? 'var(--bg-surface)' : 'transparent',
+                  color: mode === m ? 'var(--text)' : 'var(--text-muted)',
+                  boxShadow: mode === m ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
                 }}
               >
                 {t(m === 'simple' ? 'topbar.simple' : 'topbar.advanced')}
@@ -417,22 +427,21 @@ export function TopBar({ account, chainId, onMenuClick, onConnect }: TopBarProps
 
           {/* Language toggle */}
           <div
-            className="hidden sm:flex items-center gap-xs rounded-lg p-xs"
-            style={{ background: 'var(--card)' }}
+            className="hidden sm:flex items-center gap-1 rounded-md p-0.5"
+            style={{ background: 'var(--inactive)', border: '1px solid var(--border)' }}
           >
             {(['en', 'es'] as const).map((l) => (
               <button
                 key={l}
                 onClick={() => setLocale(l)}
-                className={cn(
-                  'px-sm py-xs text-xs font-medium rounded-md transition-all duration-150',
-                  locale === l ? 'shadow-sm' : 'opacity-50 hover:opacity-70'
-                )}
-                style={locale === l ? {
-                  background: 'var(--primary)',
-                  color: '#fff',
-                } : {
-                  color: 'var(--text-muted)',
+                className="px-2.5 py-1 rounded transition-all duration-150"
+                style={{
+                  fontSize: '0.7rem',
+                  fontWeight: locale === l ? 400 : 300,
+                  letterSpacing: '0.06em',
+                  background: locale === l ? 'var(--bg-surface)' : 'transparent',
+                  color: locale === l ? 'var(--text)' : 'var(--text-muted)',
+                  boxShadow: locale === l ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
                 }}
               >
                 {l.toUpperCase()}
@@ -444,8 +453,8 @@ export function TopBar({ account, chainId, onMenuClick, onConnect }: TopBarProps
           <button
             onClick={toggleTheme}
             title={t('settings.theme.toggle')}
-            className="p-1.5 rounded-lg transition-colors hover:opacity-70 hidden sm:flex items-center justify-center"
-            style={{ color: 'var(--text-muted)', background: 'var(--card)' }}
+            className="p-1.5 rounded transition-opacity hover:opacity-50 hidden sm:flex items-center justify-center"
+            style={{ color: 'var(--text-muted)', background: 'transparent' }}
           >
             {isDark ? (
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

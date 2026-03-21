@@ -363,7 +363,7 @@ function BaseVaultCard({
   const short = (addr: string) => `${addr.slice(0, 8)}…${addr.slice(-6)}`;
 
   return (
-    <Card className="flex flex-col" style={{ border: '1px solid rgba(60,242,255,0.25)' }}>
+    <Card className="flex flex-col" style={{ border: '1px solid var(--border)' }}>
       <CardHeader>
         <div className="flex items-start justify-between">
           <div>

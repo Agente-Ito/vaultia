@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Button } from '@/components/common/Button';
 import { Alert, AlertDescription } from '@/components/common/Alert';
-import { Progress } from '@/components/ui/progress';
 import { GoalCard } from '@/components/wizard/GoalCard';
 import { RecipientField } from '@/components/wizard/RecipientField';
 import { SafetyLevelChips } from '@/components/wizard/SafetyLevelChips';
@@ -112,7 +111,6 @@ export function SimpleSetupFlow() {
     setWizardMode('simple');
   }, [setWizardMode]);
 
-  const progressValue = ((step + 1) / TOTAL_STEPS) * 100;
   const isLastStep = step === TOTAL_STEPS - 1;
   const canDeploy = isConnected && isRegistryConfigured && !deploying;
 
@@ -274,10 +272,15 @@ export function SimpleSetupFlow() {
         {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--accent)' }}>
+            <p
+              className="text-xs uppercase tracking-[0.18em]"
+              style={{ color: '#10B981', fontWeight: 300 }}
+            >
               {t('wizard.title')}
             </p>
-            <h1 className="text-3xl font-bold" style={{ color: 'var(--text)' }}>
+            <h1
+              style={{ fontSize: '1.6rem', fontWeight: 300, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text)' }}
+            >
               {step === 0
                 ? t('wizard.goal.title')
                 : step === 1
@@ -301,14 +304,11 @@ export function SimpleSetupFlow() {
             </p>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <div className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
-              {step + 1} / {TOTAL_STEPS}
-            </div>
             <button
               type="button"
               onClick={handleContinueToExpert}
-              className="text-xs font-medium transition-opacity hover:opacity-80"
-              style={{ color: 'var(--accent)' }}
+              className="text-xs transition-opacity hover:opacity-80"
+              style={{ color: '#10B981', fontWeight: 300, letterSpacing: '0.06em' }}
             >
               {t('wizard.header.expert_cta')}
             </button>
@@ -316,8 +316,37 @@ export function SimpleSetupFlow() {
         </div>
 
         <div className="rounded-3xl p-6 md:p-8" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
-          {/* Progress */}
-          <Progress value={progressValue} className="h-1.5" />
+          {/* 7-dot node matrix progress */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {Array.from({ length: 7 }).map((_, i) => {
+              const dotStep = Math.floor((i / 7) * TOTAL_STEPS);
+              const isActive = dotStep < step;
+              const isPending = dotStep === step;
+              return (
+                <span
+                  key={i}
+                  style={{
+                    width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                    background: isActive ? '#10B981' : isPending ? '#FFB000' : '#EDEDED',
+                    boxShadow: isActive
+                      ? '0 0 6px rgba(16,185,129,0.5)'
+                      : isPending
+                        ? '0 0 6px rgba(255,176,0,0.45)'
+                        : 'none',
+                    transition: 'all 0.3s',
+                  }}
+                />
+              );
+            })}
+            <span
+              style={{
+                marginLeft: 'auto', fontSize: '0.7rem', fontWeight: 300,
+                letterSpacing: '0.06em', color: 'var(--text-muted)',
+              }}
+            >
+              {step + 1} / {TOTAL_STEPS}
+            </span>
+          </div>
           <div className="mt-3 grid gap-2 sm:grid-cols-5">
             {STEP_LABEL_KEYS.map((labelKey, idx) => {
               const isActive = idx === step;
@@ -346,11 +375,13 @@ export function SimpleSetupFlow() {
                   }}
                   className="rounded-2xl px-3 py-2 text-xs font-medium text-center transition-opacity"
                   style={{
-                    background: isActive ? 'var(--card-mid)' : 'transparent',
-                    border: `1px solid ${isActive ? 'var(--accent)' : isNext ? 'var(--border)' : 'var(--border)'}`,
-                    color: isDone ? 'var(--success)' : isActive ? 'var(--text)' : 'var(--text-muted)',
+                    background: isActive ? 'rgba(16,185,129,0.06)' : 'transparent',
+                    border: `1px solid ${isActive ? '#10B981' : 'var(--border)'}`,
+                    color: isDone ? '#10B981' : isActive ? 'var(--text)' : 'var(--text-muted)',
+                    fontWeight: isActive ? 400 : 300,
+                    letterSpacing: '0.05em',
                     cursor: isClickable ? 'pointer' : 'default',
-                    opacity: isNext ? 0.7 : 1,
+                    opacity: isNext ? 0.65 : 1,
                   }}
                 >
                   {isDone ? '✓ ' : ''}{t(labelKey)}
@@ -737,7 +768,8 @@ export function SimpleSetupFlow() {
                       {/* Capa 4 — per-recipient mode */}
                       {recipientLimitMode === 'per' && (
                         <div className="space-y-2">
-                          {recipients.map((addr) => {
+                          {recipients.map((entry) => {
+                            const addr = entry.address;
                             const current = perRecipientLimits[addr] ?? { amount: '', period: 'weekly' as FrequencyKey };
                             return (
                               <div key={addr} className="flex flex-wrap items-center gap-2">
