@@ -405,9 +405,9 @@ export default function CreateVaultPage() {
       const encodedAllowedCalls = encodeAllowedCallsForTargets(merchantList);
       const allowedCallsByAgent = shouldWriteAllowedCalls ? agentList.map((address) => ({ agent: address, allowedCalls: encodedAllowedCalls })) : [];
       const customAgentPermissions = agentMode === AgentMode.CUSTOM ? PERM_POWER_USER : ethers.ZeroHash;
-      setStatus(t('create.status.sending'));
-      setStatus(t('create.status.confirming'));
+      if (luksoToken.trim() && !ethers.isAddress(luksoToken.trim())) throw new Error('Invalid token address. Enter a valid 0x… contract address or leave empty for native LYX.');
       const budgetToken = luksoToken.trim() || ethers.ZeroAddress;
+      setStatus(t('create.status.sending'));
       const { receipt, deployed: deployedVault } = await deployRegistryVault({ registry, owner, existingSafeAddresses, params: buildRegistryDeployParams({ budget: ethers.parseEther(budget), period: Number(period), budgetToken, expiration: expirationUnix, agents: agentList, agentBudgets: agentBudgetsList, merchants: merchantList, label, agentMode, allowSuperPermissions, customAgentPermissions, allowedCallsByAgent }) });
       const safeAddr = deployedVault?.safe ?? '';
       const kmAddr   = deployedVault?.keyManager ?? '';

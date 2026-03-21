@@ -755,6 +755,7 @@ const es: Record<LocaleKey, string> = {
   'wizard.vault.custom_token_cta': 'Token personalizado (opcional)',
   'wizard.vault.lukso_token_placeholder': 'Dirección del contrato LSP7',
   'wizard.vault.lukso_token_hint': 'Deja vacío para usar LYX nativo.',
+  'wizard.vault.lukso_token_invalid': 'Dirección de token inválida. Ingresa una dirección 0x… válida o déjala vacía para LYX.',
 
   // Paso 1 — Objetivo
   'wizard.goal.title': '¿Qué quieres automatizar?',

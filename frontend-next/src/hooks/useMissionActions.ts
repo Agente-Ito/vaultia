@@ -7,6 +7,7 @@ import {
   compileMission,
   buildSetDataPayload,
   buildRevokePayload,
+  apPermissionsKey,
   getDefaultPolicyConfig,
 } from '@/lib/missions/permissionCompiler';
 import {
@@ -32,6 +33,12 @@ const SAFE_WRITE_ABI = [
   'function setData(bytes32 dataKey, bytes memory dataValue) external',
 ];
 
+const KM_EXECUTE_ABI = [
+  'function execute(bytes calldata payload) external payable returns (bytes memory)',
+];
+
+const SAFE_INTERFACE = new ethers.Interface(SAFE_WRITE_ABI);
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface CreateMissionInput {
@@ -53,6 +60,7 @@ export interface CreateMissionInput {
 interface UseMissionActionsState {
   creating: boolean;
   revoking: boolean;
+  pausing: boolean;
   error: string | null;
 }
 
@@ -85,8 +93,17 @@ interface UseMissionActionsResult extends UseMissionActionsState {
     signer: ethers.Signer
   ) => Promise<boolean>;
 
-  /** Locally pause/unpause a mission (does not write on-chain). */
-  pauseMission: (missionId: string, pause: boolean) => Promise<void>;
+  /**
+   * Pause: zero out controller permissions on-chain (key stays in IndexedDB).
+   * Resume: restore the permissions bitmap from the mission type.
+   * AllowedCalls are preserved on-chain in both cases.
+   */
+  pauseMission: (
+    mission: MissionRecord,
+    pause: boolean,
+    keyManagerAddress: string,
+    signer: ethers.Signer
+  ) => Promise<boolean>;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -95,6 +112,7 @@ export function useMissionActions(): UseMissionActionsResult {
   const [state, setState] = useState<UseMissionActionsState>({
     creating: false,
     revoking: false,
+    pausing: false,
     error: null,
   });
 
@@ -102,7 +120,7 @@ export function useMissionActions(): UseMissionActionsResult {
   const createMission = useCallback(
     async (
       vaultSafe: string,
-      _keyManagerAddress: string,
+      keyManagerAddress: string,
       input: CreateMissionInput,
       passphrase: string,
       signer: ethers.Signer
@@ -139,10 +157,10 @@ export function useMissionActions(): UseMissionActionsResult {
           existingCount
         );
 
-        // 6. Call setDataBatch directly on the safe
-        // (setData must be called by the direct vault owner, not via KM)
-        const safe = new ethers.Contract(vaultSafe, SAFE_WRITE_ABI, signer);
-        const tx = await safe.setDataBatch(keys, values);
+        // 6. Call setDataBatch via KeyManager (KM is the UP owner; controllers use km.execute)
+        const payload = SAFE_INTERFACE.encodeFunctionData('setDataBatch', [keys, values]);
+        const km = new ethers.Contract(keyManagerAddress, KM_EXECUTE_ABI, signer);
+        const tx = await km.execute(payload);
         await tx.wait();
 
         // 8. Save mission metadata
@@ -175,15 +193,16 @@ export function useMissionActions(): UseMissionActionsResult {
   const revokeMission = useCallback(
     async (
       mission: MissionRecord,
-      _keyManagerAddress: string,
+      keyManagerAddress: string,
       signer: ethers.Signer
     ): Promise<boolean> => {
       setState((s) => ({ ...s, revoking: true, error: null }));
       try {
         const { keys, values } = buildRevokePayload(mission.controllerAddress);
-        // Single-key revoke: zero out the controller's permissions directly
-        const safe = new ethers.Contract(mission.vaultSafe, SAFE_WRITE_ABI, signer);
-        const tx = await safe.setData(keys[0], values[0]);
+        // Revoke via KeyManager
+        const payload = SAFE_INTERFACE.encodeFunctionData('setData', [keys[0], values[0]]);
+        const km = new ethers.Contract(keyManagerAddress, KM_EXECUTE_ABI, signer);
+        const tx = await km.execute(payload);
         await tx.wait();
         await updateMissionStatus(mission.id, 'revoked');
         setState((s) => ({ ...s, revoking: false }));
@@ -197,10 +216,44 @@ export function useMissionActions(): UseMissionActionsResult {
     []
   );
 
-  // ── Pause (local-only) ───────────────────────────────────────────────────────
-  const pauseMission = useCallback(async (missionId: string, pause: boolean): Promise<void> => {
-    await updateMissionStatus(missionId, pause ? 'paused' : 'active');
-  }, []);
+  // ── Pause / Resume (on-chain) ────────────────────────────────────────────────
+  const pauseMission = useCallback(
+    async (
+      mission: MissionRecord,
+      pause: boolean,
+      keyManagerAddress: string,
+      signer: ethers.Signer
+    ): Promise<boolean> => {
+      setState((s) => ({ ...s, pausing: true, error: null }));
+      try {
+        const km = new ethers.Contract(keyManagerAddress, KM_EXECUTE_ABI, signer);
+        if (pause) {
+          // Zero out the permissions key via KM — controller key becomes inert on-chain
+          const { keys, values } = buildRevokePayload(mission.controllerAddress);
+          const payload = SAFE_INTERFACE.encodeFunctionData('setData', [keys[0], values[0]]);
+          const tx = await km.execute(payload);
+          await tx.wait();
+        } else {
+          // Restore the permissions bitmap from the mission type via KM
+          const compiled = compileMission(mission.type as MissionType, []);
+          const payload = SAFE_INTERFACE.encodeFunctionData('setData', [
+            apPermissionsKey(mission.controllerAddress),
+            compiled.permBytes,
+          ]);
+          const tx = await km.execute(payload);
+          await tx.wait();
+        }
+        await updateMissionStatus(mission.id, pause ? 'paused' : 'active');
+        setState((s) => ({ ...s, pausing: false }));
+        return true;
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setState((s) => ({ ...s, pausing: false, error: msg }));
+        return false;
+      }
+    },
+    []
+  );
 
   return { ...state, createMission, revokeMission, pauseMission };
 }

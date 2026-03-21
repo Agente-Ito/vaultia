@@ -100,21 +100,32 @@ interface MissionCardProps {
 
 export function MissionCard({ mission, onUpdate }: MissionCardProps) {
   const { signer, registry } = useWeb3();
-  const { revokeMission, revoking } = useMissionActions();
+  const { revokeMission, revoking, pauseMission, pausing } = useMissionActions();
   const { logs } = useExecutionLogs(mission.vaultSafe, mission.controllerAddress);
   const [showLog, setShowLog] = useState(false);
 
   const preset = MISSION_PRESETS[mission.type as MissionType] ?? null;
   const isRevoked = mission.status === 'revoked';
+  const isPaused = mission.status === 'paused';
   const canAct = !!signer && !isRevoked;
+
+  const getKeyManagerAddress = async (): Promise<string> => {
+    try {
+      return await (registry as { getKeyManager(s: string): Promise<string> })?.getKeyManager(mission.vaultSafe) ?? '';
+    } catch { return ''; }
+  };
+
+  const handlePause = async () => {
+    if (!signer) return;
+    const keyManagerAddress = await getKeyManagerAddress();
+    if (!keyManagerAddress) return;
+    const ok = await pauseMission(mission, !isPaused, keyManagerAddress, signer);
+    if (ok) onUpdate();
+  };
 
   const handleKillSwitch = async () => {
     if (!signer) return;
-    // Look up the keyManager for this vault
-    let keyManagerAddress = '';
-    try {
-      keyManagerAddress = await (registry as { getKeyManager(s: string): Promise<string> })?.getKeyManager(mission.vaultSafe) ?? '';
-    } catch { /* ignore */ }
+    const keyManagerAddress = await getKeyManagerAddress();
     if (!keyManagerAddress) return;
     const ok = await revokeMission(mission, keyManagerAddress, signer);
     if (ok) onUpdate();
@@ -203,7 +214,17 @@ export function MissionCard({ mission, onUpdate }: MissionCardProps) {
       {/* Actions */}
       {!isRevoked && (
         <div className="flex items-center gap-3 pt-1 flex-wrap">
-          <RunButton mission={mission} disabled={!canAct} />
+          <RunButton mission={mission} disabled={!canAct || isPaused} />
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={!canAct || pausing}
+            onClick={handlePause}
+          >
+            {pausing
+              ? isPaused ? 'Resuming…' : 'Pausing…'
+              : isPaused ? '▶ Resume' : '⏸ Pause'}
+          </Button>
           <KillSwitch
             missionLabel={mission.label}
             disabled={!canAct || revoking}

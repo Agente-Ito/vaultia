@@ -226,6 +226,9 @@ export async function importKeystore(json: string): Promise<{ missionId: string;
   if (!missionId || !controllerAddress || !ciphertext || !iv || !salt) {
     throw new Error('Invalid keystore format.');
   }
+  if (Number(version) !== 1) {
+    throw new Error(`Unsupported keystore version: ${version}. Expected version 1.`);
+  }
   const blob: EncryptedKeyBlob = { ciphertext, iv, salt, iterations, version };
   await storeKey(missionId, blob, controllerAddress);
   return { missionId, controllerAddress };

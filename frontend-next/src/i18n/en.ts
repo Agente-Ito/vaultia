@@ -749,6 +749,7 @@ const en = {
   'wizard.vault.custom_token_cta': 'Custom token (optional)',
   'wizard.vault.lukso_token_placeholder': 'LSP7 token contract address',
   'wizard.vault.lukso_token_hint': 'Leave empty to use native LYX.',
+  'wizard.vault.lukso_token_invalid': 'Invalid token address. Enter a valid 0x… contract address or leave empty for LYX.',
   'wizard.vault.name_label': 'Vault name',
   'wizard.vault.name_placeholder': 'E.g. Operations, Payroll, Team Budget…',
   'wizard.vault.name_hint': 'Give it a memorable name. You can always rename it later.',

@@ -299,6 +299,7 @@ function Step3Key({
 }) {
   const { t } = useI18n();
   const mismatch = confirm.length > 0 && passphrase !== confirm;
+  const tooShort = passphrase.length > 0 && passphrase.length < 8;
 
   return (
     <div className="space-y-5">
@@ -325,6 +326,9 @@ function Step3Key({
         <p className="text-xs text-neutral-400 mt-1">
           {t('missions.create.passphrase_hint')}
         </p>
+        {tooShort && (
+          <p className="text-xs text-amber-500 mt-1">Minimum 8 characters required.</p>
+        )}
       </div>
 
       <div>

@@ -14,6 +14,7 @@ import { useI18n } from '@/context/I18nContext';
 import { useOnboarding } from '@/context/OnboardingContext';
 import type { FrequencyKey, ExecutorType, GoalKey, RecipientNetwork } from '@/context/OnboardingContext';
 import { useWeb3 } from '@/context/Web3Context';
+import { ethers } from 'ethers';
 import { buildSimpleWizardDeployParams, buildBaseSimpleDeployParams, deployRegistryVault, validateSimpleWizardInput } from '@/lib/web3/deployVault';
 import { getBaseVaultFactoryContract, getBaseSigner, getBaseTokenOptions, isBaseFactoryConfigured, switchToBase, BASE_CHAIN_ID } from '@/lib/web3/baseContracts';
 
@@ -206,6 +207,11 @@ export function SimpleSetupFlow() {
 
     if (!isConnected) {
       setDeployError(t('onboarding.connect_wallet'));
+      return;
+    }
+
+    if (recipientNetwork !== 'base' && luksoToken.trim() && !ethers.isAddress(luksoToken.trim())) {
+      setDeployError(t('wizard.vault.lukso_token_invalid'));
       return;
     }
 
