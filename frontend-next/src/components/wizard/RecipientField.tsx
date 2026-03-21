@@ -73,7 +73,7 @@ export function RecipientField({ recipients, onAdd, onRemove, placeholder }: Rec
           className="text-xs font-medium transition-opacity hover:opacity-80"
           style={{ color: 'var(--accent)' }}
         >
-          👤 {t('wizard.limits.from_profiles')}
+          {t('wizard.limits.from_profiles')}
         </button>
       </div>
 

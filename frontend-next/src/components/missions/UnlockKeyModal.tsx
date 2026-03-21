@@ -31,16 +31,16 @@ export function UnlockKeyModal({
   return (
     /* Backdrop */
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-sm bg-white dark:bg-neutral-900 rounded-xl shadow-xl border border-neutral-200 dark:border-neutral-700 p-6 space-y-5">
+      <div className="w-full max-w-sm rounded-xl shadow-xl border p-6 space-y-5" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
         {/* Header */}
         <div className="space-y-1">
-          <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">
-            🔑 {t('missions.unlock_title')}
+          <h2 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>
+            {t('missions.unlock_title')}
           </h2>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
             {t('missions.unlock_desc')}
           </p>
-          <p className="text-xs font-medium text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 rounded px-2 py-1 w-fit">
+          <p className="text-xs font-medium rounded px-2 py-1 w-fit" style={{ color: 'var(--accent)', backgroundColor: 'color-mix(in srgb, var(--accent) 14%, transparent)' }}>
             {missionLabel}
           </p>
         </div>
@@ -48,7 +48,7 @@ export function UnlockKeyModal({
         {/* Form */}
         <form onSubmit={submit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text)' }}>
               {t('missions.create.passphrase_label')}
             </label>
             <input
@@ -57,7 +57,8 @@ export function UnlockKeyModal({
               onChange={(e) => setPassphrase(e.target.value)}
               placeholder={t('missions.unlock_placeholder')}
               autoFocus
-              className="w-full rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              style={{ borderColor: 'var(--border)', background: 'var(--card-mid)', color: 'var(--text)' }}
             />
           </div>
 
@@ -69,8 +70,7 @@ export function UnlockKeyModal({
           )}
 
           {/* Trust copy */}
-          <p className="text-xs text-neutral-400 dark:text-neutral-500 flex items-center gap-1">
-            <span>🔒</span>
+          <p className="text-xs flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
             <span>{t('missions.trust_copy')}</span>
           </p>
 

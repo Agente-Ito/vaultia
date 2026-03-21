@@ -34,13 +34,14 @@ const SheetContent = React.forwardRef<
     <Drawer.Content
       ref={ref}
       className={cn(
-        'fixed z-50 bg-white dark:bg-neutral-800 shadow-xl border-neutral-200 dark:border-neutral-700 flex flex-col',
+        'fixed z-50 shadow-xl flex flex-col',
         side === 'right' && 'inset-y-0 right-0 w-full max-w-md border-l',
         side === 'left' && 'inset-y-0 left-0 w-full max-w-md border-r',
         side === 'bottom' && 'inset-x-0 bottom-0 max-h-[85vh] border-t rounded-t-xl',
         side === 'top' && 'inset-x-0 top-0 max-h-[85vh] border-b rounded-b-xl',
         className
       )}
+      style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
       {...props}
     >
       {children}
@@ -58,7 +59,8 @@ const SheetTitle = React.forwardRef<HTMLHeadingElement, React.HTMLAttributes<HTM
   ({ className, ...props }, ref) => (
     <h2
       ref={ref}
-      className={cn('text-lg font-semibold text-neutral-900 dark:text-neutral-50', className)}
+      className={cn('text-lg font-semibold', className)}
+      style={{ color: 'var(--text)' }}
       {...props}
     />
   )
@@ -71,7 +73,7 @@ const SheetBody = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>
 SheetBody.displayName = 'SheetBody';
 
 const SheetFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn('flex gap-3 p-6 pt-0 border-t border-neutral-200 dark:border-neutral-700', className)} {...props} />
+  <div className={cn('flex gap-3 p-6 pt-0 border-t', className)} style={{ borderColor: 'var(--border)' }} {...props} />
 );
 SheetFooter.displayName = 'SheetFooter';
 

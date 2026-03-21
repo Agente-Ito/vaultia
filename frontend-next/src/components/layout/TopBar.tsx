@@ -10,13 +10,13 @@ import { useTheme } from '@/context/ThemeContext';
 import { useI18n } from '@/context/I18nContext';
 import { useWeb3 } from '@/context/Web3Context';
 import { useUniversalProfile } from '@/hooks/useUniversalProfile';
+import { useDisplayName } from '@/hooks/useDisplayName';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Button } from '@/components/common/Button';
 import { Badge } from '@/components/common/Badge';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { cn } from '@/lib/utils/cn';
 import { lookupBasename, BASENAME_CHAINS } from '@/lib/web3/basename';
-import { useContacts } from '@/hooks/useContacts';
 
 // ─── Page meta ────────────────────────────────────────────────────────────────
 
@@ -92,29 +92,6 @@ function UPAvatar({
   );
 }
 
-// ─── Orbit ring (animated dots around connect button) ─────────────────────────
-
-function OrbitRing({ connected }: { connected: boolean }) {
-  if (connected) return null;
-  return (
-    <div className="orbit-container pointer-events-none absolute inset-0" aria-hidden="true">
-      {[0, 1, 2].map((i) => (
-        <span
-          key={i}
-          className="orbit-dot animate-particle-orbit"
-          style={{
-            animationDuration: `${3 + i * 1.5}s`,
-            animationDelay: `${i * -1.1}s`,
-            opacity: 0.7 - i * 0.15,
-            width: i === 0 ? 5 : i === 1 ? 4 : 3,
-            height: i === 0 ? 5 : i === 1 ? 4 : 3,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
 // ─── Connect button (RainbowKit, disconnected state) ──────────────────────────
 
 function RainbowConnectButton({ onConnect }: { onConnect?: () => void }) {
@@ -179,7 +156,7 @@ function ConnectedAccount({
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [basename, setBasename] = useState<string | null>(null);
-  const { findContact } = useContacts();
+  const { name: resolvedName, isResolved } = useDisplayName(account);
 
   // Resolve basename for Base chains
   useEffect(() => {
@@ -201,13 +178,15 @@ function ConnectedAccount({
     return () => document.removeEventListener('mousedown', handleClick);
   }, [menuOpen]);
 
-  const shortAddress = (addr: string) => `${addr.slice(0, 6)}…${addr.slice(-4)}`;
   const chainLabel = chainId ? (CHAIN_LABELS[chainId] ?? `Chain ${chainId}`) : null;
   const isKnownChain = chainId ? chainId in CHAIN_LABELS : false;
+  const walletLabel = t('dashboard.graph.wallet');
 
-  // Priority: contact alias → UP name → basename → short address
-  const contactAlias = findContact(account)?.name ?? null;
-  const displayName = contactAlias ?? (isUniversalProfile && profile?.name ? profile.name : null) ?? basename ?? null;
+  // Priority: contact alias / UP name → basename → human wallet label
+  const resolvedProfileName = isResolved ? resolvedName : null;
+  const displayName = resolvedProfileName ?? basename ?? walletLabel;
+  const avatarName = resolvedProfileName ?? basename ?? '';
+  const hasExplicitIdentity = !!(resolvedProfileName ?? basename);
 
   return (
     <ConnectButton.Custom>
@@ -238,27 +217,25 @@ function ConnectedAccount({
             >
               {/* Identity text */}
               <div className="hidden sm:block text-right">
-                {displayName ? (
-                  <>
-                    <p className="text-sm font-semibold leading-tight" style={{ color: 'var(--text)' }}>
-                      {displayName}
-                    </p>
-                    {profile?.followerCount !== null && profile?.followerCount !== undefined && (
-                      <p className="text-xs leading-tight" style={{ color: 'var(--text-muted)' }}>
-                        {profile.followerCount.toLocaleString()} followers
-                      </p>
-                    )}
-                  </>
-                ) : (
-                  <p className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
-                    {shortAddress(account)}
+                <>
+                  <p className="text-sm font-semibold leading-tight" style={{ color: 'var(--text)' }}>
+                    {displayName}
                   </p>
-                )}
+                  {profile?.followerCount !== null && profile?.followerCount !== undefined ? (
+                    <p className="text-xs leading-tight" style={{ color: 'var(--text-muted)' }}>
+                      {profile.followerCount.toLocaleString()} followers
+                    </p>
+                  ) : !hasExplicitIdentity && chainLabel ? (
+                    <p className="text-xs leading-tight" style={{ color: 'var(--text-muted)' }}>
+                      {chainLabel}
+                    </p>
+                  ) : null}
+                </>
               </div>
 
               <UPAvatar
                 avatarUrl={isUniversalProfile ? (profile?.avatarUrl ?? null) : null}
-                name={profile?.name ?? ''}
+                name={avatarName}
                 address={account}
               />
             </button>
@@ -274,10 +251,10 @@ function ConnectedAccount({
                 }}
               >
                 {/* Profile info */}
-                {isUniversalProfile && (profile?.name || profile?.description) && (
+                {(hasExplicitIdentity || profile?.description) && (
                   <div className="px-3 py-2.5" style={{ borderBottom: '1px solid var(--border)' }}>
-                    {profile?.name && (
-                      <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{profile.name}</p>
+                    {hasExplicitIdentity && (
+                      <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{displayName}</p>
                     )}
                     {profile?.description && (
                       <p className="text-xs mt-0.5 line-clamp-2" style={{ color: 'var(--text-muted)' }}>{profile.description}</p>

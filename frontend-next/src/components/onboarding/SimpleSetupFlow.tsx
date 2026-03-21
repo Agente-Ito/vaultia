@@ -177,11 +177,6 @@ export function SimpleSetupFlow() {
       return;
     }
 
-    if (step === 3 && agentEnabled && executor === 'my_agent' &&
-        (!myAgentAddress.trim() || !ethers.isAddress(myAgentAddress.trim()))) {
-      setStepError(translateSimpleError('my_agent_missing_address'));
-      return;
-    }
 
     setStep((s) => Math.min(s + 1, TOTAL_STEPS - 1));
   };
@@ -905,33 +900,19 @@ export function SimpleSetupFlow() {
                                   ? t('wizard.automation.executor.vaultia_desc')
                                   : t('wizard.automation.executor.my_agent_desc')}
                               </p>
-                              {/* My Agent: inline address form when selected */}
+                              {/* My Agent: gate with notice + redirect to advanced flow */}
                               {option === 'my_agent' && isSelected && (
-                                <div
-                                  className="mt-3 space-y-2"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <label className="block text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-                                    {t('wizard.automation.my_agent_address_label')}
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={myAgentAddress}
-                                    onChange={(e) => setMyAgentAddress(e.target.value)}
-                                    placeholder={t('wizard.automation.my_agent_address_placeholder')}
-                                    className="w-full rounded-xl px-3 py-2 text-xs font-mono focus:outline-none"
-                                    style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
-                                  />
-                                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                                    {t('wizard.automation.my_agent_address_hint')}
+                                <div className="mt-3 space-y-3" onClick={(e) => e.stopPropagation()}>
+                                  <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                                    {t('wizard.automation.my_agent_expert_notice')}
                                   </p>
                                   <button
                                     type="button"
                                     onClick={(e) => { e.stopPropagation(); handleContinueToExpert(); }}
-                                    className="text-xs transition-opacity hover:opacity-100"
-                                    style={{ color: 'var(--text-muted)' }}
+                                    className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all"
+                                    style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
                                   >
-                                    {t('wizard.automation.my_agent_pro_cta')}
+                                    {t('wizard.automation.my_agent_expert_cta')}
                                   </button>
                                 </div>
                               )}

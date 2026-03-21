@@ -747,10 +747,10 @@ export default function CreateVaultPage() {
                   <button
                     type="button"
                     onClick={() => setPickerOpen('merchants')}
-                    className="text-xs font-medium flex items-center gap-1"
+                    className="text-xs font-medium"
                     style={{ color: 'var(--accent)' }}
                   >
-                    <span>◉</span> {t('picker.browse')}
+                    {t('picker.browse')}
                   </button>
                 </div>
                 <input
@@ -956,10 +956,10 @@ export default function CreateVaultPage() {
                     <button
                       type="button"
                       onClick={() => setPickerOpen('agents')}
-                      className="text-xs font-medium flex items-center gap-1"
+                      className="text-xs font-medium"
                       style={{ color: 'var(--accent)' }}
                     >
-                      <span>◉</span> {t('picker.browse')}
+                      {t('picker.browse')}
                     </button>
                   </div>
 

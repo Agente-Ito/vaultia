@@ -557,6 +557,9 @@ export default function VaultsPage() {
             <h2 className="text-xl font-bold flex items-center gap-sm" style={{ color: 'var(--text)' }}>
               <span className="text-2xl">🔵</span>
               {t('vaults.base.section_title')}
+              <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                {t('vaults.base.coming_soon_badge')}
+              </span>
             </h2>
             <p className="text-sm mt-xs" style={{ color: 'var(--text-muted)' }}>{t('vaults.base.section_subtitle')}</p>
           </div>
@@ -572,7 +575,10 @@ export default function VaultsPage() {
           {!baseLoading && !baseError && baseVaults.length === 0 && (
             <Card>
               <CardContent>
-                <p className="text-sm py-sm" style={{ color: 'var(--text-muted)' }}>{t('vaults.base.empty')}</p>
+                <p className="text-sm py-sm" style={{ color: 'var(--text-muted)' }}>{t('vaults.base.coming_soon_desc')}</p>
+                <a href="/vaults/create" className="text-sm font-medium" style={{ color: 'var(--accent)' }}>
+                  {t('vaults.base.create_lukso_cta')}
+                </a>
               </CardContent>
             </Card>
           )}
