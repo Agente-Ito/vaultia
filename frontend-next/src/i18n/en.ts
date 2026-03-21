@@ -810,6 +810,31 @@ const en = {
   'blocked.message': 'Operation blocked by your rules.',
   'blocked.incomplete_rules': 'Complete limits to enable automation.',
   'blocked.permissions_failed': 'Activation failed — permissions were not applied.',
+
+  // ─── Recipient limits (RecipientBudgetPolicy) ──────────────────────────────
+  'vaults.card.recipient_limits': 'Recipient limits',
+  'wizard.limits.enable_limits_toggle': 'Set spending limits per recipient',
+  'wizard.limits.global_limit_label': 'Max per recipient per',
+  'wizard.limits.customize_per_recipient': 'Customize per recipient →',
+  'wizard.limits.per_recipient_amount': 'Amount',
+  'wizard.limits.per_recipient_period': 'Reset every',
+  'wizard.limits.period.five_minutes': 'Every 5 min (demo)',
+  'wizard.limits.period.hourly': 'Hourly (demo)',
+  'wizard.limits.period.daily': 'Daily',
+  'wizard.limits.period.weekly': 'Weekly',
+  'wizard.limits.period.monthly': 'Monthly',
+
+  // ─── Sub-vaults (SharedBudgetPool / VaultDirectory) ───────────────────────
+  'vaults.subvaults.add': 'Create sub-vault',
+  'vaults.subvaults.tooltip': 'Sub-vaults split your budget into separate areas. Spending across all sub-vaults counts toward the parent limit.',
+  'vaults.subvaults.section': 'Sub-vaults',
+  'vaults.subvaults.empty': 'No sub-vaults yet',
+  'wizard.subvaults.add_cta': '+ Add sub-vaults to this space',
+  'wizard.subvaults.tooltip': 'Sub-vaults let you split your budget into separate areas — Operations, Marketing, Payroll, etc. Each has its own agents and limits. You can also add them later.',
+  'wizard.subvaults.add_another': '+ Add another',
+  'wizard.subvaults.label_placeholder': 'e.g. Operations',
+  'wizard.subvaults.budget_label': 'Budget',
+  'wizard.subvaults.period_label': 'Reset every',
 } as const;
 
 export type LocaleKey = keyof typeof en;

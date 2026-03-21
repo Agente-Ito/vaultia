@@ -13,6 +13,7 @@ export type RegistryContract = Contract & {
     agents: string[];
     agentBudgets: bigint[];
     merchants: string[];
+    recipientConfigs: Array<{ recipient: string; budget: bigint; period: number }>;
     label: string;
     agentMode: number;
     allowSuperPermissions: boolean;
@@ -54,7 +55,7 @@ const RegistryAbi = [
   'function getVaults(address owner) external view returns (tuple(address safe,address keyManager,address policyEngine,string label)[])',
   'function getKeyManager(address safe) external view returns (address)',
   'function getPolicyEngine(address safe) external view returns (address)',
-  'function deployVault(tuple(uint256 budget,uint8 period,address budgetToken,uint256 expiration,address[] agents,uint256[] agentBudgets,address[] merchants,string label,uint8 agentMode,bool allowSuperPermissions,bytes32 customAgentPermissions,tuple(address agent,bytes allowedCalls)[] allowedCallsByAgent) p) external returns (tuple(address safe,address keyManager,address policyEngine,string label))',
+  'function deployVault(tuple(uint256 budget,uint8 period,address budgetToken,uint256 expiration,address[] agents,uint256[] agentBudgets,address[] merchants,tuple(address recipient,uint256 budget,uint8 period)[] recipientConfigs,string label,uint8 agentMode,bool allowSuperPermissions,bytes32 customAgentPermissions,tuple(address agent,bytes allowedCalls)[] allowedCallsByAgent) p) external returns (tuple(address safe,address keyManager,address policyEngine,string label))',
   'event VaultDeployed(address indexed owner,address indexed safe,address indexed keyManager,address policyEngine,string label,uint256 chainId)',
 ];
 
@@ -95,6 +96,44 @@ const AgentBudgetPolicyAbi = [
   'function getPeriodDuration() external view returns (uint256)',
   'function getTimeUntilReset() external view returns (uint256)',
   'function periodStart() external view returns (uint256)',
+];
+
+const RecipientBudgetPolicyAbi = [
+  'function recipientCount() external view returns (uint256)',
+  'function recipientLimits(address) external view returns (bool registered, uint256 limit, uint256 spent, uint8 period, uint256 periodStart)',
+  'function getRecipientRemaining(address) external view returns (uint256)',
+  'function getRecipients() external view returns (address[])',
+  'function setRecipientLimit(address recipient, uint256 limit, uint8 period) external',
+  'function setRecipientLimitsBatch(address[] recipients, uint256[] limits, uint8[] periods) external',
+  'function removeRecipient(address recipient) external',
+];
+
+const SharedBudgetPoolAbi = [
+  'function createPool(bytes32 poolId, bytes32 parentPool, uint256 budget, uint8 period, address[] vaults, bytes32[] childPoolIds) external',
+  'function addVaultToPool(bytes32 poolId, address vault) external',
+  'function recordSpend(address vault, uint256 amount) external',
+  'function wouldExceedBudget(address vault, uint256 amount) external view returns (bool)',
+  'function getPool(bytes32 poolId) external view returns (uint256 budget, uint256 spent, uint256 periodStart, uint8 period, bytes32 parentPool, address[] vaultMembers, bytes32[] childPools)',
+  'function getVaultPool(address vault) external view returns (bytes32)',
+  'function getPoolRemaining(bytes32 poolId) external view returns (uint256)',
+  'function getVaultAncestry(address vault) external view returns (bytes32[])',
+  'function vaultToPool(address) external view returns (bytes32)',
+  'function authorizedPolicy() external view returns (address)',
+  'function setAuthorizedPolicy(address) external',
+];
+
+const VaultDirectoryAbi = [
+  'function registerVault(address vault, string label, bytes32 linkedPool) external',
+  'function updateVaultLabel(address vault, string newLabel) external',
+  'function updatePoolLink(address vault, bytes32 newPool) external',
+  'function unregisterVault(address vault) external',
+  'function getVault(address vault) external view returns (address vaultAddr, string label, bytes32 linkedPool, bool registered)',
+  'function getVaultLabel(address vault) external view returns (string)',
+  'function getVaultPool(address vault) external view returns (bytes32)',
+  'function getVaultCount() external view returns (uint256)',
+  'function getVaults(uint256 offset, uint256 limit) external view returns (address[])',
+  'function getAllVaults() external view returns (address[])',
+  'function isVaultRegistered(address vault) external view returns (bool)',
 ];
 
 // CoordinatorAbi verified against contracts/coordination/AgentCoordinator.sol
@@ -174,6 +213,15 @@ export const getExpirationPolicyContract = (address: string, provider: Provider 
 
 export const getAgentBudgetPolicyContract = (address: string, provider: Provider | Signer) =>
   new Contract(address, AgentBudgetPolicyAbi, provider);
+
+export const getRecipientBudgetPolicyContract = (address: string, provider: Provider | Signer) =>
+  new Contract(address, RecipientBudgetPolicyAbi, provider);
+
+export const getSharedBudgetPoolContract = (address: string, provider: Provider | Signer) =>
+  new Contract(address, SharedBudgetPoolAbi, provider);
+
+export const getVaultDirectoryContract = (address: string, provider: Provider | Signer) =>
+  new Contract(address, VaultDirectoryAbi, provider);
 
 export const getKeyManagerContract = (address: string, provider: Provider | Signer) =>
   new Contract(address, [

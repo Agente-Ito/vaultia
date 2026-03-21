@@ -185,6 +185,9 @@ function VaultCard({
             ) : (
               <p><span className="font-sans font-medium">{t('vaults.card.merchants')}:</span> {t('vaults.card.no_restriction')}</p>
             )}
+            {detail.policySummary.recipientLimits?.length ? (
+              <p><span className="font-sans font-medium">{t('vaults.card.recipient_limits')}:</span> {detail.policySummary.recipientLimits.length} recipients</p>
+            ) : null}
             {!!detail.policySummary.warnings?.length && (
               <Alert variant="warning" className="mt-sm font-sans">
                 <AlertDescription>{detail.policySummary.warnings.join(' ')}</AlertDescription>
@@ -283,6 +286,31 @@ function VaultCard({
                     </div>
                   </div>
                 )}
+
+                {/* Recipient limits */}
+                {detail.policySummary.recipientLimits?.length ? (
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+                      {t('vaults.card.recipient_limits')}
+                    </p>
+                    <div className="grid grid-cols-[1fr_auto_auto] gap-x-3 gap-y-1 text-xs">
+                      <span className="font-semibold" style={{ color: 'var(--text-muted)' }}>Recipient</span>
+                      <span className="font-semibold" style={{ color: 'var(--text-muted)' }}>Remaining / Limit</span>
+                      <span className="font-semibold" style={{ color: 'var(--text-muted)' }}>Period</span>
+                      {detail.policySummary.recipientLimits.map((rl) => (
+                        <>
+                          <span key={`${rl.recipient}-addr`} className="font-mono truncate" style={{ color: 'var(--text)' }} title={rl.recipient}>
+                            {rl.recipient.slice(0, 8)}…{rl.recipient.slice(-6)}
+                          </span>
+                          <span key={`${rl.recipient}-amt`} style={{ color: 'var(--text)' }}>
+                            {rl.limit === '∞' ? '∞' : `${rl.remaining} / ${rl.limit}`}
+                          </span>
+                          <span key={`${rl.recipient}-period`} style={{ color: 'var(--text-muted)' }}>{rl.period}</span>
+                        </>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
 
                 {/* Expiration */}
                 {detail.policySummary.expirationPolicyAddress && (

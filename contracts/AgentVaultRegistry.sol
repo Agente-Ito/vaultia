@@ -43,6 +43,11 @@ interface IAgentBudgetPolicy {
     function transferOwnership(address newOwner) external;
 }
 
+interface IRecipientBudgetPolicy {
+    function setRecipientLimit(address recipient, uint256 limit, BudgetPolicy.Period period) external;
+    function transferOwnership(address newOwner) external;
+}
+
 /// @title AgentVaultRegistry
 /// @notice Factory contract that atomically deploys one complete vault stack per call:
 ///         AgentSafe + PolicyEngine + BudgetPolicy + optional AgentBudgetPolicy
@@ -161,6 +166,14 @@ contract AgentVaultRegistry is Ownable {
         bytes allowedCalls;
     }
 
+    /// @notice Per-recipient budget configuration for RecipientBudgetPolicy.
+    ///         budget == 0 means whitelist-only (no individual cap); > 0 enforces a per-period cap.
+    struct RecipientConfig {
+        address recipient;
+        uint256 budget;           // 0 = whitelist only; > 0 = active cap
+        BudgetPolicy.Period period; // ignored when budget == 0
+    }
+
     struct DeployParams {
         uint256 budget;
         BudgetPolicy.Period period;
@@ -174,6 +187,8 @@ contract AgentVaultRegistry is Ownable {
         uint256[] agentBudgets;
         /// @dev Initial merchant whitelist (max 100 per batch; triggers MerchantPolicy deployment)
         address[] merchants;
+        /// @dev Per-recipient budget configs (triggers RecipientBudgetPolicy deployment when non-empty)
+        RecipientConfig[] recipientConfigs;
         string label;
         // ─── Permission profile fields ──────────────────────────────────────
         /// @dev 0=STRICT_PAYMENTS, 1=SUBSCRIPTIONS, 2=TREASURY_BALANCED, 3=OPS_ADMIN, 4=CUSTOM
@@ -224,6 +239,10 @@ contract AgentVaultRegistry is Ownable {
         require(
             p.allowedCallsByAgent.length == 0 || p.allowedCallsByAgent.length == p.agents.length,
             "Registry: allowedCallsByAgent length mismatch"
+        );
+        require(
+            p.recipientConfigs.length <= 100,
+            "Registry: too many recipient configs"
         );
 
         // Resolve permissions bitmask from mode
@@ -349,6 +368,22 @@ contract AgentVaultRegistry is Ownable {
             mp.addMerchants(p.merchants);
             pe.addPolicy(address(mp));
             mp.transferOwnership(owner);
+        }
+
+        // 4.5. Optionally deploy RecipientBudgetPolicy (per-recipient limits + whitelist)
+        if (p.recipientConfigs.length > 0) {
+            IRecipientBudgetPolicy rbp = IRecipientBudgetPolicy(
+                deployer.newRecipientBudgetPolicy(address(this), address(pe), p.budgetToken)
+            );
+            for (uint256 i = 0; i < p.recipientConfigs.length; i++) {
+                rbp.setRecipientLimit(
+                    p.recipientConfigs[i].recipient,
+                    p.recipientConfigs[i].budget,
+                    p.recipientConfigs[i].period
+                );
+            }
+            pe.addPolicy(address(rbp));
+            rbp.transferOwnership(owner);
         }
 
         // 5. Optionally deploy ExpirationPolicy

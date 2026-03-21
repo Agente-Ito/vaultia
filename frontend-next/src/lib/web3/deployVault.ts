@@ -34,6 +34,12 @@ export type SimpleWizardGoal =
 export type SimpleSafetyLevel = 'safe' | 'flexible' | 'advanced';
 export type SimpleExecutor = 'me' | 'vaultia' | 'my_agent';
 
+export interface RecipientConfig {
+  recipient: string;
+  budget: bigint;
+  period: number;
+}
+
 export interface RegistryDeployParams {
   budget: bigint;
   period: number;
@@ -42,6 +48,8 @@ export interface RegistryDeployParams {
   agents: string[];
   agentBudgets: bigint[];
   merchants: string[];
+  /** Per-recipient limits. When non-empty, deploys RecipientBudgetPolicy instead of (or alongside) MerchantPolicy. */
+  recipientConfigs: RecipientConfig[];
   label: string;
   agentMode: number;
   allowSuperPermissions: boolean;
@@ -69,6 +77,14 @@ export interface SimpleWizardDeployInput {
   luksoToken?: string;
   /** Address of the user's own agent (executor === 'my_agent'). Empty = no agent registered. */
   myAgentAddress?: string;
+  /** When true, deploy RecipientBudgetPolicy instead of plain MerchantPolicy. */
+  recipientLimitsEnabled?: boolean;
+  /** 'global' = same limit for all recipients; 'per' = individual limits. */
+  recipientLimitMode?: 'global' | 'per';
+  /** Used when recipientLimitMode === 'global'. */
+  globalRecipientLimit?: { amount: string; period: DeployPeriodKey };
+  /** Used when recipientLimitMode === 'per'. Key = normalized address. */
+  perRecipientLimits?: Record<string, { amount: string; period: DeployPeriodKey }>;
 }
 
 interface ValidateSimpleWizardOptions {
@@ -193,6 +209,7 @@ export function buildRegistryDeployParams(params: Partial<RegistryDeployParams> 
     agents: params.agents ?? [],
     agentBudgets: params.agentBudgets ?? [],
     merchants: params.merchants ?? [],
+    recipientConfigs: params.recipientConfigs ?? [],
     label: params.label,
     agentMode: params.agentMode ?? AgentMode.STRICT_PAYMENTS,
     allowSuperPermissions: params.allowSuperPermissions ?? false,
@@ -209,18 +226,50 @@ export function buildSimpleWizardDeployParams(input: SimpleWizardDeployInput): R
   const agentAddr = input.executor === 'my_agent' && input.myAgentAddress?.trim() && ethers.isAddress(input.myAgentAddress.trim())
     ? [ethers.getAddress(input.myAgentAddress.trim())]
     : [];
-  const merchants = input.recipients
-    .filter((recipient) => !validateRecipient(recipient.address))
-    .map((recipient) => normalizeRecipient(recipient.address));
+
+  const validRecipients = input.recipients
+    .filter((r) => !validateRecipient(r.address))
+    .map((r) => normalizeRecipient(r.address));
 
   const label = input.vaultName?.trim() || SIMPLE_GOAL_LABELS[goal];
-
   const budgetToken = input.luksoToken?.trim() || ethers.ZeroAddress;
+
+  // Build recipientConfigs or merchants depending on whether limits are enabled
+  let merchants: string[] = [];
+  let recipientConfigs: RecipientConfig[] = [];
+
+  if (input.recipientLimitsEnabled) {
+    if (input.recipientLimitMode === 'per' && input.perRecipientLimits) {
+      recipientConfigs = validRecipients.map((addr) => {
+        const cfg = input.perRecipientLimits![addr];
+        const amount = cfg?.amount?.trim();
+        const period = cfg?.period ?? input.frequency;
+        return {
+          recipient: addr,
+          budget: amount && parseFloat(amount) > 0 ? parseBudgetToWei(amount) : BigInt(0),
+          period: PERIOD_MAP[period],
+        };
+      });
+    } else {
+      // Global mode: same limit for all
+      const globalAmt = input.globalRecipientLimit?.amount?.trim();
+      const globalPeriod = input.globalRecipientLimit?.period ?? input.frequency;
+      recipientConfigs = validRecipients.map((addr) => ({
+        recipient: addr,
+        budget: globalAmt && parseFloat(globalAmt) > 0 ? parseBudgetToWei(globalAmt) : BigInt(0),
+        period: PERIOD_MAP[globalPeriod],
+      }));
+    }
+  } else {
+    merchants = validRecipients;
+  }
+
   return buildRegistryDeployParams({
     budget: parseBudgetToWei(input.maxPerTx, '1'),
     period: PERIOD_MAP[input.frequency],
     budgetToken,
     merchants,
+    recipientConfigs,
     label,
     agentMode,
     allowSuperPermissions: advanced && !manualExecution,

@@ -22,6 +22,7 @@ import {
   encodeAllowedCallsForTargets,
   permissionHexForMode,
   PERM_POWER_USER,
+  type RecipientConfig,
 } from '@/lib/web3/deployVault';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -363,6 +364,7 @@ export default function CreateVaultPage() {
   const [allowSuperPermissions, setAllowSuperPermissions] = useState(false);
   const [showPowerUserWarning, setShowPowerUserWarning] = useState(false);
   const [pickerOpen, setPickerOpen]                     = useState<'agents' | 'merchants' | null>(null);
+  const [recipientRows, setRecipientRows]               = useState<Array<{ recipient: string; budget: string; period: string }>>([]);
 
   const rawAgentList  = agents.split(',').map((a) => a.trim()).filter(Boolean);
   const merchantCount = merchants.split(',').map((m) => m.trim()).filter(Boolean).length;
@@ -439,8 +441,15 @@ export default function CreateVaultPage() {
       const customAgentPermissions = agentMode === AgentMode.CUSTOM ? PERM_POWER_USER : ethers.ZeroHash;
       if (luksoToken.trim() && !ethers.isAddress(luksoToken.trim())) throw new Error('Invalid token address. Enter a valid 0x… contract address or leave empty for native LYX.');
       const budgetToken = luksoToken.trim() || ethers.ZeroAddress;
+      const recipientConfigs: RecipientConfig[] = recipientRows
+        .filter((r) => ethers.isAddress(r.recipient.trim()))
+        .map((r) => ({
+          recipient: ethers.getAddress(r.recipient.trim()),
+          budget: r.budget && parseFloat(r.budget) > 0 ? ethers.parseEther(r.budget) : BigInt(0),
+          period: Number(r.period),
+        }));
       setStatus(t('create.status.sending'));
-      const { receipt, deployed: deployedVault } = await deployRegistryVault({ registry, owner, existingSafeAddresses, params: buildRegistryDeployParams({ budget: ethers.parseEther(budget), period: Number(period), budgetToken, expiration: expirationUnix, agents: agentList, agentBudgets: agentBudgetsList, merchants: merchantList, label, agentMode, allowSuperPermissions, customAgentPermissions, allowedCallsByAgent }) });
+      const { receipt, deployed: deployedVault } = await deployRegistryVault({ registry, owner, existingSafeAddresses, params: buildRegistryDeployParams({ budget: ethers.parseEther(budget), period: Number(period), budgetToken, expiration: expirationUnix, agents: agentList, agentBudgets: agentBudgetsList, merchants: merchantList, recipientConfigs, label, agentMode, allowSuperPermissions, customAgentPermissions, allowedCallsByAgent }) });
       const safeAddr = deployedVault?.safe ?? '';
       const kmAddr   = deployedVault?.keyManager ?? '';
       const peAddr   = deployedVault?.policyEngine ?? '';
@@ -752,6 +761,71 @@ export default function CreateVaultPage() {
                   placeholder={t('create.field.merchants_placeholder')}
                 />
                 <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{t('create.field.merchants_hint')}</p>
+              </div>
+
+              {/* Per-recipient spending limits (Track 4) */}
+              <div>
+                <FieldLabel>{t('vaults.card.recipient_limits')}</FieldLabel>
+                {recipientRows.length > 0 && (
+                  <div className="mb-2 space-y-1.5">
+                    <div className="grid grid-cols-[1fr_120px_120px_28px] gap-2 px-1">
+                      <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Recipient</span>
+                      <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Amount</span>
+                      <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Period</span>
+                      <span />
+                    </div>
+                    {recipientRows.map((row, idx) => (
+                      <div key={idx} className="grid grid-cols-[1fr_120px_120px_28px] gap-2 items-center">
+                        <input
+                          className={`${inputClass} font-mono`}
+                          style={inputStyle}
+                          value={row.recipient}
+                          onChange={(e) => setRecipientRows((prev) => prev.map((r, i) => i === idx ? { ...r, recipient: e.target.value } : r))}
+                          placeholder="0x…"
+                        />
+                        <input
+                          className={inputClass}
+                          style={inputStyle}
+                          type="number" step="0.0001" min="0"
+                          value={row.budget}
+                          onChange={(e) => setRecipientRows((prev) => prev.map((r, i) => i === idx ? { ...r, budget: e.target.value } : r))}
+                          placeholder="0 = unlimited"
+                        />
+                        <select
+                          className={inputClass}
+                          style={inputStyle}
+                          value={row.period}
+                          onChange={(e) => setRecipientRows((prev) => prev.map((r, i) => i === idx ? { ...r, period: e.target.value } : r))}
+                        >
+                          <option value="0">{t('create.field.period.daily')}</option>
+                          <option value="1">{t('create.field.period.weekly')}</option>
+                          <option value="2">{t('create.field.period.monthly')}</option>
+                          <option value="3">{t('create.field.period.hourly')}</option>
+                          <option value="4">{t('create.field.period.five_minutes')}</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => setRecipientRows((prev) => prev.filter((_, i) => i !== idx))}
+                          className="flex items-center justify-center text-xs rounded-lg h-9 w-7"
+                          style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--blocked)' }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setRecipientRows((prev) => [...prev, { recipient: '', budget: '', period: '1' }])}
+                  className="text-xs font-medium transition-opacity hover:opacity-80"
+                  style={{ color: 'var(--accent)' }}
+                >
+                  + Add recipient limit
+                </button>
+                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                  Amount 0 = whitelist-only (no cap). Deploys RecipientBudgetPolicy alongside MerchantPolicy whitelist.
+                </p>
               </div>
 
               <div className="flex justify-between pt-2">

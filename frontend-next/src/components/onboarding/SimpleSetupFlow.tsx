@@ -97,6 +97,17 @@ export function SimpleSetupFlow() {
   const [customTokenOpen, setCustomTokenOpen] = useState(false);
   const [myAgentAddress, setMyAgentAddress] = useState('');
 
+  // ── Per-recipient limits (Track 3) ────────────────────────────────────────
+  const [recipientLimitsEnabled, setRecipientLimitsEnabled] = useState(false);
+  const [recipientLimitMode, setRecipientLimitMode] = useState<'global' | 'per'>('global');
+  const [globalRecipientAmount, setGlobalRecipientAmount] = useState('');
+  const [globalRecipientPeriod, setGlobalRecipientPeriod] = useState<FrequencyKey>('weekly');
+  const [perRecipientLimits, setPerRecipientLimits] = useState<Record<string, { amount: string; period: FrequencyKey }>>({});
+
+  // ── Sub-vaults (Track 7B) ─────────────────────────────────────────────────
+  const [subVaultsOpen, setSubVaultsOpen] = useState(false);
+  const [subVaults, setSubVaults] = useState<Array<{ label: string; budget: string; period: FrequencyKey }>>([]);
+
   useEffect(() => {
     setWizardMode('simple');
   }, [setWizardMode]);
@@ -229,6 +240,10 @@ export function SimpleSetupFlow() {
           safetyLevel,
           luksoToken,
           myAgentAddress,
+          recipientLimitsEnabled,
+          recipientLimitMode,
+          globalRecipientLimit: { amount: globalRecipientAmount, period: globalRecipientPeriod },
+          perRecipientLimits,
         }),
       });
       finish();
@@ -523,6 +538,78 @@ export function SimpleSetupFlow() {
                     )}
                   </div>
 
+                {/* ── Sub-vaults (Track 7B) ─────────────────────────────────── */}
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setSubVaultsOpen((v) => !v)}
+                    className="flex items-center gap-1.5 text-xs font-medium transition-opacity hover:opacity-80"
+                    style={{ color: 'var(--text-muted)' }}
+                    title={t('wizard.subvaults.tooltip')}
+                  >
+                    <span
+                      className="inline-block transition-transform duration-200"
+                      style={{ transform: subVaultsOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+                    >▶</span>
+                    {t('wizard.subvaults.add_cta')}
+                  </button>
+
+                  {subVaultsOpen && (
+                    <div className="mt-3 space-y-3">
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        {t('wizard.subvaults.tooltip')}
+                      </p>
+                      {subVaults.map((sv, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={sv.label}
+                            onChange={(e) => setSubVaults((prev) => prev.map((s, i) => i === idx ? { ...s, label: e.target.value } : s))}
+                            placeholder={t('wizard.subvaults.label_placeholder')}
+                            className="flex-1 rounded-xl px-3 py-2 text-sm focus:outline-none"
+                            style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                          />
+                          <input
+                            type="number"
+                            value={sv.budget}
+                            onChange={(e) => setSubVaults((prev) => prev.map((s, i) => i === idx ? { ...s, budget: e.target.value } : s))}
+                            placeholder={t('wizard.subvaults.budget_label')}
+                            min="0"
+                            className="w-24 rounded-xl px-3 py-2 text-sm focus:outline-none"
+                            style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                          />
+                          <select
+                            value={sv.period}
+                            onChange={(e) => setSubVaults((prev) => prev.map((s, i) => i === idx ? { ...s, period: e.target.value as FrequencyKey } : s))}
+                            className="rounded-xl px-2 py-2 text-xs focus:outline-none"
+                            style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                          >
+                            {SIMPLE_FREQS.map((f) => (
+                              <option key={f} value={f}>{t(FREQ_I18N[f] as Parameters<typeof t>[0])}</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => setSubVaults((prev) => prev.filter((_, i) => i !== idx))}
+                            className="text-xs px-2 py-1 rounded-lg"
+                            style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--blocked)' }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setSubVaults((prev) => [...prev, { label: '', budget: '', period: 'weekly' }])}
+                        className="text-xs font-medium transition-opacity hover:opacity-80"
+                        style={{ color: 'var(--accent)' }}
+                      >
+                        {t('wizard.subvaults.add_another')}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 {stepError && (
                   <p className="text-sm" style={{ color: 'var(--blocked)' }}>{stepError}</p>
                 )}
@@ -590,6 +677,122 @@ export function SimpleSetupFlow() {
                       </div>
                     </div>
                   </div>
+                </div>
+
+                {/* ── Per-recipient limits toggle (Track 3) ──────────────────── */}
+                <div className="space-y-3">
+                  {/* Capa 2 — toggle */}
+                  <label className="flex items-center gap-2.5 cursor-pointer w-fit">
+                    <div
+                      role="switch"
+                      aria-checked={recipientLimitsEnabled}
+                      onClick={() => setRecipientLimitsEnabled((v) => !v)}
+                      className="relative h-5 w-9 rounded-full transition-colors cursor-pointer flex-shrink-0"
+                      style={{ background: recipientLimitsEnabled ? 'var(--primary)' : 'var(--border)' }}
+                    >
+                      <span
+                        className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-transform"
+                        style={{ transform: recipientLimitsEnabled ? 'translateX(16px)' : 'translateX(0)' }}
+                      />
+                    </div>
+                    <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                      {t('wizard.limits.enable_limits_toggle')}
+                    </span>
+                  </label>
+
+                  {recipientLimitsEnabled && (
+                    <div className="rounded-xl p-4 space-y-3" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                      {/* Capa 3 — global mode */}
+                      {recipientLimitMode === 'global' && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                            {t('wizard.limits.global_limit_label')}
+                          </span>
+                          <select
+                            value={globalRecipientPeriod}
+                            onChange={(e) => setGlobalRecipientPeriod(e.target.value as FrequencyKey)}
+                            className="rounded-lg px-2 py-1.5 text-sm focus:outline-none"
+                            style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                          >
+                            {SIMPLE_FREQS.map((f) => (
+                              <option key={f} value={f}>{t(FREQ_I18N[f] as Parameters<typeof t>[0])}</option>
+                            ))}
+                          </select>
+                          <input
+                            type="number"
+                            value={globalRecipientAmount}
+                            onChange={(e) => setGlobalRecipientAmount(e.target.value)}
+                            placeholder="0.0"
+                            min="0"
+                            step="0.1"
+                            className="w-28 rounded-lg px-3 py-1.5 text-sm focus:outline-none"
+                            style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                          />
+                          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                            {luksoToken.trim() ? 'token' : 'LYX'}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Capa 4 — per-recipient mode */}
+                      {recipientLimitMode === 'per' && (
+                        <div className="space-y-2">
+                          {recipients.map((addr) => {
+                            const current = perRecipientLimits[addr] ?? { amount: '', period: 'weekly' as FrequencyKey };
+                            return (
+                              <div key={addr} className="flex flex-wrap items-center gap-2">
+                                <span
+                                  className="text-xs font-mono flex-1 min-w-0 truncate"
+                                  style={{ color: 'var(--text-muted)' }}
+                                  title={addr}
+                                >
+                                  {addr.slice(0, 8)}…{addr.slice(-6)}
+                                </span>
+                                <input
+                                  type="number"
+                                  value={current.amount}
+                                  onChange={(e) => setPerRecipientLimits((prev) => ({
+                                    ...prev,
+                                    [addr]: { ...current, amount: e.target.value },
+                                  }))}
+                                  placeholder={t('wizard.limits.per_recipient_amount')}
+                                  min="0"
+                                  step="0.1"
+                                  className="w-24 rounded-lg px-2 py-1.5 text-sm focus:outline-none"
+                                  style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                                />
+                                <select
+                                  value={current.period}
+                                  onChange={(e) => setPerRecipientLimits((prev) => ({
+                                    ...prev,
+                                    [addr]: { ...current, period: e.target.value as FrequencyKey },
+                                  }))}
+                                  className="rounded-lg px-2 py-1.5 text-xs focus:outline-none"
+                                  style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                                >
+                                  {SIMPLE_FREQS.map((f) => (
+                                    <option key={f} value={f}>{t(FREQ_I18N[f] as Parameters<typeof t>[0])}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Mode switch link */}
+                      <button
+                        type="button"
+                        onClick={() => setRecipientLimitMode((m) => m === 'global' ? 'per' : 'global')}
+                        className="text-xs transition-opacity hover:opacity-80"
+                        style={{ color: 'var(--accent)' }}
+                      >
+                        {recipientLimitMode === 'global'
+                          ? t('wizard.limits.customize_per_recipient')
+                          : t('wizard.limits.global_limit_label') + ' →'}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {stepError && (
