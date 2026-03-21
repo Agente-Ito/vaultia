@@ -7,6 +7,7 @@ import { Button } from '@/components/common/Button';
 import { Alert, AlertDescription } from '@/components/common/Alert';
 import { GoalCard } from '@/components/wizard/GoalCard';
 import { RecipientField } from '@/components/wizard/RecipientField';
+import { AddressDisplay } from '@/components/common/AddressDisplay';
 import { SafetyLevelChips } from '@/components/wizard/SafetyLevelChips';
 import { WizardReviewSummary } from '@/components/wizard/WizardReviewSummary';
 import { useI18n } from '@/context/I18nContext';
@@ -778,7 +779,7 @@ export function SimpleSetupFlow() {
                                   style={{ color: 'var(--text-muted)' }}
                                   title={addr}
                                 >
-                                  {addr.slice(0, 8)}…{addr.slice(-6)}
+                                  <AddressDisplay address={addr} />
                                 </span>
                                 <input
                                   type="number"

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useI18n } from '@/context/I18nContext';
+import { AddressDisplay } from '@/components/common/AddressDisplay';
 import type { GoalKey, ExecutorType, SafetyLevel, FrequencyKey, RecipientEntry } from '@/context/OnboardingContext';
 
 interface WizardReviewSummaryProps {
@@ -50,26 +51,34 @@ export function WizardReviewSummary({
         .replace('{amount}', amount)
         .replace('{period}', freqLabel);
 
-  const recipientPreview = count > 0
-    ? recipients
-        .slice(0, 2)
-        .map((recipient) => recipient.label || `${recipient.address.slice(0, 6)}...${recipient.address.slice(-4)}`)
-        .join(', ')
+  const trimmedAgentAddress = agentAddress?.trim();
+
+  const recipientPreviewNode: React.ReactNode = count > 0
+    ? (() => {
+        const visible = recipients.slice(0, 2);
+        const rest = count > 2 ? ` +${count - 2}` : '';
+        return (
+          <>
+            {visible.map((r, i) => (
+              <React.Fragment key={r.address}>
+                {i > 0 && ', '}
+                {r.label || <AddressDisplay address={r.address} mono={false} showResolvedIndicator={false} />}
+              </React.Fragment>
+            ))}
+            {rest}
+          </>
+        );
+      })()
     : '—';
 
-  const trimmedAgentAddress = agentAddress?.trim();
-  const agentAddressDisplay = trimmedAgentAddress
-    ? `${trimmedAgentAddress.slice(0, 8)}...${trimmedAgentAddress.slice(-6)}`
-    : null;
-
-  const rows: { label: string; value: string }[] = [
+  const rows: { label: string; value: React.ReactNode }[] = [
     { label: t('wizard.review.goal'),       value: goal ? t(`wizard.goal.${goal}` as Parameters<typeof t>[0]) : '—' },
-    { label: t('wizard.review.recipients'), value: count > 0 ? `${recipientPreview}${count > 2 ? ` +${count - 2}` : ''}` : '—' },
+    { label: t('wizard.review.recipients'), value: recipientPreviewNode },
     { label: t('wizard.review.max_per_tx'), value: amount },
     { label: t('wizard.review.frequency'),  value: freqLabel },
     { label: t('wizard.review.executor'),   value: executorLabel },
-    ...(executor === 'my_agent' && agentAddressDisplay
-      ? [{ label: t('wizard.review.agent_address'), value: agentAddressDisplay }]
+    ...(executor === 'my_agent' && trimmedAgentAddress
+      ? [{ label: t('wizard.review.agent_address'), value: <AddressDisplay address={trimmedAgentAddress} mono={false} /> }]
       : []),
     ...(!isManual ? [{ label: t('wizard.review.safety'), value: t(`wizard.automation.safety.${safetyLevel}` as Parameters<typeof t>[0]) }] : []),
   ];

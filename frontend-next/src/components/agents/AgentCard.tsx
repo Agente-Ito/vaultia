@@ -4,6 +4,7 @@ import React from 'react';
 import { Badge } from '@/components/common/Badge';
 import { InfoTooltip } from '@/components/common/Tooltip';
 import { useI18n } from '@/context/I18nContext';
+import { AddressDisplay } from '@/components/common/AddressDisplay';
 import type { AgentRecord } from './types';
 
 interface AgentCardProps {
@@ -27,7 +28,9 @@ export function AgentCard({ agent, onClick }: AgentCardProps) {
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1">
           <div>
-            <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{agent.address.slice(0, 8)}…{agent.address.slice(-6)}</h3>
+            <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+              <AddressDisplay address={agent.address} />
+            </h3>
             <p className="text-xs font-mono break-all" style={{ color: 'var(--text-muted)' }}>{agent.address}</p>
           </div>
         </div>

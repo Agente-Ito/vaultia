@@ -12,6 +12,7 @@ import { getProvider } from '@/lib/web3/provider';
 import { Alert, AlertDescription } from '@/components/common/Alert';
 import { useI18n } from '@/context/I18nContext';
 import { useContacts, CATEGORY_META } from '@/hooks/useContacts';
+import { AddressDisplay } from '@/components/common/AddressDisplay';
 
 interface AgentEvent { type: 'LYX' | 'TOKEN'; to: string; token?: string; amount: string; txHash: string; blockNumber: number; }
 interface SafePaymentLog {
@@ -20,7 +21,6 @@ interface SafePaymentLog {
   blockNumber: number;
 }
 
-function short(addr: string) { return `${addr.slice(0, 6)}…${addr.slice(-4)}`; }
 
 export default function ActivityPage() {
   const { registry, account, isConnected, chainId } = useWeb3();
@@ -113,9 +113,6 @@ export default function ActivityPage() {
             <div className="space-y-2">
               {events.map((ev, i) => {
                 const toContact = findContact(ev.to);
-                const toLabel = toContact?.name
-                  ? `${CATEGORY_META[toContact.category].emoji} ${toContact.name}`
-                  : short(ev.to);
                 return (
                   <div key={`${ev.txHash}-${i}`} className="flex items-start gap-3">
                     <div className="flex flex-col items-center flex-shrink-0">
@@ -135,7 +132,11 @@ export default function ActivityPage() {
                           <span className="text-sm font-medium" style={{ color: 'var(--text)' }}>
                             {parseFloat(ev.amount).toFixed(4)} {ev.type === 'LYX' ? 'LYX' : 'tokens'}
                             {' → '}
-                            <span style={toContact ? { color: 'var(--primary)' } : undefined}>{toLabel}</span>
+                            <span style={toContact ? { color: 'var(--primary)' } : undefined}>
+                              {toContact?.name
+                                ? `${CATEGORY_META[toContact.category].emoji} ${toContact.name}`
+                                : <AddressDisplay address={ev.to} mono={false} showResolvedIndicator={false} />}
+                            </span>
                           </span>
                           <span className="text-xs ml-1.5" style={{ color: 'var(--text-muted)' }}>• {ev.vaultLabel}</span>
                         </div>

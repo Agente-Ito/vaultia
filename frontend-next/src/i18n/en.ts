@@ -524,7 +524,7 @@ const en = {
   'add_agent.error': 'Could not authorize agent',
 
   // ─── Expert mode page extras ───────────────────────────────────────────────
-  'create.expert_mode_label': 'Expert Mode',
+  'create.expert_mode_label': 'Advanced Mode',
   'create.step.security': 'Security',
   'create.btn.back': 'Back',
   'create.btn.skip_protection': 'Skip',
@@ -632,7 +632,7 @@ const en = {
   // ─── Wizard (5-step Simple flow) ──────────────────────────────────────────
   'wizard.title': 'Set up your Smart Money Space',
   'wizard.mode.simple': 'Simple',
-  'wizard.mode.expert': 'Expert',
+  'wizard.mode.expert': 'Advanced',
   'wizard.step_label.vault': 'Vault',
   'wizard.step_label.goal': 'Goal',
   'wizard.step_label.limits': 'Limits',
@@ -735,8 +735,8 @@ const en = {
   'wizard.automation.safety.flexible': 'Flexible',
   'wizard.automation.safety.flexible_desc': 'Balanced — some autonomy with guardrails.',
   'wizard.automation.safety.advanced': 'Advanced',
-  'wizard.automation.safety.advanced_desc': 'Full control. Requires expert configuration.',
-  'wizard.automation.safety.advanced_warn': 'Advanced mode requires expert configuration.',
+  'wizard.automation.safety.advanced_desc': 'Full control. Requires advanced configuration.',
+  'wizard.automation.safety.advanced_warn': 'Advanced mode requires advanced configuration.',
   'wizard.automation.safety.more_options': 'More safety options',
   'wizard.automation.safety.less_options': 'Show only recommended option',
   'wizard.automation.safe_default_note': 'Safe permissions are recommended by default. Expand only if you need broader access.',
@@ -769,7 +769,7 @@ const en = {
   'wizard.review.agent_address': 'Agent address',
   'wizard.review.safety': 'Safety level',
   'wizard.review.subtitle': 'Review your setup and activate your vault.',
-  'wizard.header.expert_cta': 'Switch to Expert Mode →',
+  'wizard.header.expert_cta': 'Switch to Advanced Mode →',
   'wizard.btn.back': '← Back',
   'wizard.btn.next': 'Next →',
   'wizard.btn.deploying': 'Deploying…',
@@ -801,9 +801,9 @@ const en = {
   'dashboard.quick.run_now': 'Run now',
   'dashboard.advanced_controls': 'Advanced Controls',
   'dashboard.trust': 'Your funds stay yours. Vaultia only executes within your rules.',
-  'dashboard.expert_banner.title': 'Ready for Expert Mode?',
+  'dashboard.expert_banner.title': 'Ready for Advanced Mode?',
   'dashboard.expert_banner.desc': 'Unlock full contract control, raw policy configs, and advanced automation features.',
-  'dashboard.expert_banner.cta': 'Switch to Expert Mode',
+  'dashboard.expert_banner.cta': 'Switch to Advanced Mode',
 
   // ─── Trust / blocked states ────────────────────────────────────────────────
   'trust.message': 'Your funds stay yours. Vaultia only executes within your rules.',
@@ -835,6 +835,28 @@ const en = {
   'wizard.subvaults.label_placeholder': 'e.g. Operations',
   'wizard.subvaults.budget_label': 'Budget',
   'wizard.subvaults.period_label': 'Reset every',
+
+  // ─── Management panel ──────────────────────────────────────────────────────
+  'vaults.manage.budget_limit_label': 'Budget limit (LYX)',
+  'vaults.manage.new_budget_placeholder': 'New budget',
+  'vaults.manage.update_btn': 'Update',
+  'vaults.manage.merchants_label': 'Merchants',
+  'vaults.manage.add_merchant_placeholder': '0x… add merchant',
+  'vaults.manage.expiration_label': 'Expiration',
+  'vaults.manage.add_btn': 'Add',
+  'vaults.manage.recipient_col': 'Recipient',
+  'vaults.manage.remaining_limit_col': 'Remaining / Limit',
+  'vaults.manage.period_col': 'Period',
+
+  // ─── Create page catalog ───────────────────────────────────────────────────
+  'create.agents.catalog_loading': 'Loading agent catalog…',
+  'create.agents.catalog_from': 'From coordinator catalog — click to select:',
+  'create.agents.auto_badge': 'auto',
+  'create.field.per_agent_budget_placeholder': 'Budget (LYX)',
+
+  // ─── Common accessibility ──────────────────────────────────────────────────
+  'common.collapse': 'Collapse',
+  'common.expand': 'Expand',
 } as const;
 
 export type LocaleKey = keyof typeof en;

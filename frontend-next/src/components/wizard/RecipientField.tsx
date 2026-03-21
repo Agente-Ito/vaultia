@@ -5,6 +5,7 @@ import { useI18n } from '@/context/I18nContext';
 import type { RecipientEntry } from '@/context/OnboardingContext';
 import { normalizeRecipient, validateRecipient } from '@/lib/web3/deployVault';
 import { ProfilePicker } from '@/components/profiles/ProfilePicker';
+import { AddressDisplay } from '@/components/common/AddressDisplay';
 
 interface RecipientFieldProps {
   recipients: RecipientEntry[];
@@ -149,11 +150,12 @@ export function RecipientField({ recipients, onAdd, onRemove, placeholder }: Rec
                       {recipient.label}
                     </span>
                   )}
-                  <span className="block truncate max-w-[240px]" style={{ color: 'var(--text-muted)' }}>
-                    {recipient.address.length > 30
-                      ? `${recipient.address.slice(0, 10)}…${recipient.address.slice(-8)}`
-                      : recipient.address}
-                  </span>
+                  <AddressDisplay
+                    address={recipient.address}
+                    className="block truncate max-w-[240px]"
+                    mono={false}
+                    showResolvedIndicator={false}
+                  />
                 </span>
               </span>
               <button

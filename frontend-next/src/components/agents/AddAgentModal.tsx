@@ -7,6 +7,7 @@ import { Button } from '@/components/common/Button';
 import { Alert, AlertDescription } from '@/components/common/Alert';
 import { useAgents } from '@/hooks/useAgents';
 import { useAddAgentToVault, AgentMode } from '@/hooks/useAddAgentToVault';
+import { AddressDisplay } from '@/components/common/AddressDisplay';
 import { useRemoveAgentFromVault } from '@/hooks/useRemoveAgentFromVault';
 import { useI18n } from '@/context/I18nContext';
 import type { AgentRecord } from './types';
@@ -49,8 +50,10 @@ function AgentCatalog({
 }) {
   const { data: agents = [], isLoading } = useAgents();
 
+  const { t } = useI18n();
+
   if (isLoading) {
-    return <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Loading agents…</p>;
+    return <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('create.agents.catalog_loading')}</p>;
   }
   if (agents.length === 0) return null;
 
@@ -80,9 +83,7 @@ function AgentCatalog({
             >
               {selected && '✓'}
             </span>
-            <span className="font-mono" style={{ color: 'var(--text-muted)' }}>
-              {ag.address.slice(0, 10)}…{ag.address.slice(-6)}
-            </span>
+            <AddressDisplay address={ag.address} />
             {ag.roles.map((r) => (
               <span
                 key={r}
@@ -97,7 +98,7 @@ function AgentCatalog({
                 className="ml-auto rounded-full px-2 py-0.5"
                 style={{ background: 'rgba(34,255,178,0.15)', color: 'var(--accent)' }}
               >
-                auto
+                {t('create.agents.auto_badge')}
               </span>
             )}
           </button>

@@ -4,8 +4,9 @@ import { useI18n } from '@/context/I18nContext';
 import type { ExecutionLogEntry } from '@/hooks/useExecutionLogs';
 import { cn } from '@/lib/utils/cn';
 import { ethers } from 'ethers';
+import { AddressDisplay } from '@/components/common/AddressDisplay';
 
-function truncate(addr: string) {
+function truncateHash(addr: string) {
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 }
 
@@ -13,7 +14,7 @@ function formatAmount(wei: string, token: string) {
   const isLYX = token === ethers.ZeroAddress || token === '0x0000000000000000000000000000000000000000';
   try {
     const formatted = ethers.formatEther(BigInt(wei));
-    return `${formatted} ${isLYX ? 'LYX' : truncate(token)}`;
+    return `${formatted} ${isLYX ? 'LYX' : truncateHash(token)}`;
   } catch {
     return `${wei} wei`;
   }
@@ -72,11 +73,11 @@ export function ExecutionLog({ logs }: ExecutionLogProps) {
                   {log.result === 'success' ? 'OK' : 'Blocked'}
                 </span>
               </td>
-              <td className="px-3 py-2 font-mono text-neutral-600 dark:text-neutral-300">
-                {truncate(log.controller)}
+              <td className="px-3 py-2 text-neutral-600 dark:text-neutral-300">
+                <AddressDisplay address={log.controller} />
               </td>
-              <td className="px-3 py-2 font-mono text-neutral-600 dark:text-neutral-300">
-                {truncate(log.target)}
+              <td className="px-3 py-2 text-neutral-600 dark:text-neutral-300">
+                <AddressDisplay address={log.target} />
               </td>
               <td className="px-3 py-2 text-neutral-700 dark:text-neutral-200 tabular-nums">
                 {formatAmount(log.amount, log.token)}
@@ -87,7 +88,7 @@ export function ExecutionLog({ logs }: ExecutionLogProps) {
                     {t('missions.log.blocked_reason')}
                   </span>
                 ) : log.txHash ? (
-                  <span className="font-mono truncate block">{truncate(log.txHash)}</span>
+                  <span className="font-mono truncate block">{truncateHash(log.txHash)}</span>
                 ) : null}
               </td>
             </tr>

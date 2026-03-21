@@ -518,7 +518,7 @@ const es: Record<LocaleKey, string> = {
   'add_agent.error': 'No se pudo autorizar al agente',
 
   // ─── Expert mode page extras ───────────────────────────────────────────────
-  'create.expert_mode_label': 'Modo Experto',
+  'create.expert_mode_label': 'Modo Avanzado',
   'create.step.security': 'Seguridad',
   'create.btn.back': 'Volver',
   'create.btn.skip_protection': 'Omitir',
@@ -626,7 +626,7 @@ const es: Record<LocaleKey, string> = {
   // ─── Asistente (flujo simple de 5 pasos) ────────────────────────────────────
   'wizard.title': 'Configura tu Espacio de Dinero',
   'wizard.mode.simple': 'Simple',
-  'wizard.mode.expert': 'Experto',
+  'wizard.mode.expert': 'Avanzado',
   'wizard.step_label.vault': 'Bóveda',
   'wizard.step_label.goal': 'Objetivo',
   'wizard.step_label.limits': 'Límites',
@@ -728,8 +728,8 @@ const es: Record<LocaleKey, string> = {
   'wizard.automation.safety.flexible': 'Flexible',
   'wizard.automation.safety.flexible_desc': 'Equilibrado — autonomía con límites.',
   'wizard.automation.safety.advanced': 'Avanzado',
-  'wizard.automation.safety.advanced_desc': 'Control total. Requiere configuración experta.',
-  'wizard.automation.safety.advanced_warn': 'El modo avanzado requiere configuración experta.',
+  'wizard.automation.safety.advanced_desc': 'Control total. Requiere configuración avanzada.',
+  'wizard.automation.safety.advanced_warn': 'El modo avanzado requiere configuración avanzada.',
   'wizard.automation.safety.more_options': 'Más opciones de seguridad',
   'wizard.automation.safety.less_options': 'Mostrar solo la opción recomendada',
   'wizard.automation.safe_default_note': 'Los permisos seguros son la opción recomendada por defecto. Expande solo si necesitas más acceso.',
@@ -762,7 +762,7 @@ const es: Record<LocaleKey, string> = {
   'wizard.review.agent_address': 'Dirección del agente',
   'wizard.review.safety': 'Nivel de seguridad',
   'wizard.review.subtitle': 'Revisa tu configuración y activa tu boveda.',
-  'wizard.header.expert_cta': 'Cambiar a Modo Experto →',
+  'wizard.header.expert_cta': 'Cambiar a Modo Avanzado →',
   'wizard.btn.back': '← Volver',
   'wizard.btn.next': 'Siguiente →',
   'wizard.btn.deploying': 'Desplegando…',
@@ -794,15 +794,76 @@ const es: Record<LocaleKey, string> = {
   'dashboard.quick.run_now': 'Ejecutar ahora',
   'dashboard.advanced_controls': 'Controles Avanzados',
   'dashboard.trust': 'Tus fondos siguen siendo tuyos. Vaultia solo ejecuta dentro de tus reglas.',
-  'dashboard.expert_banner.title': '¿Listo para el Modo Experto?',
+  'dashboard.expert_banner.title': '¿Listo para el Modo Avanzado?',
   'dashboard.expert_banner.desc': 'Desbloquea control total de contratos, configuraciones de política y automatización avanzada.',
-  'dashboard.expert_banner.cta': 'Cambiar a Modo Experto',
+  'dashboard.expert_banner.cta': 'Cambiar a Modo Avanzado',
 
   // ─── Mensajes de confianza / bloqueo ─────────────────────────────────────────
   'trust.message': 'Tus fondos siguen siendo tuyos. Vaultia solo ejecuta dentro de tus reglas.',
   'blocked.message': 'Operación bloqueada por tus reglas.',
   'blocked.incomplete_rules': 'Completa los límites para habilitar la automatización.',
   'blocked.permissions_failed': 'Activación fallida — los permisos no se aplicaron.',
+
+  // ─── Extension prompts ─────────────────────────────────────────────────────
+  'vaults.has_extension.connect_prompt': 'Extensión UP detectada — conecta tu perfil para continuar.',
+  'vaults.no_extension.title': 'Comienza con LUKSO',
+  'vaults.no_extension.install_ext': 'Instalar extensión UP (Chrome)',
+  'vaults.no_extension.create_profile': 'Crear un Universal Profile',
+  'vaults.no_extension.faucet': 'Obtener LYXt de prueba (para gas)',
+
+  // ─── Faucet / demo tokens ──────────────────────────────────────────────────
+  'vaults.card.fund_faucet': 'Obtener LYXt para gas →',
+  'vaults.card.get_demo_tokens': 'Obtener 1000 tokens demo AVT',
+  'vaults.card.demo_tokens_success': '1000 AVT acuñados a la bóveda ✓',
+
+  // ─── Recipient limits ──────────────────────────────────────────────────────
+  'vaults.card.recipient_limits': 'Límites por destinatario',
+  'wizard.limits.enable_limits_toggle': 'Establecer límites por destinatario',
+  'wizard.limits.global_limit_label': 'Máx. por destinatario cada',
+  'wizard.limits.customize_per_recipient': 'Personalizar por destinatario →',
+  'wizard.limits.per_recipient_amount': 'Importe',
+  'wizard.limits.per_recipient_period': 'Cada',
+  'wizard.limits.period.five_minutes': 'Cada 5 min (demo)',
+  'wizard.limits.period.hourly': 'Cada hora (demo)',
+  'wizard.limits.period.daily': 'Diario',
+  'wizard.limits.period.weekly': 'Semanal',
+  'wizard.limits.period.monthly': 'Mensual',
+  'wizard.limits.freq.five_minutes': 'Cada 5 min',
+  'wizard.limits.freq.hourly': 'Cada hora',
+
+  // ─── Sub-vaults ────────────────────────────────────────────────────────────
+  'vaults.subvaults.add': 'Crear sub-bóveda',
+  'vaults.subvaults.tooltip': 'Las sub-bóvedas dividen tu presupuesto en áreas separadas. El gasto de todas cuenta hacia el límite del padre.',
+  'vaults.subvaults.section': 'Sub-bóvedas',
+  'vaults.subvaults.empty': 'Sin sub-bóvedas',
+  'wizard.subvaults.add_cta': '+ Agregar sub-bóvedas a este espacio',
+  'wizard.subvaults.tooltip': 'Las sub-bóvedas dividen tu presupuesto en áreas separadas — Operaciones, Marketing, Nómina, etc. Cada una tiene sus propios agentes y límites. También puedes agregarlas más tarde.',
+  'wizard.subvaults.add_another': '+ Agregar otra',
+  'wizard.subvaults.label_placeholder': 'ej. Operaciones',
+  'wizard.subvaults.budget_label': 'Presupuesto',
+  'wizard.subvaults.period_label': 'Cada',
+
+  // ─── Management panel ──────────────────────────────────────────────────────
+  'vaults.manage.budget_limit_label': 'Límite de presupuesto (LYX)',
+  'vaults.manage.new_budget_placeholder': 'Nuevo presupuesto',
+  'vaults.manage.update_btn': 'Actualizar',
+  'vaults.manage.merchants_label': 'Comerciantes',
+  'vaults.manage.add_merchant_placeholder': '0x… agregar comerciante',
+  'vaults.manage.expiration_label': 'Expiración',
+  'vaults.manage.add_btn': 'Agregar',
+  'vaults.manage.recipient_col': 'Destinatario',
+  'vaults.manage.remaining_limit_col': 'Restante / Límite',
+  'vaults.manage.period_col': 'Período',
+
+  // ─── Create page catalog ───────────────────────────────────────────────────
+  'create.agents.catalog_loading': 'Cargando catálogo de agentes…',
+  'create.agents.catalog_from': 'Del catálogo del coordinador — clic para seleccionar:',
+  'create.agents.auto_badge': 'auto',
+  'create.field.per_agent_budget_placeholder': 'Presupuesto (LYX)',
+
+  // ─── Common accessibility ──────────────────────────────────────────────────
+  'common.collapse': 'Contraer',
+  'common.expand': 'Expandir',
 };
 
 export default es;

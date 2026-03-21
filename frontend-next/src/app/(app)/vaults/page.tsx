@@ -15,6 +15,7 @@ import { Skeleton, SkeletonCard } from '@/components/common/Skeleton';
 import { Alert, AlertDescription } from '@/components/common/Alert';
 import { useI18n } from '@/context/I18nContext';
 import { AddAgentModal, VaultRef } from '@/components/agents/AddAgentModal';
+import { AddressDisplay } from '@/components/common/AddressDisplay';
 import { useManageVaultPolicy } from '@/hooks/useManageVaultPolicy';
 import { useDemoToken } from '@/hooks/useDemoToken';
 import { ethers, parseUnits } from 'ethers';
@@ -234,19 +235,19 @@ function VaultCard({
                 {detail.policySummary.budgetPolicyAddress && (
                   <div className="space-y-1">
                     <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
-                      Budget limit (LYX)
+                      {t('vaults.manage.budget_limit_label')}
                     </p>
                     <div className="flex gap-2">
                       <input
                         type="number"
                         value={newBudget}
                         onChange={(e) => setNewBudget(e.target.value)}
-                        placeholder="New budget"
+                        placeholder={t('vaults.manage.new_budget_placeholder')}
                         className="flex-1 rounded-lg px-2 py-1 text-xs font-mono focus:outline-none"
                         style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
                       />
                       <Button variant="secondary" size="sm" onClick={handleUpdateBudget} disabled={updating || !newBudget}>
-                        {updating ? '…' : 'Update'}
+                        {updating ? '…' : t('vaults.manage.update_btn')}
                       </Button>
                     </div>
                   </div>
@@ -256,11 +257,11 @@ function VaultCard({
                 {detail.policySummary.merchantPolicyAddress && (
                   <div className="space-y-1">
                     <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
-                      Merchants
+                      {t('vaults.manage.merchants_label')}
                     </p>
                     {detail.policySummary.merchants?.map((m) => (
                       <div key={m} className="flex items-center justify-between gap-2">
-                        <span className="font-mono text-xs truncate">{m}</span>
+                        <AddressDisplay address={m} className="text-xs truncate" />
                         <button
                           onClick={() => handleRemoveMerchant(m)}
                           disabled={updating}
@@ -276,12 +277,12 @@ function VaultCard({
                         type="text"
                         value={newMerchant}
                         onChange={(e) => setNewMerchant(e.target.value)}
-                        placeholder="0x… add merchant"
+                        placeholder={t('vaults.manage.add_merchant_placeholder')}
                         className="flex-1 rounded-lg px-2 py-1 text-xs font-mono focus:outline-none"
                         style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
                       />
                       <Button variant="secondary" size="sm" onClick={handleAddMerchant} disabled={updating || !ethers.isAddress(newMerchant)}>
-                        {updating ? '…' : 'Add'}
+                        {updating ? '…' : t('vaults.manage.add_btn')}
                       </Button>
                     </div>
                   </div>
@@ -294,13 +295,13 @@ function VaultCard({
                       {t('vaults.card.recipient_limits')}
                     </p>
                     <div className="grid grid-cols-[1fr_auto_auto] gap-x-3 gap-y-1 text-xs">
-                      <span className="font-semibold" style={{ color: 'var(--text-muted)' }}>Recipient</span>
-                      <span className="font-semibold" style={{ color: 'var(--text-muted)' }}>Remaining / Limit</span>
-                      <span className="font-semibold" style={{ color: 'var(--text-muted)' }}>Period</span>
+                      <span className="font-semibold" style={{ color: 'var(--text-muted)' }}>{t('vaults.manage.recipient_col')}</span>
+                      <span className="font-semibold" style={{ color: 'var(--text-muted)' }}>{t('vaults.manage.remaining_limit_col')}</span>
+                      <span className="font-semibold" style={{ color: 'var(--text-muted)' }}>{t('vaults.manage.period_col')}</span>
                       {detail.policySummary.recipientLimits.map((rl) => (
                         <>
-                          <span key={`${rl.recipient}-addr`} className="font-mono truncate" style={{ color: 'var(--text)' }} title={rl.recipient}>
-                            {rl.recipient.slice(0, 8)}…{rl.recipient.slice(-6)}
+                          <span key={`${rl.recipient}-addr`} style={{ color: 'var(--text)' }}>
+                            <AddressDisplay address={rl.recipient} className="truncate" />
                           </span>
                           <span key={`${rl.recipient}-amt`} style={{ color: 'var(--text)' }}>
                             {rl.limit === '∞' ? '∞' : `${rl.remaining} / ${rl.limit}`}
@@ -316,7 +317,7 @@ function VaultCard({
                 {detail.policySummary.expirationPolicyAddress && (
                   <div className="space-y-1">
                     <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
-                      Expiration
+                      {t('vaults.manage.expiration_label')}
                     </p>
                     <div className="flex gap-2">
                       <input
@@ -327,7 +328,7 @@ function VaultCard({
                         style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
                       />
                       <Button variant="secondary" size="sm" onClick={handleUpdateExpiration} disabled={updating || !newExpiration}>
-                        {updating ? '…' : 'Update'}
+                        {updating ? '…' : t('vaults.manage.update_btn')}
                       </Button>
                     </div>
                   </div>

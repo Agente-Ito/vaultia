@@ -13,6 +13,7 @@ import { ProfilePicker } from '@/components/profiles/ProfilePicker';
 import { useAgents } from '@/hooks/useAgents';
 import { useWeb3 } from '@/context/Web3Context';
 import { useI18n } from '@/context/I18nContext';
+import { AddressDisplay } from '@/components/common/AddressDisplay';
 import { cn } from '@/lib/utils/cn';
 import { verifyPermissionsWrite } from '@/lib/verifyWrite';
 import {
@@ -264,11 +265,12 @@ function CoordinatorAgentCatalog({
   onToggle: (address: string) => void;
 }) {
   const { data: catalogAgents = [], isLoading } = useAgents();
+  const { t } = useI18n();
 
   if (isLoading) {
     return (
       <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
-        Loading agent catalog…
+        {t('create.agents.catalog_loading')}
       </p>
     );
   }
@@ -278,7 +280,7 @@ function CoordinatorAgentCatalog({
   return (
     <div className="mb-3 space-y-2">
       <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-        From coordinator catalog — click to select:
+        {t('create.agents.catalog_from')}
       </p>
       <div className="grid grid-cols-1 gap-2">
         {catalogAgents.map((ag) => {
@@ -309,9 +311,7 @@ function CoordinatorAgentCatalog({
                 {selected && '✓'}
               </span>
 
-              <span className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>
-                {ag.address.slice(0, 10)}…{ag.address.slice(-6)}
-              </span>
+              <AddressDisplay address={ag.address} className="text-xs" />
 
               {ag.roles.map((r) => (
                 <span
@@ -325,7 +325,7 @@ function CoordinatorAgentCatalog({
 
               {ag.allowedAutomation && (
                 <span className="ml-auto rounded-full px-2 py-0.5 text-xs" style={{ background: 'rgba(34,255,178,0.15)', color: 'var(--accent)' }}>
-                  auto
+                  {t('create.agents.auto_badge')}
                 </span>
               )}
             </button>
@@ -1018,14 +1018,14 @@ export default function CreateVaultPage() {
                           const key = ethers.isAddress(addr) ? ethers.getAddress(addr) : addr;
                           return (
                             <div key={addr} className="flex items-center gap-3">
-                              <span className="text-xs font-mono w-36 truncate" style={{ color: 'var(--text-muted)' }}>
-                                {addr.slice(0, 10)}…{addr.slice(-6)}
+                              <span className="text-xs w-36 truncate" style={{ color: 'var(--text-muted)' }}>
+                                <AddressDisplay address={addr} />
                               </span>
                               <input
                                 className={cn(inputClass, 'flex-1')}
                                 style={inputStyle}
                                 type="number" step="0.0001" min="0"
-                                placeholder="Budget (LYX)"
+                                placeholder={t('create.field.per_agent_budget_placeholder')}
                                 value={agentBudgetMap[key] ?? ''}
                                 onChange={(e) => setAgentBudgetMap((prev) => ({ ...prev, [key]: e.target.value }))}
                               />
