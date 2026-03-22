@@ -157,10 +157,11 @@ export default function DashboardPage() {
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string>('root');
 
+  const createHref = isAdvanced ? '/vaults/create' : '/setup';
   const emptyActionLabel = isConnected ? t('dashboard.new_vault') : t('dashboard.connect_wallet_btn');
   const handleEmptyAction = () => {
     if (isConnected) {
-      router.push('/vaults/create');
+      router.push(createHref);
       return;
     }
     connect();
@@ -253,15 +254,12 @@ export default function DashboardPage() {
             </div>
             <div className="flex flex-wrap gap-3">
               {isConnected ? (
-                <Link href="/vaults/create">
+                <Link href={createHref}>
                   <Button size="sm">{t('dashboard.new_vault')}</Button>
                 </Link>
               ) : (
                 <Button size="sm" onClick={connect}>{t('dashboard.connect_wallet_btn')}</Button>
               )}
-              <Button variant="secondary" size="sm" onClick={() => router.push('/setup')}>
-                {t('nav.setup_cta')}
-              </Button>
             </div>
           </div>
 
@@ -393,7 +391,7 @@ export default function DashboardPage() {
         </div>
 
         {isConnected ? (
-          <Link href="/vaults/create">
+          <Link href={createHref}>
             <Button size="sm">{t('dashboard.new_vault')}</Button>
           </Link>
         ) : (

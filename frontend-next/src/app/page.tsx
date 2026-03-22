@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useWeb3 } from '@/context/Web3Context';
 import { useOnboarding } from '@/context/OnboardingContext';
@@ -10,8 +11,9 @@ import { useI18n } from '@/context/I18nContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useVaults } from '@/hooks/useVaults';
 import { cn } from '@/lib/utils/cn';
-import { SiteFooter, VAULTIA_SKILL_URL } from '@/components/layout/SiteFooter';
+import { SiteFooter } from '@/components/layout/SiteFooter';
 import { VaultiaLogoLink } from '@/components/common/VaultiaLogo';
+import { SkillOverlay } from '@/components/landing/SkillOverlay';
 
 // ─── Goal icons ──────────────────────────────────────────────────────────────
 
@@ -130,6 +132,7 @@ export default function LandingPage() {
   const { vaults, loading: vaultsLoading } = useVaults(registry, account);
 
   const [selectedGoal, setSelectedGoal] = React.useState<GoalKey | null>(null);
+  const [showSkill, setShowSkill] = useState(false);
 
   // If already connected with vaults → go to dashboard
   useEffect(() => {
@@ -166,7 +169,7 @@ export default function LandingPage() {
         style={{ borderBottom: '1px solid var(--border)' }}
       >
         {/* Wordmark */}
-        <VaultiaLogoLink height={24} />
+        <VaultiaLogoLink height={32} />
 
         <div className="flex items-center gap-2">
           {/* Mode pill group */}
@@ -270,7 +273,7 @@ export default function LandingPage() {
         <div className="max-w-xl mx-auto mb-10">
           <h1
             style={{
-              fontSize: 'clamp(1.7rem, 4vw, 2.6rem)',
+              fontSize: 'clamp(1.275rem, 3vw, 1.95rem)',
               fontWeight: 300,
               letterSpacing: '0.08em',
               textTransform: 'uppercase',
@@ -337,15 +340,13 @@ export default function LandingPage() {
           </ConnectButton.Custom>
         </div>
 
-        <a
-          href={VAULTIA_SKILL_URL}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          onClick={() => setShowSkill(true)}
           className="mt-5 inline-flex items-center gap-2 rounded-md px-4 py-2 text-xs uppercase tracking-[0.14em] transition-opacity hover:opacity-85"
-          style={{ color: 'var(--text)', border: '1px solid var(--border)' }}
+          style={{ color: 'var(--text)', border: '1px solid var(--border)', background: 'none', cursor: 'pointer' }}
         >
           {t('landing.agent_cta')}
-        </a>
+        </button>
 
         <p className="mt-10 text-xs max-w-xs" style={{ color: 'var(--text-muted)', opacity: 0.65, fontWeight: 300, letterSpacing: '0.03em' }}>
           {t('landing.trust_message')}
@@ -353,6 +354,8 @@ export default function LandingPage() {
       </main>
 
       <SiteFooter />
+
+      {showSkill && <SkillOverlay onClose={() => setShowSkill(false)} />}
     </div>
   );
 }

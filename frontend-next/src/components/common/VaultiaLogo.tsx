@@ -173,19 +173,22 @@ export default VaultiaLogo;
  * VaultiaLogoLink — renders the actual brand PNG (dark/light aware) wrapped in
  * a smart link: /dashboard when a wallet is connected, / otherwise.
  */
-export function VaultiaLogoLink({ height = 22 }: { height?: number }) {
+export function VaultiaLogoLink({ height = 28 }: { height?: number }) {
   const { isDark } = useTheme();
   const { account } = useWeb3();
+  // Both logos are ~6.2:1 after trimming — compute width to maintain ratio
+  const width = Math.round(height * 6.2);
 
   return (
     <Link href={account ? '/dashboard' : '/'} className="flex-shrink-0 flex items-center" aria-label="Vaultia">
       <Image
         src={isDark ? '/logo-white.png' : '/logo-black.png'}
         alt="Vaultia"
-        width={300}
-        height={80}
-        style={{ height, width: 'auto' }}
+        width={width}
+        height={height}
+        style={{ height, width }}
         priority
+        unoptimized
       />
     </Link>
   );

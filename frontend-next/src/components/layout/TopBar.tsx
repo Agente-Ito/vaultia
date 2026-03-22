@@ -346,8 +346,10 @@ export function TopBar({ account, chainId, onMenuClick, onConnect }: TopBarProps
       }}
     >
       <div className="px-lg py-3 flex items-center gap-md">
-        {/* Logo */}
-        <VaultiaLogoLink height={20} />
+        {/* Logo — hidden on desktop only when sidebar is visible (i.e. not on /setup) */}
+        <div className={cn(!pathname.startsWith('/setup') && 'md:hidden')}>
+          <VaultiaLogoLink height={28} />
+        </div>
 
         {/* Mobile menu */}
         <button

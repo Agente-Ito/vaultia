@@ -94,7 +94,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
       >
         <div className="flex-shrink-0 px-5 py-5" style={{ borderBottom: '1px solid var(--border)' }}>
           <div className="mb-1">
-            <VaultiaLogoLink height={20} />
+            <VaultiaLogoLink height={26} />
           </div>
           <p className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
             {t('nav.network')}

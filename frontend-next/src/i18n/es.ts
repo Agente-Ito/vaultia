@@ -17,7 +17,7 @@ const es: Record<LocaleKey, string> = {
 
   // ─── Navigation ────────────────────────────────────────────────────────────
   'nav.app_name': 'Finanzas IA',
-  'nav.dashboard': 'Inicio',
+  'nav.dashboard': 'Dashboard',
   'nav.vaults': 'Bóvedas',
   'nav.missions': 'Misiones',
   'nav.rules': 'Permisos de bóveda',
@@ -450,18 +450,18 @@ const es: Record<LocaleKey, string> = {
   'settings.network.not_configured': 'No configurado',
 
   // ─── Universal Profile ──────────────────────────────────────────────────────
-  'up.login_button': 'Entrar con Universal Profile',
+  'up.login_button': 'Entrar con Perfil Universal',
   'up.metamask_fallback': 'o conectar con MetaMask',
-  'up.install_extension': '→ Instalar la extensión Universal Profile',
-  'up.profile.title': 'Universal Profile',
+  'up.install_extension': '→ Instalar la extensión de Perfil Universal',
+  'up.profile.title': 'Perfil Universal',
   'up.profile.subtitle': 'Tu identidad on-chain en LUKSO',
   'up.profile.view': 'Ver en universalprofile.cloud',
   'up.profile.no_name': 'Perfil sin nombre',
-  'up.profile.not_connected': 'Ingresa con tu Universal Profile para ver tu identidad on-chain, nombre y avatar.',
+  'up.profile.not_connected': 'Ingresa con tu Perfil Universal para ver tu identidad on-chain, nombre y avatar.',
 
   // ─── Profiles ──────────────────────────────────────────────────────────────
   'profiles.title': 'Explorador de Perfiles',
-  'profiles.subtitle': 'Descubre, etiqueta y gestiona Universal Profiles de LUKSO',
+  'profiles.subtitle': 'Descubre, etiqueta y gestiona Perfiles Universales de LUKSO',
   'profiles.search.placeholder': 'Pega una dirección de Universal Profile (0x...)',
   'profiles.search.hint': 'Acepta cualquier dirección EVM — la app leerá sus metadatos LSP3 desde la cadena.',
   'profiles.search.btn': 'Buscar',
@@ -603,7 +603,7 @@ const es: Record<LocaleKey, string> = {
 
   // ─── Notifications ─────────────────────────────────────────────────────────
   'notifications.title': 'Notificaciones',
-  'notifications.empty': 'Sin actividad reciente en tu Universal Profile.',
+  'notifications.empty': 'Sin actividad reciente en tu Perfil Universal.',
   'notifications.mark_all_read': 'Marcar todo como leído',
   'notifications.loading': 'Cargando actividad…',
   'notifications.lyx_received': 'LYX recibido',
@@ -630,7 +630,7 @@ const es: Record<LocaleKey, string> = {
   'settings.theme.toggle': 'Cambiar tema',
 
   // ─── Página de inicio ────────────────────────────────────────────────────────
-  'landing.title': 'Actores económicos autónomos sobre Universal Profiles',
+  'landing.title': 'Actores económicos autónomos sobre Perfiles Universales',
   'landing.subtitle': 'Protocolo de contabilidad on-chain componible para agentes de IA.',
   'landing.cta': 'Crear tu Bóveda',
   'landing.mode_toggle': 'Modo',
@@ -870,7 +870,7 @@ const es: Record<LocaleKey, string> = {
   'vaults.has_extension.connect_prompt': 'Extensión UP detectada — conecta tu perfil para continuar.',
   'vaults.no_extension.title': 'Comienza con LUKSO',
   'vaults.no_extension.install_ext': 'Instalar extensión UP (Chrome)',
-  'vaults.no_extension.create_profile': 'Crear un Universal Profile',
+  'vaults.no_extension.create_profile': 'Crear un Perfil Universal',
   'vaults.no_extension.faucet': 'Obtener LYXt de prueba desde el faucet',
 
   // ─── Faucet / test tokens ──────────────────────────────────────────────────
@@ -970,7 +970,7 @@ const es: Record<LocaleKey, string> = {
   'task_wizard.step2.no_vaults': 'No tienes bóvedas disponibles. Crea una primero desde la sección Vaults.',
   'task_wizard.step2.select_placeholder': 'Seleccionar bóveda…',
   'task_wizard.step2.recipient_label': 'Dirección destinataria',
-  'task_wizard.step2.recipient_placeholder': '0x… wallet o Universal Profile',
+  'task_wizard.step2.recipient_placeholder': '0x… wallet o Perfil Universal',
   'task_wizard.step2.recipient_invalid': 'Ingresa una dirección EVM válida antes de continuar.',
   'task_wizard.step2.amount_label': 'Monto por ejecución',
   'task_wizard.step2.amount_placeholder': '0.01',

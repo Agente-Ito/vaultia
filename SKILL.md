@@ -1,16 +1,40 @@
 # Vaultia Protocol — Agent SKILL
 
-## What this file is
-This file gives an AI agent the minimum working context needed to interact with the current Vaultia protocol safely.
+## What Vaultia is
 
-It is written for two use cases:
-- an agent operating inside an already configured vault
-- an orchestrator agent helping a human deploy or configure vault infrastructure
+Vaultia is a constrained execution layer for AI-driven finance, built on LUKSO Universal Profiles.
 
-This document is intentionally conservative. When a capability is only partially wired today, it is labeled as such instead of being presented as live functionality.
+The protocol is designed around a clear ownership boundary:
+
+- **Humans** create root vaults, configure budget policies, set spending limits, and decide which agents to authorize.
+- **Agents** operate inside those vaults — executing transactions, managing workflows, and optionally coordinating sub-vaults — but only within the permissions and budget caps the human owner committed on-chain ahead of time.
+
+An agent can never exceed the permissions or budget limits of the vault that authorized it. If an owner delegates vault management to an agent, any sub-vaults that agent creates or manages must stay within the root vault's overall constraints. There is no privilege escalation path.
+
+## Current deployment state (beta)
+
+The protocol is live on LUKSO testnet. The following capabilities are operational today:
+
+| Capability | Status |
+|---|---|
+| Root vault deployment via the app | ✅ Live |
+| Budget, merchant, and expiration policies | ✅ Live |
+| Assigning a curated agent to a vault | ✅ Live |
+| Assigning a custom agent address to a vault | ✅ Live |
+| LSP6 KeyManager + PolicyEngine execution path | ✅ Live |
+| AgentCoordinator registration and roles | ✅ Live |
+| TaskScheduler (keeper-driven automation) | ✅ Live |
+| VaultDirectory and SharedBudgetPool contracts | ✅ Deployed |
+| Agent creating sub-vaults autonomously via UI | 🔜 Next release |
+| Agent-to-agent delegation via the app | 🔜 Next release |
+
+**Curated agents** are the recommended starting point during this phase. These are vetted agents with known execution paths and tested permission profiles. You can evaluate and test them without configuring your own agent infrastructure.
+
+Custom agent addresses can be assigned from the vault creation success screen or the vault management panel at any time.
+
+If a capability is not marked as live above, do not assume it is available.
 
 ## Mental model
-Vaultia is a constrained execution layer for AI-driven finance.
 
 Agents do not own vault funds.
 They act through permissions that a human owner configures ahead of time.
@@ -22,7 +46,8 @@ In the current LUKSO flow, a payment is only successful when all of these layers
 
 If any of those checks fails, execution reverts.
 
-## Reality check: what is true today
+## What is true today (technical)
+
 - The canonical live execution path is `LSP6KeyManager.execute(...) -> AgentSafe.execute(...) -> PolicyEngine.validate(...)`.
 - `AgentCoordinator` exists and supports `registerAgent`, `assignRole`, `grantCapability`, delegation depth, and delegated deployment metadata.
 - `AgentCoordinator` roles and capabilities do not replace LSP6 permissions. Live execution still depends on KeyManager permissions and AllowedCalls configuration.
@@ -34,6 +59,7 @@ If any of those checks fails, execution reverts.
 ## ROLE A: Agent operating inside a configured vault
 
 ### Preconditions
+
 Before you try to execute anything, verify all of the following:
 - You have a controller address that the vault KeyManager recognizes.
 - That controller has the required LSP6 permissions for the intended action.
@@ -44,6 +70,7 @@ Before you try to execute anything, verify all of the following:
 - If the workflow relies on coordinator metadata, your agent is registered in `AgentCoordinator` and has the expected role or capabilities.
 
 ### Canonical payment flow on LUKSO
+
 Use this path as the default mental model for real integrations:
 1. Build calldata for `AgentSafe.execute(...)`.
 2. Call `LSP6KeyManager.execute(payload)` from the authorized controller or agent address.
@@ -57,12 +84,14 @@ For native LYX transfers, the payload is typically a `safe.execute(CALL, to, amo
 For token transfers, the same guarded path applies, but the `PolicyEngine` validates the actual token contract and transfer parameters.
 
 ### Important note about tests vs production
+
 Some unit tests call `agentExecute(...)` or `agentTransferToken(...)` directly for simplicity.
 
 Do not treat that shortcut as the default production integration path.
 For live vault operation, assume the KeyManager path is the canonical one unless you know the vault was intentionally configured for a different controller flow.
 
 ### Why your transaction can be blocked
+
 - Your controller lacks the required LSP6 permission.
 - AllowedCalls does not permit the destination or call pattern.
 - The vault-wide pause is active in `PolicyEngine`.
@@ -73,15 +102,18 @@ For live vault operation, assume the KeyManager path is the canonical one unless
 - The vault balance is insufficient.
 
 ### What you cannot do
+
 - You cannot bypass the KeyManager or policy validation path in the standard flow.
 - You cannot grant yourself new LSP6 permissions.
 - You cannot grant yourself new coordinator roles or capabilities.
 - You cannot move funds outside the destinations and budgets the owner configured.
 - You cannot ignore a vault-wide pause.
+- You cannot create sub-vaults whose budget or permission scope exceeds the root vault's limits.
 
 ## ROLE B: Orchestrator agent assisting setup
 
 ### Default root deployment flow today
+
 The current root deployment script is `scripts/deploy.ts`.
 
 Its default order is:
@@ -97,15 +129,19 @@ Its default order is:
 10. deploy vaults through `AgentVaultRegistry`
 
 ### Delegated deployment flow
+
 `AgentVaultRegistry.deployForAgent(...)` is the delegated deployment path.
 
 That flow currently depends on:
 - the registry being authorized in `AgentCoordinator`
 - the registry being authorized in `SharedBudgetPool`
 - the deploying agent respecting delegation depth limits
-- propagated capabilities being a subset of the deployer's capabilities
+- propagated capabilities being a strict subset of the deployer's capabilities
+
+The UI flow for an agent to trigger this path autonomously is not yet live. A human owner must pre-deploy sub-vaults and explicitly authorize the agent to manage their associated pool and directory entries.
 
 ### Ownership and post-deploy steps
+
 After vault deployment, make sure the human owner completes the remaining operational steps:
 - accept LSP14 ownership on `AgentSafe`
 - fund the vault
@@ -114,14 +150,17 @@ After vault deployment, make sure the human owner completes the remaining operat
 - configure automation only after the vault and keeper model are ready
 
 ### Budget hierarchy facts
+
 - `SharedBudgetPool` supports nested parent-pointer pools with max depth `4`.
 - A vault can belong to exactly one pool.
 - Spending is charged against the vault's pool and all ancestor pools.
+- A sub-vault's budget limit can never exceed its parent pool's remaining balance.
 - `VaultDirectory` is useful for discovery and labeling, but it is metadata only. It does not enforce budgets or permissions.
 
 ## Automation
 
 ### Current model
+
 Automation in Vaultia is best-effort and keeper-driven.
 
 The on-chain contract stores schedules, but an off-chain service must execute them:
@@ -129,27 +168,32 @@ The on-chain contract stores schedules, but an off-chain service must execute th
 2. call `executeTask(taskId)` for each eligible task
 
 ### Keeper trust and safety model
+
 - `TaskScheduler` does not hold vault funds.
 - The keeper triggers an already configured on-chain path; it does not get spending authority by itself.
 - A keeper can still fail on liveness. If it is offline, tasks are delayed or missed.
 - New scheduler deployments enforce a keeper whitelist by default.
 - If whitelist enforcement is enabled, each keeper must be added explicitly on-chain.
 
-## Roadmap / future-facing notes
-These points are plausible extensions, but should not be assumed to be universally available today:
-- broader self-serve agent publishing and registration flows in the app
-- richer sub-vault discovery and graph workflows powered by `VaultDirectory`
-- more automated operator tooling around keeper redundancy and reconciliation
+## Roadmap
+
+These are the next planned capabilities, not assumptions to act on today:
+
+- **Agent-managed sub-vaults via UI** — the agent will be able to call `VaultDirectory.registerVault()` and `SharedBudgetPool.createPool()` once the UI flow is enabled. The contracts are already deployed.
+- **Agent-to-agent delegation** — an authorized agent will be able to create and authorize sub-agents, with capabilities strictly bounded by its own delegation depth and permission scope.
+- **Broader agent publishing flows** — self-serve registration for third-party agents with verified execution paths.
 
 If you are acting autonomously, prefer the current on-chain facts over UI copy or roadmap assumptions.
 
 ## Glossary
+
 - `Vault`: an `AgentSafe` instance that holds funds and executes validated actions
 - `KeyManager`: the LSP6 contract that checks controller permissions before forwarding execution
 - `PolicyEngine`: the contract that validates every active policy before the safe executes
 - `Policy`: an on-chain rule such as budget, merchant, expiry, or shared-budget enforcement
 - `AgentCoordinator`: agent registry plus role, capability, and delegation metadata layer
-- `SharedBudgetPool`: hierarchical pool accounting for multi-vault budgets
+- `SharedBudgetPool`: hierarchical pool accounting for multi-vault budgets, with inherited spending limits
 - `VaultDirectory`: metadata registry for vault labels and graph relationships
 - `TaskScheduler`: on-chain schedule store for recurring or delayed executions
 - `Keeper`: off-chain process that polls and triggers eligible tasks
+- `Curated agent`: a vetted agent with a known execution path, available for evaluation in the current beta phase
