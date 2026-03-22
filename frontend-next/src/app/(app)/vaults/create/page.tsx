@@ -17,6 +17,7 @@ import { AddressDisplay } from '@/components/common/AddressDisplay';
 import { AddAgentModal, type VaultRef } from '@/components/agents/AddAgentModal';
 import { VaultDeployResultDialog } from '@/components/vaults/VaultDeployResultDialog';
 import { cn } from '@/lib/utils/cn';
+import { LuksoIcon } from '@/components/common/LuksoIcon';
 import { verifyPermissionsWrite } from '@/lib/verifyWrite';
 import {
   AgentMode,
@@ -550,7 +551,7 @@ export default function CreateVaultPage() {
                 boxShadow: '0 0 0 1px var(--accent)',
               }}
             >
-              <span className="h-2.5 w-2.5 rounded-full" style={{ background: 'var(--accent)' }} />
+              <LuksoIcon size={16} />
               <span>{t('create.chain.lukso')}</span>
               <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full" style={{ background: 'rgba(34,255,178,0.15)' }}><span className="h-2 w-2 rounded-full" style={{ background: 'var(--success)' }} /></span>
             </div>

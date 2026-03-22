@@ -117,8 +117,8 @@ export function RecipientField({ recipients, onAdd, onRemove, placeholder }: Rec
         <button
           onClick={handleAdd}
           disabled={!input.trim()}
-          className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-opacity disabled:opacity-40"
-          style={{ background: 'var(--primary)' }}
+          className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-opacity disabled:opacity-40"
+          style={{ background: 'var(--primary)', color: 'var(--bg)' }}
           aria-label={t('wizard.limits.add_recipient')}
         >
           +

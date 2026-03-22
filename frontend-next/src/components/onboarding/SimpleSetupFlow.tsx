@@ -18,6 +18,7 @@ import { useWeb3 } from '@/context/Web3Context';
 import { ethers } from 'ethers';
 import type { DeployedVaultSummary } from '@/lib/web3/deployVault';
 import { buildSimpleWizardDeployParams, deployRegistryVault, validateSimpleWizardInput } from '@/lib/web3/deployVault';
+import { LuksoIcon } from '@/components/common/LuksoIcon';
 
 // ─── Step indices ─────────────────────────────────────────────────────────────
 // 0: Vault name
@@ -568,13 +569,14 @@ export function SimpleSetupFlow() {
                         color: 'var(--text)',
                       }}
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <LuksoIcon size={14} />
                         <span>{t('wizard.limits.network.up')}</span>
-                        <span className="inline-flex items-center gap-1.5 text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(34,255,178,0.15)', color: 'var(--success)' }}>
-                          <span className="h-2 w-2 rounded-full" style={{ background: 'var(--success)' }} />
-                          Active
-                        </span>
                       </div>
+                      <span className="inline-flex items-center gap-1.5 text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(34,255,178,0.15)', color: 'var(--success)' }}>
+                        <span className="h-2 w-2 rounded-full" style={{ background: 'var(--success)' }} />
+                        Active
+                      </span>
                     </div>
                     {/* Base — coming soon */}
                     <div
@@ -585,12 +587,13 @@ export function SimpleSetupFlow() {
                         color: 'var(--text-muted)',
                       }}
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="h-3.5 w-3.5 rounded-full flex-shrink-0" style={{ background: '#3B82F6' }} />
                         <span>{t('wizard.limits.network.base')}</span>
-                        <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'var(--card-mid)', color: 'var(--text-muted)' }}>
-                          {t('wizard.limits.network.coming_soon')}
-                        </span>
                       </div>
+                      <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'var(--card-mid)', color: 'var(--text-muted)' }}>
+                        {t('wizard.limits.network.coming_soon')}
+                      </span>
                     </div>
                   </div>
                   <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
@@ -797,7 +800,7 @@ export function SimpleSetupFlow() {
                       aria-checked={recipientLimitsEnabled}
                       onClick={() => setRecipientLimitsEnabled((v) => !v)}
                       className="relative h-5 w-9 rounded-full transition-colors cursor-pointer flex-shrink-0"
-                      style={{ background: recipientLimitsEnabled ? 'var(--primary)' : 'var(--border)' }}
+                      style={{ background: recipientLimitsEnabled ? 'var(--accent)' : 'var(--text-subtle)' }}
                     >
                       <span
                         className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-transform"
@@ -919,7 +922,7 @@ export function SimpleSetupFlow() {
                       aria-checked={agentEnabled}
                       onClick={handleToggleAgent}
                       className="relative h-6 w-11 rounded-full transition-colors cursor-pointer flex-shrink-0"
-                      style={{ background: agentEnabled ? 'var(--primary)' : 'var(--border)' }}
+                      style={{ background: agentEnabled ? 'var(--accent)' : 'var(--text-subtle)' }}
                     >
                       <span
                         className="absolute left-1 top-1 h-4 w-4 rounded-full bg-white transition-transform"

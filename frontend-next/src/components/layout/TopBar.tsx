@@ -15,6 +15,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Button } from '@/components/common/Button';
 import { Badge } from '@/components/common/Badge';
 import { VaultiaLogoLink } from '@/components/common/VaultiaLogo';
+import { LuksoIcon } from '@/components/common/LuksoIcon';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { cn } from '@/lib/utils/cn';
 import { lookupBasename, BASENAME_CHAINS } from '@/lib/web3/basename';
@@ -182,6 +183,7 @@ function ConnectedAccount({
 
   const chainLabel = chainId ? (CHAIN_LABELS[chainId] ?? `Chain ${chainId}`) : null;
   const isKnownChain = chainId ? chainId in CHAIN_LABELS : false;
+  const isLukso = chainId === 4201 || chainId === 42;
   const walletLabel = t('dashboard.graph.wallet');
 
   // Priority: contact alias / UP name → basename → human wallet label
@@ -204,11 +206,12 @@ function ConnectedAccount({
               <Badge
                 variant={isKnownChain ? 'success' : 'danger'}
                 className={cn(
-                  'cursor-pointer hover:opacity-70 transition-opacity',
+                  'cursor-pointer hover:opacity-70 transition-opacity inline-flex items-center gap-1',
                   !isKnownChain && 'animate-[pulse_1.2s_ease-in-out_infinite]'
                 )}
                 style={{ fontSize: '0.65rem', letterSpacing: '0.06em' }}
               >
+                {isLukso && <LuksoIcon size={10} />}
                 {chainLabel}
               </Badge>
             </button>
@@ -279,7 +282,7 @@ function ConnectedAccount({
                   style={{ color: 'var(--text)' }}
                 >
                   <span className="flex h-4 w-4 items-center justify-center" aria-hidden="true">
-                    <span className="h-2.5 w-2.5 rounded-full border" style={{ borderColor: 'var(--accent)', background: 'var(--accent)' }} />
+                    {isLukso ? <LuksoIcon size={12} /> : <span className="h-2.5 w-2.5 rounded-full border" style={{ borderColor: 'var(--accent)', background: 'var(--accent)' }} />}
                   </span>
                   {t('topbar.switch_network')}
                 </button>

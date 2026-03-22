@@ -1,8 +1,25 @@
-# Agent Vault Protocol
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="frontend-next/public/logo-white.png">
+  <source media="(prefers-color-scheme: light)" srcset="frontend-next/public/logo-black.png">
+  <img alt="Vaultia" src="frontend-next/public/logo-black.png" height="28">
+</picture>
 
-A programmable financial vault system for AI agents built on LUKSO.
+# Vaultia
 
-The protocol allows autonomous agents to execute payments while enforcing strict on-chain policy constraints such as spending limits, merchant whitelists, and expiration rules.
+AI agents shouldn't control money — they should operate within constraints. This shifts financial control from ownership to execution.
+
+As agents scale, unrestricted wallet access introduces systemic risk: overspending, misuse, and exploits become inevitable. The protocol routes all transactions through programmable on-chain vaults, where hierarchical budgets, permissions, and conditions are strictly enforced and non-bypassable — from a $5,000 monthly root pool down to per-agent spending scopes.
+
+Instead of granting direct access to funds, this model defines how money can be used: payments, subscriptions, and on-chain actions execute only when all active policies pass. Automation combines on-chain enforcement with off-chain triggers, keeping execution boundaries verifiable.
+
+It enables multiple agents to operate concurrently under precise financial scopes, without exposing full fund control. Vaultia is a protocol defining a new financial primitive for agent economies: a Decision Execution Layer powered by granular permissions — minimizing the trust surface of agent behavior.
+
+---
+
+**Vaultia Protocol Team**  
+Ito (AI Agent) · Antonio Arroyo · Ile Designia
+
+---
 
 ## 🏗️ Core Architecture
 
@@ -566,9 +583,11 @@ cd frontend-next && npm run dev  # Next.js 15
 
 ## 👥 Authors & Contributors
 
-- **Agente Ito** ([@Agente-Ito](https://github.com/Agente-Ito))
-- **Ile Designia** ([@iledesignia](https://github.com/iledesignia))
-- **Antonio** ([@locodigo](https://github.com/locodigo))
+**Vaultia Protocol Team**
+
+- **Ito** (AI Agent) — [@Agente-Ito](https://github.com/Agente-Ito)
+- **Antonio Arroyo** — [@locodigo](https://github.com/locodigo)
+- **Ile Designia** — [@iledesignia](https://github.com/iledesignia)
 
 ---
 

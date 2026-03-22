@@ -179,29 +179,6 @@ export default function LandingPage() {
         <VaultiaLogoLink height={32} />
 
         <div className="flex items-center gap-2">
-          {/* Mode pill group */}
-          <div
-            className="flex items-center gap-0.5 rounded p-0.5"
-            style={{ background: 'var(--inactive)', border: '1px solid var(--border)' }}
-          >
-            {(['simple', 'advanced'] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => setMode(m)}
-                style={{
-                  fontSize: '0.7rem', fontWeight: mode === m ? 400 : 300,
-                  letterSpacing: '0.07em', textTransform: 'uppercase',
-                  padding: '4px 10px', borderRadius: 4, transition: 'all 0.15s',
-                  background: mode === m ? 'var(--text)' : 'transparent',
-                  color: mode === m ? 'var(--bg)' : 'var(--text-muted)',
-                  cursor: 'pointer', border: 'none',
-                }}
-              >
-                {t(m === 'simple' ? 'wizard.mode.simple' : 'wizard.mode.expert')}
-              </button>
-            ))}
-          </div>
-
           {/* Language pill group */}
           <div
             className="flex items-center gap-0.5 rounded p-0.5"
@@ -278,7 +255,7 @@ export default function LandingPage() {
 
         {/* Headline — two sentences arrive sequentially */}
         <div className="max-w-xl mx-auto mb-10">
-          <p style={{ fontSize: 'clamp(1.2rem, 2.4vw, 1.56rem)', fontWeight: 700, color: 'var(--text)', letterSpacing: '0.01em', lineHeight: 1.5 }}>
+          <p style={{ fontSize: 'clamp(1.8rem, 3.6vw, 2.34rem)', fontWeight: 700, color: 'var(--text)', letterSpacing: '0.01em', lineHeight: 1.5 }}>
             {t('landing.subtitle').split('. ').map((part, i, arr) => (
               <span
                 key={i}

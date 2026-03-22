@@ -1,6 +1,12 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/logo-white.png">
+  <source media="(prefers-color-scheme: light)" srcset="public/logo-black.png">
+  <img alt="Vaultia" src="public/logo-black.png" height="28">
+</picture>
+
 # Vaultia — Frontend
 
-Next.js 15 frontend for the Agent Vault Protocol. Lets users create and manage policy-governed financial vaults on LUKSO, assign AI agent controllers with isolated keypairs, and execute payments directly from the browser.
+Next.js 15 frontend for Vaultia. Lets users create and manage policy-governed financial vaults on LUKSO, assign AI agent controllers with isolated keypairs, and execute payments directly from the browser.
 
 ## Stack
 

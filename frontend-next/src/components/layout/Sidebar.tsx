@@ -8,6 +8,7 @@ import { useI18n } from '@/context/I18nContext';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { cn } from '@/lib/utils/cn';
 import { VaultiaLogoLink } from '@/components/common/VaultiaLogo';
+import { LuksoIcon } from '@/components/common/LuksoIcon';
 
 type NavItem = {
   href: string;
@@ -96,9 +97,12 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
           <div className="mb-1">
             <VaultiaLogoLink height={26} />
           </div>
-          <p className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-            {t('nav.network')}
-          </p>
+          <div className="mt-2 flex items-center gap-1.5">
+            <LuksoIcon size={11} />
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              {t('nav.network')}
+            </p>
+          </div>
         </div>
 
         <nav className="flex-1 space-y-0.5 px-3 py-3">

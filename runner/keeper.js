@@ -12,7 +12,7 @@
  *   POLL_INTERVAL_MS         — optional polling interval in ms (default: 30000)
  *
  * Usage:
- *   cd /path/to/agent-vault-protocol
+ *   cd /path/to/vaultia
  *   node runner/keeper.js
  *
  * Or with env override:

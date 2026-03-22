@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide walks through deploying the Agent Vault Protocol to LUKSO testnet (chainId 4201).
+This guide walks through deploying Vaultia to LUKSO testnet (chainId 4201).
 
 For a live testnet infrastructure refresh, use the operational checklist in [TESTNET_REDEPLOY_CHECKLIST.md](/Users/antonio/agent-vault-protocol/TESTNET_REDEPLOY_CHECKLIST.md) before changing the canonical registry address.
 
