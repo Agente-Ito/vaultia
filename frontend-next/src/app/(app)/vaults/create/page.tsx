@@ -423,7 +423,7 @@ export default function CreateVaultPage() {
   const handleCreateVault = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isRegistryConfigured) { setStatus('Error: Registry address not configured. Set NEXT_PUBLIC_REGISTRY_ADDRESS in .env.local.'); return; }
-    if (!registry || !signer) { setStatus('Error: Connect your wallet first.'); return; }
+    if (!registry || !signer) { setStatus('Error: Connect your profile first.'); return; }
     setLoading(true);
     setStatus('');
     setCreateError(null);
@@ -588,7 +588,7 @@ export default function CreateVaultPage() {
                   key={cfg.id}
                   type="button"
                   onClick={() => applyTemplate(cfg)}
-                  className="text-left p-4 rounded-xl transition-all"
+                  className="text-left p-4 rounded-xl transition-all flex flex-col"
                   style={{
                     background: isActive ? 'var(--card-mid)' : 'var(--card)',
                     border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
@@ -596,12 +596,12 @@ export default function CreateVaultPage() {
                   }}
                 >
                   <span
-                    className="mb-2 flex h-8 w-8 items-center justify-center rounded-full border text-xs font-semibold"
+                    className="mb-3 flex h-8 w-8 items-center justify-center rounded-full border text-xs font-semibold flex-shrink-0"
                     style={{ color: 'var(--accent)', borderColor: 'color-mix(in srgb, var(--accent) 45%, transparent)' }}
                   >
                     {TEMPLATE_ICON[cfg.id]}
                   </span>
-                  <p className="text-sm font-semibold leading-tight" style={{ color: 'var(--text)' }}>
+                  <p className="text-sm font-semibold leading-tight min-h-[2.5rem]" style={{ color: 'var(--text)' }}>
                     {t(`create.template.${cfg.id}.name` as Parameters<typeof t>[0])}
                   </p>
                   <p className="text-xs mt-1 leading-relaxed" style={{ color: 'var(--text-muted)' }}>

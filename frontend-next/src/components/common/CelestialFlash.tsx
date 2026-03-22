@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { readSessionStorage, writeSessionStorage } from '@/lib/browserStorage';
+import { useTheme } from '@/context/ThemeContext';
 
 /**
  * CelestialFlash — Animated splash screen
@@ -19,11 +20,15 @@ const DOT_INTERVAL_MS = 45;  // ms between each dot appearing
 const GLOW_HOLD_MS    = 220; // ms hold after all 7 lit
 const FADE_OUT_MS     = 320; // ms for fade-out
 
-const VAULTIA_GREEN  = '#10B981';
-const VAULTIA_GREY   = '#EDEDED';
 const SESSION_FLAG = 'vaultia-splash-shown';
 
 export function CelestialFlash({ onDone }: { onDone?: () => void }) {
+  const { isDark } = useTheme();
+  const dotActive = isDark ? '#F5F5F5' : '#1D1D1F';
+  const dotInactive = isDark ? '#333333' : '#DEDEDE';
+  const splashBg = isDark ? '#0F0F0F' : '#F9F9F9';
+  const wordmarkColor = isDark ? '#F5F5F5' : '#1D1D1F';
+
   const [visibleCount, setVisibleCount] = useState(0);
   const [glowPhase, setGlowPhase] = useState(false);
   const [fadingOut, setFadingOut] = useState(false);
@@ -74,7 +79,7 @@ export function CelestialFlash({ onDone }: { onDone?: () => void }) {
         alignItems: 'center',
         justifyContent: 'center',
         gap: '2rem',
-        background: '#F9F9F9',
+        background: splashBg,
         opacity: fadingOut ? 0 : 1,
         transition: fadingOut ? `opacity ${FADE_OUT_MS}ms ease-out` : 'none',
         pointerEvents: fadingOut ? 'none' : 'all',
@@ -84,15 +89,6 @@ export function CelestialFlash({ onDone }: { onDone?: () => void }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         {Array.from({ length: 7 }).map((_, i) => {
           const isVisible = i < visibleCount;
-          const dotColor = glowPhase
-            ? VAULTIA_GREEN
-            : isVisible
-              ? VAULTIA_GREEN
-              : VAULTIA_GREY;
-
-          const glow = glowPhase && isVisible
-            ? `0 0 14px 5px rgba(16, 185, 129, 0.55)`
-            : 'none';
 
           return (
             <span
@@ -101,8 +97,8 @@ export function CelestialFlash({ onDone }: { onDone?: () => void }) {
                 width: 10,
                 height: 10,
                 borderRadius: '50%',
-                background: isVisible ? dotColor : VAULTIA_GREY,
-                boxShadow: glow,
+                background: isVisible ? dotActive : dotInactive,
+                boxShadow: 'none',
                 opacity: isVisible ? 1 : 0.22,
                 transform: isVisible ? 'scale(1)' : 'scale(0.45)',
                 transition: `
@@ -126,7 +122,7 @@ export function CelestialFlash({ onDone }: { onDone?: () => void }) {
           display: 'flex',
           alignItems: 'flex-end',
           gap: 1,
-          color: '#1D1D1F',
+          color: wordmarkColor,
           fontSize: 13,
           fontWeight: 300,
           letterSpacing: '0.22em',

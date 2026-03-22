@@ -268,7 +268,7 @@ export function SkillOverlay({ onClose }: SkillOverlayProps) {
             <strong style={{ color: 'var(--text)', fontWeight: 500 }}>Agents</strong> operate inside those vaults — executing transactions and workflows — strictly within the permissions and budget caps the human owner committed on-chain.
           </P>
           <P>
-            An agent can never exceed the permissions or budget limits of the vault that authorized it. Sub-vaults must stay within the root vault's overall constraints. There is no privilege escalation path.
+            An agent can never exceed the permissions or budget limits of the vault that authorized it. Sub-vaults must stay within the root vault&apos;s overall constraints. There is no privilege escalation path.
           </P>
         </Section>
 

@@ -12,7 +12,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <AppShell account={account} chainId={chainId} onConnect={connect}>
       {isWrongChain && (
-        <div className="px-lg pt-md">
+        <div key="wrong-chain" className="px-lg pt-md">
           <Alert variant="error">
             <AlertTitle>{t('layout.wrong_chain.title')}</AlertTitle>
             <AlertDescription>
@@ -22,7 +22,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       )}
       {!isRegistryConfigured && (
-        <div className="px-lg pt-md">
+        <div key="registry-warning" className="px-lg pt-md">
           <Alert variant="warning">
             <AlertTitle>{t('layout.registry_not_configured.title')}</AlertTitle>
             <AlertDescription>

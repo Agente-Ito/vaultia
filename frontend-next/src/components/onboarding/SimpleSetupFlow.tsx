@@ -414,12 +414,8 @@ export function SimpleSetupFlow() {
                   key={i}
                   style={{
                     width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-                    background: isActive ? '#10B981' : isPending ? '#FFB000' : '#EDEDED',
-                    boxShadow: isActive
-                      ? '0 0 6px rgba(16,185,129,0.5)'
-                      : isPending
-                        ? '0 0 6px rgba(255,176,0,0.45)'
-                        : 'none',
+                    background: isActive ? 'var(--text)' : isPending ? '#FFB000' : 'var(--border)',
+                    boxShadow: isPending ? '0 0 6px rgba(255,176,0,0.45)' : 'none',
                     transition: 'all 0.3s',
                   }}
                 />

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SidebarClient } from './SidebarClient';
 import { TopBar } from './TopBar';
 import { CelestialFlash } from '@/components/common/CelestialFlash';
@@ -16,6 +16,11 @@ interface AppShellProps {
 export function AppShell({ children, account, chainId, onConnect }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [splashDone, setSplashDone] = useState(false);
+
+  // Mark session as active so landing page knows to redirect returning users
+  useEffect(() => {
+    sessionStorage.setItem('vaultia-session-active', '1');
+  }, []);
 
   return (
     <div className="relative flex h-screen" style={{ background: 'var(--bg)' }}>

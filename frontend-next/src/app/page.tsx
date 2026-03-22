@@ -134,9 +134,16 @@ export default function LandingPage() {
   const [selectedGoal, setSelectedGoal] = React.useState<GoalKey | null>(null);
   const [showSkill, setShowSkill] = useState(false);
 
-  // If already connected with vaults → go to dashboard
+  // Track whether the user explicitly triggered the connect flow on this page
+  const userInitiatedConnect = React.useRef(false);
+
+  // Redirect only when: user connected here, OR returning to a recent in-app session
   useEffect(() => {
-    if (isConnected && !vaultsLoading && vaults.length > 0) {
+    if (!isConnected || vaultsLoading || vaults.length === 0) return;
+    const explicitConnect = userInitiatedConnect.current;
+    const recentSession = typeof sessionStorage !== 'undefined' &&
+      !!sessionStorage.getItem('vaultia-session-active');
+    if (explicitConnect || recentSession) {
       router.replace('/dashboard');
     }
   }, [isConnected, vaultsLoading, vaults.length, router]);
@@ -269,23 +276,21 @@ export default function LandingPage() {
           ))}
         </div>
 
-        {/* Headline */}
+        {/* Headline — two sentences arrive sequentially */}
         <div className="max-w-xl mx-auto mb-10">
-          <h1
-            style={{
-              fontSize: 'clamp(1.275rem, 3vw, 1.95rem)',
-              fontWeight: 300,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              lineHeight: 1.25,
-              color: 'var(--text)',
-              marginBottom: 16,
-            }}
-          >
-            {t('landing.title')}
-          </h1>
-          <p style={{ fontSize: '1rem', fontWeight: 300, color: 'var(--text-muted)', letterSpacing: '0.02em', lineHeight: 1.65 }}>
-            {t('landing.subtitle')}
+          <p style={{ fontSize: 'clamp(1.2rem, 2.4vw, 1.56rem)', fontWeight: 700, color: 'var(--text)', letterSpacing: '0.01em', lineHeight: 1.5 }}>
+            {t('landing.subtitle').split('. ').map((part, i, arr) => (
+              <span
+                key={i}
+                className="animate-tagline"
+                style={{
+                  display: 'block',
+                  '--tagline-delay': `${0.3 + i * 0.55}s`,
+                } as React.CSSProperties}
+              >
+                {i < arr.length - 1 ? part + '.' : part}
+              </span>
+            ))}
           </p>
         </div>
 
@@ -329,6 +334,7 @@ export default function LandingPage() {
               mounted ? (
                 <button
                   onClick={() => {
+                    userInitiatedConnect.current = true;
                     openConnectModal();
                   }}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#10B981', fontWeight: 400, fontSize: 'inherit', textDecoration: 'underline', textUnderlineOffset: 3 }}
