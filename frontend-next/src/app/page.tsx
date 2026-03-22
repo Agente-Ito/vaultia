@@ -332,6 +332,117 @@ export default function LandingPage() {
         <p className="mt-10 text-xs max-w-xs" style={{ color: 'var(--text-muted)', opacity: 0.5, fontWeight: 300, letterSpacing: '0.03em' }}>
           {t('landing.trust_message')}
         </p>
+
+        <section className="mt-20 w-full max-w-5xl text-left">
+          <div className="mx-auto max-w-2xl text-center mb-8">
+            <p
+              className="text-xs uppercase tracking-[0.28em]"
+              style={{ color: 'var(--text-muted)', marginBottom: 10 }}
+            >
+              {t('landing.ai.eyebrow')}
+            </p>
+            <h2
+              style={{
+                fontSize: 'clamp(1.35rem, 3vw, 2rem)',
+                fontWeight: 300,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: 'var(--text)',
+                marginBottom: 14,
+              }}
+            >
+              {t('landing.ai.title')}
+            </h2>
+            <p
+              className="mx-auto max-w-xl"
+              style={{ color: 'var(--text-muted)', lineHeight: 1.7, fontWeight: 300 }}
+            >
+              {t('landing.ai.subtitle')}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[
+              {
+                step: '01',
+                title: t('landing.ai.card.runtime.title'),
+                desc: t('landing.ai.card.runtime.desc'),
+              },
+              {
+                step: '02',
+                title: t('landing.ai.card.guardrails.title'),
+                desc: t('landing.ai.card.guardrails.desc'),
+              },
+              {
+                step: '03',
+                title: t('landing.ai.card.automation.title'),
+                desc: t('landing.ai.card.automation.desc'),
+              },
+            ].map((card) => (
+              <article
+                key={card.step}
+                className="rounded-2xl p-5"
+                style={{
+                  background: 'linear-gradient(180deg, var(--card) 0%, color-mix(in srgb, var(--card) 76%, transparent) 100%)',
+                  border: '1px solid var(--border)',
+                  boxShadow: '0 12px 40px rgba(0,0,0,0.04)',
+                }}
+              >
+                <div
+                  className="inline-flex items-center justify-center rounded-full mb-4"
+                  style={{
+                    width: 34,
+                    height: 34,
+                    border: '1px solid rgba(16,185,129,0.25)',
+                    color: '#10B981',
+                    background: 'rgba(16,185,129,0.08)',
+                    fontSize: '0.72rem',
+                    letterSpacing: '0.14em',
+                  }}
+                >
+                  {card.step}
+                </div>
+                <h3
+                  className="text-sm uppercase"
+                  style={{ color: 'var(--text)', letterSpacing: '0.08em', marginBottom: 10, fontWeight: 400 }}
+                >
+                  {card.title}
+                </h3>
+                <p style={{ color: 'var(--text-muted)', lineHeight: 1.7, fontWeight: 300 }}>
+                  {card.desc}
+                </p>
+              </article>
+            ))}
+          </div>
+
+          <div
+            className="mt-4 rounded-2xl p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+            style={{
+              border: '1px solid rgba(255,176,0,0.18)',
+              background: 'linear-gradient(135deg, rgba(255,176,0,0.08), rgba(16,185,129,0.05))',
+            }}
+          >
+            <p className="text-sm" style={{ color: 'var(--text)', lineHeight: 1.7, fontWeight: 300 }}>
+              {t('landing.ai.note')}
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => router.push('/agents')}
+                className="rounded-md px-4 py-2 text-xs uppercase tracking-[0.14em]"
+                style={{ background: 'var(--text)', color: 'var(--bg)', border: 'none', cursor: 'pointer' }}
+              >
+                {t('landing.ai.cta_agents')}
+              </button>
+              <button
+                onClick={() => router.push('/automation')}
+                className="rounded-md px-4 py-2 text-xs uppercase tracking-[0.14em]"
+                style={{ background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)', cursor: 'pointer' }}
+              >
+                {t('landing.ai.cta_automation')}
+              </button>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
   );

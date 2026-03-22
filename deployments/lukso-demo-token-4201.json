@@ -1,0 +1,8 @@
+{
+  "network": "luksoTestnet",
+  "chainId": 4201,
+  "deployer": "0x859722730e0FE001962202d53d5c7b11e8327421",
+  "tokenAddress": "0x1611f48aAFE636EaFb12ac3cccE3D21Dd2B86B7E",
+  "deploymentTimestamp": 1774151437,
+  "mintTxHash": "0xa7754756f861de89c47d88c9dafc25f88a9da9132fc9694621ed76004e164a75"
+}

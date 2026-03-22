@@ -1,5 +1,761 @@
 [
   {
+    "ts": "2026-03-22T02:54:59.631Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Transaction sent",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x63ab9a31a11505772893b8d5706ef7f58582093363fd1e6383aa949ff9fadc2d"
+  },
+  {
+    "ts": "2026-03-22T02:54:46.813Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "✅ Task executed successfully",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x09aeb0bfc5ab30d3e134b0d5698721a3a31760a0966213389b825e70a29bb3bb",
+    "blockNumber": 7300289,
+    "gasUsed": "157681"
+  },
+  {
+    "ts": "2026-03-22T02:54:44.519Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x0807D048419a0A6949040649aa1Ea19C2Fd95Cc6",
+    "nextExecution": "2026-03-20T23:26:48.000Z"
+  },
+  {
+    "ts": "2026-03-22T02:54:43.855Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T02:54:28.917Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Transaction sent",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x09aeb0bfc5ab30d3e134b0d5698721a3a31760a0966213389b825e70a29bb3bb"
+  },
+  {
+    "ts": "2026-03-22T02:54:28.590Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "✅ Task executed successfully",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x21c84e368aa4110245212b3314c5ca5a55382c5158dc1881001e07dc2ec3cd67",
+    "blockNumber": 7300287,
+    "gasUsed": "157681"
+  },
+  {
+    "ts": "2026-03-22T02:54:11.629Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x0807D048419a0A6949040649aa1Ea19C2Fd95Cc6",
+    "nextExecution": "2026-03-20T23:22:48.000Z"
+  },
+  {
+    "ts": "2026-03-22T02:54:06.222Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T02:53:59.511Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Transaction sent",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x21c84e368aa4110245212b3314c5ca5a55382c5158dc1881001e07dc2ec3cd67"
+  },
+  {
+    "ts": "2026-03-22T02:53:52.572Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "✅ Task executed successfully",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x23b7ca27348c2824842c855607860220ef55d84f3ebf94b46e881e1511ed0f17",
+    "blockNumber": 7300285,
+    "gasUsed": "157681"
+  },
+  {
+    "ts": "2026-03-22T02:53:38.367Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x0807D048419a0A6949040649aa1Ea19C2Fd95Cc6",
+    "nextExecution": "2026-03-20T23:20:48.000Z"
+  },
+  {
+    "ts": "2026-03-22T02:53:36.506Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T02:53:28.735Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Transaction sent",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x23b7ca27348c2824842c855607860220ef55d84f3ebf94b46e881e1511ed0f17"
+  },
+  {
+    "ts": "2026-03-22T02:53:15.035Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x0807D048419a0A6949040649aa1Ea19C2Fd95Cc6",
+    "nextExecution": "2026-03-20T23:20:48.000Z"
+  },
+  {
+    "ts": "2026-03-22T02:53:15.032Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "✅ Task executed successfully",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x1f26a89892c5b865e98c1c16dca6470180dc12f27bd4d350fbe0188b1b79421b",
+    "blockNumber": 7300282,
+    "gasUsed": "157681"
+  },
+  {
+    "ts": "2026-03-22T02:53:13.388Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T02:52:55.718Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Transaction sent",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x1f26a89892c5b865e98c1c16dca6470180dc12f27bd4d350fbe0188b1b79421b"
+  },
+  {
+    "ts": "2026-03-22T02:52:54.225Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "✅ Task executed successfully",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x60f6fada550245eec010ccc4e14ad1b3c1d1214c82911d9c919bc626b6948c97",
+    "blockNumber": 7300280,
+    "gasUsed": "157681"
+  },
+  {
+    "ts": "2026-03-22T02:52:37.814Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x0807D048419a0A6949040649aa1Ea19C2Fd95Cc6",
+    "nextExecution": "2026-03-20T23:18:48.000Z"
+  },
+  {
+    "ts": "2026-03-22T02:52:37.192Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T02:52:32.071Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Transaction sent",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x60f6fada550245eec010ccc4e14ad1b3c1d1214c82911d9c919bc626b6948c97"
+  },
+  {
+    "ts": "2026-03-22T02:52:12.274Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x0807D048419a0A6949040649aa1Ea19C2Fd95Cc6",
+    "nextExecution": "2026-03-20T23:16:48.000Z"
+  },
+  {
+    "ts": "2026-03-22T02:52:12.211Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "✅ Task executed successfully",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x8483f2505f964a9b73ee15efe456c52186a59a54b3f1f7ee2da279c8a0b084c7",
+    "blockNumber": 7300277,
+    "gasUsed": "157681"
+  },
+  {
+    "ts": "2026-03-22T02:52:08.824Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T02:52:03.053Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "✅ Task executed successfully",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x21607b8b171672c56394fb10d60c60c2c50d46ac59cf4b779b3f376cbdc50e5a",
+    "blockNumber": 7300275,
+    "gasUsed": "157681"
+  },
+  {
+    "ts": "2026-03-22T02:51:53.764Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Transaction sent",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x8483f2505f964a9b73ee15efe456c52186a59a54b3f1f7ee2da279c8a0b084c7"
+  },
+  {
+    "ts": "2026-03-22T02:51:41.222Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x0807D048419a0A6949040649aa1Ea19C2Fd95Cc6",
+    "nextExecution": "2026-03-20T23:12:48.000Z"
+  },
+  {
+    "ts": "2026-03-22T02:51:37.696Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T02:51:24.661Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Transaction sent",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x21607b8b171672c56394fb10d60c60c2c50d46ac59cf4b779b3f376cbdc50e5a"
+  },
+  {
+    "ts": "2026-03-22T02:51:22.524Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "✅ Task executed successfully",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x202dade5784b203724a55f54ec587e1af65c0ddad6486b453e63ebb7e6cd789d",
+    "blockNumber": 7300273,
+    "gasUsed": "157681"
+  },
+  {
+    "ts": "2026-03-22T02:51:12.603Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x0807D048419a0A6949040649aa1Ea19C2Fd95Cc6",
+    "nextExecution": "2026-03-20T23:10:48.000Z"
+  },
+  {
+    "ts": "2026-03-22T02:51:12.235Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T02:51:05.043Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Transaction sent",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x202dade5784b203724a55f54ec587e1af65c0ddad6486b453e63ebb7e6cd789d"
+  },
+  {
+    "ts": "2026-03-22T02:50:38.288Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x0807D048419a0A6949040649aa1Ea19C2Fd95Cc6",
+    "nextExecution": "2026-03-20T23:10:48.000Z"
+  },
+  {
+    "ts": "2026-03-22T02:50:38.284Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "✅ Task executed successfully",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x7d9400fe9695fc8de63f831bd94a40b8f60406ac14cbc8bf35f790339e65f3ae",
+    "blockNumber": 7300269,
+    "gasUsed": "157681"
+  },
+  {
+    "ts": "2026-03-22T02:50:37.673Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T02:50:27.430Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "✅ Task executed successfully",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x12f25a6c5ae90b0837c4299649e39d46a9c2890003a498ac24731c677ea3dcaf",
+    "blockNumber": 7300268,
+    "gasUsed": "157681"
+  },
+  {
+    "ts": "2026-03-22T02:50:16.481Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Transaction sent",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x7d9400fe9695fc8de63f831bd94a40b8f60406ac14cbc8bf35f790339e65f3ae"
+  },
+  {
+    "ts": "2026-03-22T02:50:08.327Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "✅ Task executed successfully",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x8f0d3db22dbf16d14632720a27a6f497ef6721cf91ff9f54ee93821109222c3b",
+    "blockNumber": 7300265,
+    "gasUsed": "157681"
+  },
+  {
+    "ts": "2026-03-22T02:50:07.958Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x0807D048419a0A6949040649aa1Ea19C2Fd95Cc6",
+    "nextExecution": "2026-03-20T23:06:48.000Z"
+  },
+  {
+    "ts": "2026-03-22T02:50:06.234Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T02:50:06.054Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Transaction sent",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x12f25a6c5ae90b0837c4299649e39d46a9c2890003a498ac24731c677ea3dcaf"
+  },
+  {
+    "ts": "2026-03-22T02:49:57.850Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "✅ Task executed successfully",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x45a44d7076bd0c25e4b71f0d7fb4332411ca727534335da7f1c5e444e8b19561",
+    "blockNumber": 7300262,
+    "gasUsed": "157681"
+  },
+  {
+    "ts": "2026-03-22T02:49:54.967Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x0807D048419a0A6949040649aa1Ea19C2Fd95Cc6",
+    "nextExecution": "2026-03-20T23:04:48.000Z"
+  },
+  {
+    "ts": "2026-03-22T02:49:45.205Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "✅ Task executed successfully",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x12a86c6d40b36d345cd66822202f06d098d5784a927bef0a1705a07124fc42c0",
+    "blockNumber": 7300260,
+    "gasUsed": "157681"
+  },
+  {
+    "ts": "2026-03-22T02:49:41.307Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T02:49:41.304Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Transaction sent",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x8f0d3db22dbf16d14632720a27a6f497ef6721cf91ff9f54ee93821109222c3b"
+  },
+  {
+    "ts": "2026-03-22T02:49:19.984Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x0807D048419a0A6949040649aa1Ea19C2Fd95Cc6",
+    "nextExecution": "2026-03-20T23:00:48.000Z"
+  },
+  {
+    "ts": "2026-03-22T02:49:19.981Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "✅ Task executed successfully",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x23a9d3d4d5ca84c422465e9c35110aa8c755fd8aee33a97c0dc07e18b445404a",
+    "blockNumber": 7300257,
+    "gasUsed": "157681"
+  },
+  {
+    "ts": "2026-03-22T02:49:18.332Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T02:49:18.327Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "✅ Task executed successfully",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0xcb9760afd5bef8511024048f7243fe1de2b60738d1bc29ec25ad91f81e2bc7cb",
+    "blockNumber": 7300255,
+    "gasUsed": "157681"
+  },
+  {
+    "ts": "2026-03-22T02:49:01.611Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Transaction sent",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x45a44d7076bd0c25e4b71f0d7fb4332411ca727534335da7f1c5e444e8b19561"
+  },
+  {
+    "ts": "2026-03-22T02:48:47.335Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "✅ Task executed successfully",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x4246b02a2176a555c13492fbc6595da995c65423b92dbe7c3b853b08197e76a4",
+    "blockNumber": 7300253,
+    "gasUsed": "157681"
+  },
+  {
+    "ts": "2026-03-22T02:48:42.390Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x0807D048419a0A6949040649aa1Ea19C2Fd95Cc6",
+    "nextExecution": "2026-03-20T22:54:48.000Z"
+  },
+  {
+    "ts": "2026-03-22T02:48:41.524Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T02:48:26.678Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Transaction sent",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x12a86c6d40b36d345cd66822202f06d098d5784a927bef0a1705a07124fc42c0"
+  },
+  {
+    "ts": "2026-03-22T02:48:08.039Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x0807D048419a0A6949040649aa1Ea19C2Fd95Cc6",
+    "nextExecution": "2026-03-20T22:54:48.000Z"
+  },
+  {
+    "ts": "2026-03-22T02:48:05.932Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T02:47:44.799Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Transaction sent",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x23a9d3d4d5ca84c422465e9c35110aa8c755fd8aee33a97c0dc07e18b445404a"
+  },
+  {
+    "ts": "2026-03-22T02:47:37.147Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x0807D048419a0A6949040649aa1Ea19C2Fd95Cc6",
+    "nextExecution": "2026-03-20T22:54:48.000Z"
+  },
+  {
+    "ts": "2026-03-22T02:47:36.292Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T02:47:18.144Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Transaction sent",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0xcb9760afd5bef8511024048f7243fe1de2b60738d1bc29ec25ad91f81e2bc7cb"
+  },
+  {
+    "ts": "2026-03-22T02:47:11.202Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x0807D048419a0A6949040649aa1Ea19C2Fd95Cc6",
+    "nextExecution": "2026-03-20T22:54:48.000Z"
+  },
+  {
+    "ts": "2026-03-22T02:47:09.712Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T02:46:52.891Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Transaction sent",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x4246b02a2176a555c13492fbc6595da995c65423b92dbe7c3b853b08197e76a4"
+  },
+  {
+    "ts": "2026-03-22T02:46:40.483Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x0807D048419a0A6949040649aa1Ea19C2Fd95Cc6",
+    "nextExecution": "2026-03-20T22:54:48.000Z"
+  },
+  {
+    "ts": "2026-03-22T02:46:39.854Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T02:46:36.187Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "✅ Task executed successfully",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0xd1e381920d577159f20fc60c53a5e280b8adfe045f1ac520f8abd36cddb93b4d",
+    "blockNumber": 7300250,
+    "gasUsed": "157681"
+  },
+  {
+    "ts": "2026-03-22T02:46:36.183Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "✅ Task executed successfully",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x2c378d090c2f4e26c0b48361b875306841ddbbe77187d70c598280807d851031",
+    "blockNumber": 7300250,
+    "gasUsed": "157681"
+  },
+  {
+    "ts": "2026-03-22T02:46:22.196Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Transaction sent",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0xd1e381920d577159f20fc60c53a5e280b8adfe045f1ac520f8abd36cddb93b4d"
+  },
+  {
+    "ts": "2026-03-22T02:46:14.579Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x0807D048419a0A6949040649aa1Ea19C2Fd95Cc6",
+    "nextExecution": "2026-03-20T22:50:48.000Z"
+  },
+  {
+    "ts": "2026-03-22T02:46:12.632Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Transaction sent",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x2c378d090c2f4e26c0b48361b875306841ddbbe77187d70c598280807d851031"
+  },
+  {
+    "ts": "2026-03-22T02:46:10.607Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T02:46:01.708Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "✅ Task executed successfully",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x3b53132c2c56141eb9c146b8a3ae340e5ea62390f8d7499e579d748294db99a3",
+    "blockNumber": 7300246,
+    "gasUsed": "157681"
+  },
+  {
+    "ts": "2026-03-22T02:45:40.385Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x0807D048419a0A6949040649aa1Ea19C2Fd95Cc6",
+    "nextExecution": "2026-03-20T22:50:48.000Z"
+  },
+  {
+    "ts": "2026-03-22T02:45:39.673Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T02:45:33.499Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "✅ Task executed successfully",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0xe93bd003e6210fe15de8ddbc521a43d87b47b80bd31e8e54734e4d8379e0137e",
+    "blockNumber": 7300244,
+    "gasUsed": "157681"
+  },
+  {
+    "ts": "2026-03-22T02:45:27.891Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Transaction sent",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x3b53132c2c56141eb9c146b8a3ae340e5ea62390f8d7499e579d748294db99a3"
+  },
+  {
+    "ts": "2026-03-22T02:45:10.235Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x0807D048419a0A6949040649aa1Ea19C2Fd95Cc6",
+    "nextExecution": "2026-03-20T22:46:48.000Z"
+  },
+  {
+    "ts": "2026-03-22T02:45:07.667Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T02:45:00.759Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Transaction sent",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0xe93bd003e6210fe15de8ddbc521a43d87b47b80bd31e8e54734e4d8379e0137e"
+  },
+  {
+    "ts": "2026-03-22T02:44:49.523Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "✅ Task executed successfully",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x8ff157e3ef17b1cdd3384b364c20186f1fdc6758bcef2d420d8b0dc6148ebf69",
+    "blockNumber": 7300241,
+    "gasUsed": "157681"
+  },
+  {
+    "ts": "2026-03-22T02:44:47.978Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x0807D048419a0A6949040649aa1Ea19C2Fd95Cc6",
+    "nextExecution": "2026-03-20T22:46:48.000Z"
+  },
+  {
+    "ts": "2026-03-22T02:44:45.573Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
     "ts": "2026-03-22T02:44:24.607Z",
     "process": "keeper",
     "level": "info",

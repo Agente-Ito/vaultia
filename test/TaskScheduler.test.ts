@@ -8,34 +8,38 @@ describe("TaskScheduler", () => {
   let owner: any;
   let keeper1: any;
   let keeper2: any;
-  let vault: any;
   let keyManager: any;
+  let ownerVault: any;
+  let keeperVault: any;
 
   const TIMESTAMP = 0;
   const BLOCK_NUMBER = 1;
-
-  const sampleCalldata = "0x00"; // Minimal valid calldata (1 byte)
+  const sampleCalldata = "0x00";
 
   beforeEach(async () => {
-    [owner, keeper1, keeper2, vault, keyManager] = await ethers.getSigners();
+    [owner, keeper1, keeper2, keyManager] = await ethers.getSigners();
 
     const TaskScheduler = await ethers.getContractFactory("TaskScheduler");
     scheduler = await TaskScheduler.deploy();
+
+    const MockOwnedVault = await ethers.getContractFactory("MockOwnedVault");
+    ownerVault = await MockOwnedVault.deploy(owner.address);
+    keeperVault = await MockOwnedVault.deploy(keeper1.address);
   });
 
   describe("Task Creation", () => {
     it("should create a TIMESTAMP-based task", async () => {
       const taskId = ethers.id("GroceryPayment");
-      const futureTime = await time.latest() + 86400; // 24h from now
+      const futureTime = await time.latest() + 86400;
 
       await scheduler.createTask(
         taskId,
-        vault.address,
+        await ownerVault.getAddress(),
         keyManager.address,
         sampleCalldata,
         TIMESTAMP,
         futureTime,
-        604800 // 7 days
+        604800
       );
 
       const task = await scheduler.getTask(taskId);
@@ -51,12 +55,12 @@ describe("TaskScheduler", () => {
 
       await scheduler.createTask(
         taskId,
-        vault.address,
+        await ownerVault.getAddress(),
         keyManager.address,
         sampleCalldata,
         BLOCK_NUMBER,
         futureBlock,
-        2000 // every 2000 blocks
+        2000
       );
 
       const task = await scheduler.getTask(taskId);
@@ -71,7 +75,7 @@ describe("TaskScheduler", () => {
 
       await scheduler.createTask(
         taskId,
-        vault.address,
+        await ownerVault.getAddress(),
         keyManager.address,
         sampleCalldata,
         TIMESTAMP,
@@ -82,7 +86,7 @@ describe("TaskScheduler", () => {
       await expect(
         scheduler.createTask(
           taskId,
-          vault.address,
+          await ownerVault.getAddress(),
           keyManager.address,
           sampleCalldata,
           TIMESTAMP,
@@ -96,7 +100,6 @@ describe("TaskScheduler", () => {
       const taskId = ethers.id("Task");
       const futureTime = await time.latest() + 86400;
 
-      // Invalid vault
       await expect(
         scheduler.createTask(
           taskId,
@@ -109,11 +112,10 @@ describe("TaskScheduler", () => {
         )
       ).to.be.revertedWith("TS: invalid vault");
 
-      // Invalid keyManager
       await expect(
         scheduler.createTask(
           taskId,
-          vault.address,
+          await ownerVault.getAddress(),
           ethers.ZeroAddress,
           sampleCalldata,
           TIMESTAMP,
@@ -122,33 +124,47 @@ describe("TaskScheduler", () => {
         )
       ).to.be.revertedWith("TS: invalid keyManager");
 
-      // Invalid interval
       await expect(
         scheduler.createTask(
           taskId,
-          vault.address,
+          await ownerVault.getAddress(),
           keyManager.address,
           sampleCalldata,
           TIMESTAMP,
           futureTime,
-          0 // invalid interval
+          0
         )
       ).to.be.revertedWith("TS: invalid interval");
+    });
+
+    it("should reject vaults without an owner() interface", async () => {
+      const taskId = ethers.id("EOATask");
+      const futureTime = await time.latest() + 86400;
+
+      await expect(
+        scheduler.createTask(
+          taskId,
+          keeper2.address,
+          keyManager.address,
+          sampleCalldata,
+          TIMESTAMP,
+          futureTime,
+          86400
+        )
+      ).to.be.revertedWith("TS: vault owner unavailable");
     });
   });
 
   describe("Task Execution - TIMESTAMP Trigger", () => {
     let taskId: string;
-    let currentTime: number;
 
     beforeEach(async () => {
       taskId = ethers.id("SubscriptionPayment");
-      currentTime = await time.latest();
-      const futureTime = currentTime + 100;
+      const futureTime = (await time.latest()) + 100;
 
       await scheduler.createTask(
         taskId,
-        vault.address,
+        await ownerVault.getAddress(),
         keyManager.address,
         sampleCalldata,
         TIMESTAMP,
@@ -188,7 +204,7 @@ describe("TaskScheduler", () => {
 
       await scheduler.createTask(
         taskId,
-        vault.address,
+        await ownerVault.getAddress(),
         keyManager.address,
         sampleCalldata,
         BLOCK_NUMBER,
@@ -198,9 +214,7 @@ describe("TaskScheduler", () => {
     });
 
     it("should prevent execution before block", async () => {
-      await expect(scheduler.executeTask(taskId)).to.be.revertedWith(
-        "TS: not executable yet"
-      );
+      await expect(scheduler.executeTask(taskId)).to.be.revertedWith("TS: not executable yet");
     });
 
     it("should show blocks until execution", async () => {
@@ -219,7 +233,7 @@ describe("TaskScheduler", () => {
 
       await scheduler.createTask(
         taskId,
-        vault.address,
+        await ownerVault.getAddress(),
         keyManager.address,
         sampleCalldata,
         TIMESTAMP,
@@ -250,9 +264,7 @@ describe("TaskScheduler", () => {
       await time.increase(2000);
       await scheduler.disableTask(taskId);
 
-      await expect(scheduler.executeTask(taskId)).to.be.revertedWith(
-        "TS: task disabled"
-      );
+      await expect(scheduler.executeTask(taskId)).to.be.revertedWith("TS: task disabled");
     });
 
     it("should update task execution time and interval", async () => {
@@ -265,19 +277,24 @@ describe("TaskScheduler", () => {
       expect(task.nextExecution).to.equal(newTime);
       expect(task.interval).to.equal(newInterval);
     });
+
+    it("should delete a task", async () => {
+      await scheduler.deleteTask(taskId);
+      await expect(scheduler.getTask(taskId)).to.be.revertedWith("TS: task not found");
+      expect(await scheduler.getTaskCount()).to.equal(0);
+    });
   });
 
   describe("Keeper Whitelist", () => {
     let taskId: string;
-    let futureTime: number;
 
     beforeEach(async () => {
       taskId = ethers.id("KeeperTask");
-      futureTime = await time.latest() + 100;
+      const futureTime = await time.latest() + 100;
 
       await scheduler.createTask(
         taskId,
-        vault.address,
+        await ownerVault.getAddress(),
         keyManager.address,
         sampleCalldata,
         TIMESTAMP,
@@ -294,26 +311,19 @@ describe("TaskScheduler", () => {
 
     it("should block non-whitelisted keepers by default", async () => {
       await time.increase(200);
-
-      await expect(
-        scheduler.connect(keeper2).executeTask(taskId)
-      ).to.be.revertedWith("TS: keeper not whitelisted");
+      await expect(scheduler.connect(keeper2).executeTask(taskId)).to.be.revertedWith("TS: keeper not whitelisted");
     });
 
     it("should restrict execution to whitelisted keepers when enabled", async () => {
       await scheduler.addKeeper(keeper1.address);
-
       expect(await scheduler.isWhitelistedKeeper(keeper1.address)).to.be.true;
       expect(await scheduler.isWhitelistedKeeper(keeper2.address)).to.be.false;
     });
 
     it("should manage keeper whitelist", async () => {
       await scheduler.addKeeper(keeper1.address);
-
       expect(await scheduler.isWhitelistedKeeper(keeper1.address)).to.be.true;
-
       await scheduler.removeKeeper(keeper1.address);
-
       expect(await scheduler.isWhitelistedKeeper(keeper1.address)).to.be.false;
     });
   });
@@ -323,12 +333,11 @@ describe("TaskScheduler", () => {
       const currentChainTime = await time.latest();
       const futureTime = currentChainTime + 1000;
 
-      // Create 3 tasks
       for (let i = 0; i < 3; i++) {
         const taskId = ethers.id(`Task${i}`);
         await scheduler.createTask(
           taskId,
-          vault.address,
+          await ownerVault.getAddress(),
           keyManager.address,
           sampleCalldata,
           TIMESTAMP,
@@ -349,26 +358,20 @@ describe("TaskScheduler", () => {
     });
 
     it("should get eligible tasks", async () => {
-      // All tasks start in future, so none should be eligible yet
       let eligible = await scheduler.getEligibleTasks();
       expect(eligible.length).to.equal(0);
 
-      // Advance time well past all tasks
       await time.increase(4000);
-
-      // Now all 3 should be eligible
       eligible = await scheduler.getEligibleTasks();
       expect(eligible.length).to.equal(3);
     });
 
     it("should get tasks for a specific vault", async () => {
-      // Create task for different vault
-      const otherVault = keeper2;
       const futureTime = await time.latest() + 1000;
 
-      await scheduler.createTask(
+      await scheduler.connect(keeper1).createTask(
         ethers.id("OtherTask"),
-        otherVault.address,
+        await keeperVault.getAddress(),
         keyManager.address,
         sampleCalldata,
         TIMESTAMP,
@@ -376,41 +379,56 @@ describe("TaskScheduler", () => {
         86400
       );
 
-      const vaultTasks = await scheduler.getTasksForVault(vault.address);
-      expect(vaultTasks.length).to.equal(3);
+      const ownerVaultTasks = await scheduler.getTasksForVault(await ownerVault.getAddress());
+      expect(ownerVaultTasks.length).to.equal(3);
 
-      const otherTasks = await scheduler.getTasksForVault(otherVault.address);
+      const otherTasks = await scheduler.getTasksForVault(await keeperVault.getAddress());
       expect(otherTasks.length).to.equal(1);
     });
   });
 
   describe("Authorization", () => {
-    it("should only allow owner to create tasks", async () => {
-      const taskId = ethers.id("UnauthorizedTask");
+    it("should allow a vault owner to create tasks even when not scheduler owner", async () => {
+      const taskId = ethers.id("KeeperOwnedTask");
       const futureTime = await time.latest() + 1000;
 
-      const schedulerAway = scheduler.connect(keeper1);
-
       await expect(
-        schedulerAway.createTask(
+        scheduler.connect(keeper1).createTask(
           taskId,
-          vault.address,
+          await keeperVault.getAddress(),
           keyManager.address,
           sampleCalldata,
           TIMESTAMP,
           futureTime,
           86400
         )
-      ).to.be.revertedWith("Ownable: caller is not the owner");
+      ).to.not.be.reverted;
     });
 
-    it("should only allow owner to manage tasks", async () => {
+    it("should block non-vault-owner task creation", async () => {
+      const taskId = ethers.id("UnauthorizedTask");
+      const futureTime = await time.latest() + 1000;
+
+      await expect(
+        scheduler.connect(keeper1).createTask(
+          taskId,
+          await ownerVault.getAddress(),
+          keyManager.address,
+          sampleCalldata,
+          TIMESTAMP,
+          futureTime,
+          86400
+        )
+      ).to.be.revertedWith("TS: caller is not vault owner");
+    });
+
+    it("should only allow the associated vault owner to manage tasks", async () => {
       const taskId = ethers.id("ManageTask");
       const futureTime = await time.latest() + 1000;
 
-      await scheduler.createTask(
+      await scheduler.connect(keeper1).createTask(
         taskId,
-        vault.address,
+        await keeperVault.getAddress(),
         keyManager.address,
         sampleCalldata,
         TIMESTAMP,
@@ -418,10 +436,13 @@ describe("TaskScheduler", () => {
         86400
       );
 
-      const schedulerAway = scheduler.connect(keeper1);
+      await expect(scheduler.disableTask(taskId)).to.be.revertedWith("TS: caller is not vault owner");
+      await expect(scheduler.connect(keeper1).disableTask(taskId)).to.not.be.reverted;
+    });
 
+    it("should keep keeper admin under scheduler owner", async () => {
       await expect(
-        schedulerAway.disableTask(taskId)
+        scheduler.connect(keeper1).addKeeper(keeper2.address)
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
   });

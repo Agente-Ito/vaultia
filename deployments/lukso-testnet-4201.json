@@ -2,21 +2,17 @@
   "network": "luksoTestnet",
   "chainId": "4201",
   "deployer": "0x859722730e0FE001962202d53d5c7b11e8327421",
-  "contracts": {
-    "MerchantRegistry": "0x2774Ca83BC30364153661028735E90299d60c3a7",
-    "AgentVaultDeployerCore": "0x40240Ca72224C543c24747478A75297E6D84DB6C",
-    "AgentVaultDeployer": "0x27a2F0d5F6A000867055F61292C2A1D1855305EC",
-    "AgentKMDeployer": "0xBad0eE898EE206e4180B0BfFE5C5C082EDdaEf14",
-    "TaskScheduler": "0xc151A8d47FC875Db6cd862f55c89dD50ACB3C254",
-    "AgentVaultRegistry": "0x8c84621670969fDebE0036743473f90b61C2A89b"
-  },
-  "demoVault": {
-    "safe": "0x0807D048419a0A6949040649aa1Ea19C2Fd95Cc6",
-    "keyManager": "0xd60163334b2ceC126DAD23bA1d6f375F8AC64Ff2",
-    "policyEngine": "0x66AE9f4EC2E13F4d4bAd65b9F164137995BC537F",
-    "note": "acceptOwnership not completed — use createDemoTask.ts to set up fresh demo vault"
-  },
-  "explorer": "https://explorer.testnet.lukso.network",
-  "rpc": "https://rpc.testnet.lukso.network",
-  "deploymentTimestamp": 1742428800
+  "registryAddress": "0x3B0fE507f777054968018D6E7C78aF5A30601A2c",
+  "merchantRegistryAddress": "0x47FC6D5Cc546C41d599836A6Dd3a3C4772880040",
+  "coordinatorAddress": "0x764ff41A1b8FbC8E1102919D3BcE4860Cab33911",
+  "sharedBudgetPoolAddress": "0x5f34Da48D88DB51b2dC6D442924a23D210902f41",
+  "taskSchedulerAddress": "0x4dC075cC94e82ef28B056F89cB06811d2A96B412",
+  "agentSafeAddress": "0xF509e1c22a56dD1e920B954325acCd0af6B4752E",
+  "keyManagerAddress": "0xF045c843F966bA52310d02E12875D15A11290873",
+  "policyEngineAddress": "0x8BC4096357aec572d34346a69f785436B1b6990d",
+  "agentPrivateKey": "0x79fc4643db880fb4d258aaf540e7762a3f1cb09966e2690c0b74694e48884b08",
+  "agentAddress": "0x4BFC939E66B3c80dC9Ee681577041185D9Df5B6d",
+  "safeBalance": "1.0",
+  "deploymentTimestamp": 1774150997,
+  "blockNumber": 7300520
 }

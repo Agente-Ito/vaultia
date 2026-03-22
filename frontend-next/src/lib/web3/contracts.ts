@@ -34,6 +34,7 @@ export type CoordinatorContract = Contract & {
 };
 
 export type SchedulerContract = Contract & {
+  owner(): Promise<string>;
   createTask(
     taskId: string,
     vault: string,
@@ -45,8 +46,11 @@ export type SchedulerContract = Contract & {
   ): Promise<ContractTransactionResponse>;
   enableTask(taskId: string): Promise<ContractTransactionResponse>;
   disableTask(taskId: string): Promise<ContractTransactionResponse>;
+  deleteTask(taskId: string): Promise<ContractTransactionResponse>;
+  updateTask(taskId: string, nextExecution: number, interval: number): Promise<ContractTransactionResponse>;
   getTaskCount(): Promise<bigint>;
   getTaskIds(offset: number, limit: number): Promise<string[]>;
+  getTasksForVault(vault: string): Promise<string[]>;
   getTask(taskId: string): Promise<[string, string, string, number, bigint, bigint, boolean, bigint]>;
   isExecutable(taskId: string): Promise<boolean>;
 };
@@ -171,6 +175,7 @@ const CoordinatorAbi = [
 // TaskScheduler instance.
 const SchedulerAbi = [
   // Read
+  'function owner() external view returns (address)',
   'function getTask(bytes32 taskId) external view returns (address vault, address keyManager, bytes executeCalldata, uint8 triggerType, uint256 nextExecution, uint256 interval, bool enabled, uint256 createdAt)',
   'function getTaskCount() external view returns (uint256)',
   'function getTaskIds(uint256 offset, uint256 limit) external view returns (bytes32[])',

@@ -1,0 +1,23 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "lint-frontend-targeted",
+			"type": "shell",
+			"command": "./node_modules/.bin/eslint",
+			"args": [
+				"src/app/page.tsx",
+				"src/app/(app)/agents/page.tsx",
+				"src/i18n/en.ts",
+				"src/i18n/es.ts",
+				"--ext",
+				".ts,.tsx"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$eslint-stylish"
+			],
+			"group": "test"
+		}
+	]
+}

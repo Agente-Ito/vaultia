@@ -236,25 +236,27 @@ function VaultCard({
               </div>
             )}
             {signer && (
-              <Button
-                variant="secondary"
-                size="sm"
-                className="mt-sm font-sans"
-                onClick={() =>
-                  onAddAgent({
-                    chain: 'lukso',
-                    vaultSafe: vault.safe,
-                    keyManager: vault.keyManager,
-                    label: vault.label,
-                    signer,
-                  })
-                }
-              >
-                {t('vaults.card.manage_agents')}
-              </Button>
-              <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
-                {t('vaults.agent_delegation.coming_soon_note')}
-              </p>
+              <>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="mt-sm font-sans"
+                  onClick={() =>
+                    onAddAgent({
+                      chain: 'lukso',
+                      vaultSafe: vault.safe,
+                      keyManager: vault.keyManager,
+                      label: vault.label,
+                      signer,
+                    })
+                  }
+                >
+                  {t('vaults.card.manage_agents')}
+                </Button>
+                <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
+                  {t('vaults.agent_delegation.coming_soon_note')}
+                </p>
+              </>
             )}
 
             {/* ── Policy management (owner only) ──────────────────────────── */}
@@ -328,7 +330,7 @@ function VaultCard({
                       <span className="font-semibold" style={{ color: 'var(--text-muted)' }}>{t('vaults.manage.remaining_limit_col')}</span>
                       <span className="font-semibold" style={{ color: 'var(--text-muted)' }}>{t('vaults.manage.period_col')}</span>
                       {detail.policySummary.recipientLimits.map((rl) => (
-                        <>
+                        <div key={rl.recipient} className="contents">
                           <span key={`${rl.recipient}-addr`} style={{ color: 'var(--text)' }}>
                             <AddressDisplay address={rl.recipient} className="truncate" />
                           </span>
@@ -336,7 +338,7 @@ function VaultCard({
                             {rl.limit === '∞' ? '∞' : `${rl.remaining} / ${rl.limit}`}
                           </span>
                           <span key={`${rl.recipient}-period`} style={{ color: 'var(--text-muted)' }}>{rl.period}</span>
-                        </>
+                        </div>
                       ))}
                     </div>
                   </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 
 /**
  * CelestialFlash — Animated splash screen
@@ -20,8 +20,6 @@ const FADE_OUT_MS     = 320; // ms for fade-out
 
 const VAULTIA_GREEN  = '#10B981';
 const VAULTIA_GREY   = '#EDEDED';
-const VAULTIA_AMBER  = '#FFB000';
-
 const SESSION_FLAG = 'vaultia-splash-shown';
 
 export function CelestialFlash({ onDone }: { onDone?: () => void }) {
@@ -29,8 +27,6 @@ export function CelestialFlash({ onDone }: { onDone?: () => void }) {
   const [glowPhase, setGlowPhase] = useState(false);
   const [fadingOut, setFadingOut] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const alreadyShown = useRef(false);
-
   useEffect(() => {
     // Only show once per session
     if (typeof window !== 'undefined') {

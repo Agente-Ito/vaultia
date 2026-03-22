@@ -4,6 +4,10 @@ pragma solidity ^0.8.20;
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
+interface IOwnedVault {
+    function owner() external view returns (address);
+}
+
 /// @title TaskScheduler
 /// @notice Manages scheduled and recurring tasks for the AI Financial OS.
 /// Supports TIMESTAMP (for subscriptions/payroll) and BLOCK_NUMBER (for DeFi automation) triggers.
@@ -75,6 +79,23 @@ contract TaskScheduler is Ownable, ReentrancyGuard {
     /// @notice Keeper whitelist. Enforced by default from deployment time onward.
     mapping(address => bool) public isWhitelistedKeeper;
     bool public keeperWhitelistEnabled;
+
+    function _requireVaultOwner(address vault) internal view {
+        require(vault != address(0), "TS: invalid vault");
+
+        (bool ok, bytes memory data) = vault.staticcall(
+            abi.encodeCall(IOwnedVault.owner, ())
+        );
+        require(ok && data.length >= 32, "TS: vault owner unavailable");
+
+        address vaultOwner = abi.decode(data, (address));
+        require(vaultOwner == msg.sender, "TS: caller is not vault owner");
+    }
+
+    function _requireTaskVaultOwner(bytes32 taskId) internal view {
+        require(tasks[taskId].createdAt != 0, "TS: task not found");
+        _requireVaultOwner(tasks[taskId].vault);
+    }
 
     // ═════════════════════════════════════════════════════════════════════
     // EVENTS
@@ -155,10 +176,10 @@ contract TaskScheduler is Ownable, ReentrancyGuard {
         TriggerType triggerType,
         uint256 nextExecution,
         uint256 interval
-    ) external onlyOwner returns (bytes32) {
+    ) external returns (bytes32) {
+        _requireVaultOwner(vault);
         require(taskId != bytes32(0), "TS: invalid taskId");
         require(tasks[taskId].createdAt == 0, "TS: task already exists");
-        require(vault != address(0), "TS: invalid vault");
         require(keyManager != address(0), "TS: invalid keyManager");
         require(executeCalldata.length > 0, "TS: empty calldata");
         require(interval > 0, "TS: invalid interval");
@@ -190,15 +211,15 @@ contract TaskScheduler is Ownable, ReentrancyGuard {
     }
 
     /// @notice Enable a task
-    function enableTask(bytes32 taskId) external onlyOwner {
-        require(tasks[taskId].createdAt != 0, "TS: task not found");
+    function enableTask(bytes32 taskId) external {
+        _requireTaskVaultOwner(taskId);
         tasks[taskId].enabled = true;
         emit TaskEnabled(taskId);
     }
 
     /// @notice Disable a task (can be re-enabled later)
-    function disableTask(bytes32 taskId) external onlyOwner {
-        require(tasks[taskId].createdAt != 0, "TS: task not found");
+    function disableTask(bytes32 taskId) external {
+        _requireTaskVaultOwner(taskId);
         tasks[taskId].enabled = false;
         emit TaskDisabled(taskId);
     }
@@ -208,8 +229,8 @@ contract TaskScheduler is Ownable, ReentrancyGuard {
     ///      is NOT preserved after deletion — off-chain consumers must not rely on index
     ///      stability. Use disableTask() if you want a reversible soft-remove instead.
     ///      Clears all task storage; the taskId cannot be recovered or reused.
-    function deleteTask(bytes32 taskId) external onlyOwner {
-        require(tasks[taskId].createdAt != 0, "TS: task not found");
+    function deleteTask(bytes32 taskId) external {
+        _requireTaskVaultOwner(taskId);
 
         // Swap-and-pop: move the last element to the deleted slot
         uint256 removeIdx = _taskIdIndex[taskId];
@@ -232,8 +253,8 @@ contract TaskScheduler is Ownable, ReentrancyGuard {
         bytes32 taskId,
         uint256 newNextExecution,
         uint256 newInterval
-    ) external onlyOwner {
-        require(tasks[taskId].createdAt != 0, "TS: task not found");
+    ) external {
+        _requireTaskVaultOwner(taskId);
         require(newNextExecution > 0, "TS: invalid execution");
         require(newInterval > 0, "TS: invalid interval");
         if (tasks[taskId].triggerType == TriggerType.TIMESTAMP) {

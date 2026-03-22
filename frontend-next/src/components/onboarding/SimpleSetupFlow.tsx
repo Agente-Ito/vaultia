@@ -93,10 +93,9 @@ export function SimpleSetupFlow() {
   const [stepError, setStepError] = useState<string | null>(null);
   const [deployError, setDeployError] = useState<string | null>(null);
   const [deploying, setDeploying] = useState(false);
+  const myAgentAddress = '';
   const [goalsExpanded, setGoalsExpanded] = useState(false);
   const [customTokenOpen, setCustomTokenOpen] = useState(false);
-  const [myAgentAddress, setMyAgentAddress] = useState('');
-
   // ── Per-recipient limits (Track 3) ────────────────────────────────────────
   const [recipientLimitsEnabled, setRecipientLimitsEnabled] = useState(false);
   const [recipientLimitMode, setRecipientLimitMode] = useState<'global' | 'per'>('global');

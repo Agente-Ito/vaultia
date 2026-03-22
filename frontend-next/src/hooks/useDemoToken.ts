@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Signer, parseUnits } from 'ethers';
+import { Signer } from 'ethers';
 import { getLSP7DemoTokenContract } from '@/lib/web3/contracts';
 
 const DEMO_TOKEN_ADDRESS = process.env.NEXT_PUBLIC_LUKSO_DEMO_TOKEN_ADDRESS ?? '';

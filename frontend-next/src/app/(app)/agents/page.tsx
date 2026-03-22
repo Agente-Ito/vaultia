@@ -107,6 +107,43 @@ export default function AgentsPage() {
         </AlertDescription>
       </Alert>
 
+      <div className="rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-5 space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>{t('agents.skill.title')}</h2>
+          <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>{t('agents.skill.subtitle')}</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {[
+            {
+              title: t('agents.skill.card.path.title'),
+              desc: t('agents.skill.card.path.desc'),
+            },
+            {
+              title: t('agents.skill.card.coordinator.title'),
+              desc: t('agents.skill.card.coordinator.desc'),
+            },
+            {
+              title: t('agents.skill.card.automation.title'),
+              desc: t('agents.skill.card.automation.desc'),
+            },
+          ].map((item) => (
+            <div
+              key={item.title}
+              className="rounded-lg p-4"
+              style={{ background: 'var(--card-mid)', border: '1px solid var(--border)' }}
+            >
+              <h3 className="text-sm font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--text)' }}>
+                {item.title}
+              </h3>
+              <p className="mt-2 text-sm leading-6" style={{ color: 'var(--text-muted)' }}>
+                {item.desc}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {showRegisterForm && canRegisterAgents && (
         <div className="rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-5 space-y-4">
           <div>

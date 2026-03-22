@@ -145,6 +145,7 @@ async function main() {
     agents: [agentWallet.address],
     agentBudgets: [],                    // no per-agent budgets for demo
     merchants: [deployer.address],       // deployer as demo merchant
+    recipientConfigs: [],                // no per-recipient budgets for demo
     label: "Demo Vault – Weekly Budget",
     // Permission profile — no SUPER_* bits; AllowedCalls enforced on-chain
     agentMode: AgentMode.STRICT_PAYMENTS,

@@ -169,7 +169,7 @@ export function useVault(safeAddress: string | null) {
           try {
             const rbp = getRecipientBudgetPolicyContract(p, provider);
             // recipientCount() is unique to RecipientBudgetPolicy
-            const count = await rbp.recipientCount();
+            await rbp.recipientCount();
             const recipientAddrs: string[] = await rbp.getRecipients();
             const PERIOD_LABELS: Record<number, string> = { 0: 'Daily', 1: 'Weekly', 2: 'Monthly', 3: 'Hourly', 4: '5 min' };
             const entries: RecipientLimitEntry[] = await Promise.all(

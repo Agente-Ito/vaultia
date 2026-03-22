@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { ethers } from 'ethers';
 import {
   Dialog,
   DialogContent,
@@ -13,7 +14,6 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/common/Button';
 import { cn } from '@/lib/utils/cn';
 import type { VaultRecord } from '@/hooks/useVaults';
-import type { TaskRecord } from './TaskTimeline';
 import { useI18n } from '@/context/I18nContext';
 
 // ─── Step configs ─────────────────────────────────────────────────────────────
@@ -21,6 +21,16 @@ import { useI18n } from '@/context/I18nContext';
 type ActionType = 'fixed-payment' | 'rebalance' | 'recurring-purchase' | null;
 
 type Frequency = 'five-minutes' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'custom-blocks';
+
+export interface NewTaskDraft {
+  actionType: 'fixed-payment';
+  vaultSafe: string;
+  recipient: string;
+  amount: string;
+  triggerType: 'timestamp' | 'block';
+  interval: number;
+  intervalLabel: string;
+}
 
 const TOTAL_STEPS = 3;
 
@@ -40,9 +50,9 @@ function StepIndicator({ step, t }: { step: number; t: (key: string) => string }
 // Step 1
 function Step1({ selected, onSelect, t }: { selected: ActionType; onSelect: (a: ActionType) => void; t: (key: string) => string }) {
   const ACTION_TYPES = [
-    { id: 'fixed-payment' as ActionType, emoji: '💸', title: t('task_wizard.action.fixed_payment.title'), desc: t('task_wizard.action.fixed_payment.desc') },
-    { id: 'rebalance' as ActionType, emoji: '⚖️', title: t('task_wizard.action.rebalance.title'), desc: t('task_wizard.action.rebalance.desc') },
-    { id: 'recurring-purchase' as ActionType, emoji: '🛒', title: t('task_wizard.action.recurring_purchase.title'), desc: t('task_wizard.action.recurring_purchase.desc') },
+    { id: 'fixed-payment' as ActionType, emoji: '💸', title: t('task_wizard.action.fixed_payment.title'), desc: t('task_wizard.action.fixed_payment.desc'), enabled: true },
+    { id: 'rebalance' as ActionType, emoji: '⚖️', title: t('task_wizard.action.rebalance.title'), desc: t('task_wizard.action.rebalance.desc'), enabled: false },
+    { id: 'recurring-purchase' as ActionType, emoji: '🛒', title: t('task_wizard.action.recurring_purchase.title'), desc: t('task_wizard.action.recurring_purchase.desc'), enabled: false },
   ];
   return (
     <div className="p-6 space-y-4">
@@ -51,9 +61,10 @@ function Step1({ selected, onSelect, t }: { selected: ActionType; onSelect: (a: 
         {ACTION_TYPES.map((a) => (
           <button
             key={a.id as string}
+            disabled={!a.enabled}
             onClick={() => onSelect(a.id)}
             className={cn(
-              'w-full flex items-start gap-3 rounded-xl border-2 p-3.5 text-left transition-all',
+              'w-full flex items-start gap-3 rounded-xl border-2 p-3.5 text-left transition-all disabled:cursor-not-allowed disabled:opacity-60',
               selected === a.id
                 ? 'border-primary-500 bg-primary-50 dark:bg-neutral-700'
                 : 'border-neutral-200 hover:border-primary-300 dark:border-neutral-700'
@@ -61,23 +72,39 @@ function Step1({ selected, onSelect, t }: { selected: ActionType; onSelect: (a: 
           >
             <span className="text-2xl flex-shrink-0">{a.emoji}</span>
             <div>
-              <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">{a.title}</p>
+              <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+                {a.title}
+                {!a.enabled && (
+                  <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-neutral-500 dark:bg-neutral-700 dark:text-neutral-300">
+                    {t('task_wizard.action.coming_soon')}
+                  </span>
+                )}
+              </p>
               <p className="text-xs text-neutral-500 mt-0.5">{a.desc}</p>
             </div>
           </button>
         ))}
       </div>
+      <p className="text-xs text-neutral-500">{t('task_wizard.action.fixed_only_note')}</p>
     </div>
   );
 }
 
 // Step 2
-function Step2({ vaults, selectedVault, onSelect, t }: {
+function Step2({ vaults, selectedVault, onSelect, recipient, onRecipientChange, amount, onAmountChange, t }: {
   vaults: VaultRecord[];
   selectedVault: string;
   onSelect: (v: string) => void;
+  recipient: string;
+  onRecipientChange: (value: string) => void;
+  amount: string;
+  onAmountChange: (value: string) => void;
   t: (key: string) => string;
 }) {
+  const recipientValid = recipient.length === 0 || ethers.isAddress(recipient);
+  const amountValue = Number(amount);
+  const amountValid = amount.length === 0 || (Number.isFinite(amountValue) && amountValue > 0);
+
   return (
     <div className="p-6 space-y-4">
       <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-50">{t('task_wizard.step2.title')}</h3>
@@ -100,6 +127,40 @@ function Step2({ vaults, selectedVault, onSelect, t }: {
       {selectedVault && (
         <p className="text-xs text-neutral-400 font-mono">{selectedVault}</p>
       )}
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-neutral-700 dark:text-neutral-200">
+          {t('task_wizard.step2.recipient_label')}
+        </label>
+        <input
+          type="text"
+          value={recipient}
+          onChange={(e) => onRecipientChange(e.target.value.trim())}
+          placeholder={t('task_wizard.step2.recipient_placeholder')}
+          className="w-full h-10 rounded-md border border-neutral-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-50"
+        />
+        {!recipientValid && (
+          <p className="text-xs text-red-500">{t('task_wizard.step2.recipient_invalid')}</p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-neutral-700 dark:text-neutral-200">
+          {t('task_wizard.step2.amount_label')}
+        </label>
+        <input
+          type="number"
+          min="0"
+          step="0.0001"
+          value={amount}
+          onChange={(e) => onAmountChange(e.target.value)}
+          placeholder={t('task_wizard.step2.amount_placeholder')}
+          className="w-full h-10 rounded-md border border-neutral-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-50"
+        />
+        {!amountValid && (
+          <p className="text-xs text-red-500">{t('task_wizard.step2.amount_invalid')}</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -181,16 +242,22 @@ interface NewTaskWizardModalProps {
   onClose: () => void;
   vaults: VaultRecord[];
   isAdvanced: boolean;
-  onSave: (task: TaskRecord) => void;
+  canCreateOnChain: boolean;
+  blockedReason?: string;
+  onSave: (task: NewTaskDraft) => Promise<void>;
 }
 
-export function NewTaskWizardModal({ open, onClose, vaults, isAdvanced, onSave }: NewTaskWizardModalProps) {
+export function NewTaskWizardModal({ open, onClose, vaults, isAdvanced, canCreateOnChain, blockedReason, onSave }: NewTaskWizardModalProps) {
   const { t } = useI18n();
   const [step, setStep] = useState(0);
   const [actionType, setActionType] = useState<ActionType>(null);
   const [selectedVault, setSelectedVault] = useState('');
+  const [recipient, setRecipient] = useState('');
+  const [amount, setAmount] = useState('');
   const [freq, setFreq] = useState<Frequency>('monthly');
   const [customBlocks, setCustomBlocks] = useState('7200');
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const FREQ_LABELS: Record<Frequency, string> = {
     'five-minutes': t('task_wizard.freq.five_minutes'),
@@ -201,50 +268,78 @@ export function NewTaskWizardModal({ open, onClose, vaults, isAdvanced, onSave }
     'custom-blocks': t('task_wizard.freq.custom_blocks'),
   };
 
-  const ACTION_TITLES: Record<string, string> = {
-    'fixed-payment': t('task_wizard.action.fixed_payment.title'),
-    'rebalance': t('task_wizard.action.rebalance.title'),
-    'recurring-purchase': t('task_wizard.action.recurring_purchase.title'),
-  };
-  const ACTION_DESCS: Record<string, string> = {
-    'fixed-payment': t('task_wizard.action.fixed_payment.desc'),
-    'rebalance': t('task_wizard.action.rebalance.desc'),
-    'recurring-purchase': t('task_wizard.action.recurring_purchase.desc'),
-  };
-  const ACTION_EMOJIS: Record<string, string> = {
-    'fixed-payment': '💸',
-    'rebalance': '⚖️',
-    'recurring-purchase': '🛒',
-  };
+  const frequencyConfig = useMemo(() => {
+    if (freq === 'five-minutes') return { triggerType: 'timestamp' as const, interval: 300 };
+    if (freq === 'hourly') return { triggerType: 'timestamp' as const, interval: 3600 };
+    if (freq === 'daily') return { triggerType: 'timestamp' as const, interval: 86400 };
+    if (freq === 'weekly') return { triggerType: 'timestamp' as const, interval: 604800 };
+    if (freq === 'monthly') return { triggerType: 'timestamp' as const, interval: 2592000 };
+
+    const blocks = Number(customBlocks);
+    if (!Number.isFinite(blocks) || blocks <= 0) {
+      return null;
+    }
+
+    return { triggerType: 'block' as const, interval: Math.floor(blocks) };
+  }, [customBlocks, freq]);
 
   const handleClose = () => {
-    setStep(0); setActionType(null); setSelectedVault(''); setFreq('monthly');
+    setStep(0);
+    setActionType(null);
+    setSelectedVault('');
+    setRecipient('');
+    setAmount('');
+    setFreq('monthly');
+    setCustomBlocks('7200');
+    setSubmitError(null);
+    setIsSubmitting(false);
     onClose();
   };
 
   const canNext = () => {
-    if (step === 0) return actionType !== null;
-    if (step === 1) return selectedVault !== '';
+    if (step === 0) return actionType === 'fixed-payment';
+    if (step === 1) {
+      return selectedVault !== '' && ethers.isAddress(recipient) && Number(amount) > 0;
+    }
+
+    if (freq === 'custom-blocks') {
+      return frequencyConfig !== null;
+    }
+
     return true;
   };
 
-  const handleFinish = () => {
-    const vaultDef = vaults.find((v) => v.safe === selectedVault);
-    const task: TaskRecord = {
-      id: `task-${Date.now()}`,
-      label: actionType ? (ACTION_TITLES[actionType] ?? actionType) : t('task_wizard.title'),
-      description: actionType ? (ACTION_DESCS[actionType] ?? '') : '',
-      botEmoji: actionType ? (ACTION_EMOJIS[actionType] ?? '⚙️') : '⚙️',
-      botName: 'Bot',
-      vaultLabel: vaultDef?.label || selectedVault.slice(0, 8) + '…',
-      nextExecution: new Date(Date.now() + 86400 * 1000),
-      intervalLabel: freq === 'custom-blocks' ? `${t('task_wizard.freq.custom_blocks')} ${customBlocks}` : (FREQ_LABELS[freq] ?? ''),
-      triggerType: freq === 'custom-blocks' ? 'block' : 'timestamp',
-      enabled: true,
-    };
+  const handleFinish = async () => {
+    if (!canCreateOnChain) {
+      setSubmitError(blockedReason ?? t('task_wizard.error.scheduler_owner_required'));
+      return;
+    }
 
-    onSave(task);
-    handleClose();
+    if (actionType !== 'fixed-payment' || !frequencyConfig) {
+      setSubmitError(t('task_wizard.error.unsupported_action'));
+      return;
+    }
+
+    setSubmitError(null);
+    setIsSubmitting(true);
+
+    try {
+      await onSave({
+        actionType,
+        vaultSafe: selectedVault,
+        recipient,
+        amount,
+        triggerType: frequencyConfig.triggerType,
+        interval: frequencyConfig.interval,
+        intervalLabel: freq === 'custom-blocks'
+          ? `${t('task_wizard.freq.custom_blocks')} ${customBlocks}`
+          : (FREQ_LABELS[freq] ?? ''),
+      });
+      handleClose();
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : String(error));
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -261,7 +356,18 @@ export function NewTaskWizardModal({ open, onClose, vaults, isAdvanced, onSave }
 
         <div className="min-h-[260px]">
           {step === 0 && <Step1 selected={actionType} onSelect={(a) => { setActionType(a); }} t={t} />}
-          {step === 1 && <Step2 vaults={vaults} selectedVault={selectedVault} onSelect={setSelectedVault} t={t} />}
+          {step === 1 && (
+            <Step2
+              vaults={vaults}
+              selectedVault={selectedVault}
+              onSelect={setSelectedVault}
+              recipient={recipient}
+              onRecipientChange={setRecipient}
+              amount={amount}
+              onAmountChange={setAmount}
+              t={t}
+            />
+          )}
           {step === 2 && (
             <Step3
               freq={freq}
@@ -271,6 +377,15 @@ export function NewTaskWizardModal({ open, onClose, vaults, isAdvanced, onSave }
               isAdvanced={isAdvanced}
               t={t}
             />
+          )}
+        </div>
+
+        <div className="px-6">
+          <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+            {canCreateOnChain ? t('task_wizard.create_on_chain_note') : (blockedReason ?? t('task_wizard.error.scheduler_owner_required'))}
+          </div>
+          {submitError && (
+            <p className="mt-2 text-xs text-red-500">{submitError}</p>
           )}
         </div>
 
@@ -284,8 +399,8 @@ export function NewTaskWizardModal({ open, onClose, vaults, isAdvanced, onSave }
                 {t('task_wizard.btn.next')}
               </Button>
             ) : (
-              <Button size="sm" onClick={handleFinish} disabled={!canNext()}>
-                {t('task_wizard.btn.create')}
+              <Button size="sm" onClick={handleFinish} disabled={!canNext() || isSubmitting || !canCreateOnChain}>
+                {isSubmitting ? t('task_wizard.btn.creating') : t('task_wizard.btn.create')}
               </Button>
             )}
           </div>

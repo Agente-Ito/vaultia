@@ -15,6 +15,7 @@ export interface TaskRecord {
   intervalLabel: string;
   triggerType: 'timestamp' | 'block';
   enabled: boolean;
+  amountLabel?: string;
   amount?: number;
   currency?: string;
 }
@@ -38,9 +39,10 @@ function groupByDate(tasks: TaskRecord[], locale: string): { dateLabel: string; 
 interface TaskTimelineProps {
   tasks: TaskRecord[];
   onToggle?: (taskId: string) => void;
+  toggleDisabled?: boolean;
 }
 
-export function TaskTimeline({ tasks, onToggle }: TaskTimelineProps) {
+export function TaskTimeline({ tasks, onToggle, toggleDisabled = false }: TaskTimelineProps) {
   const { t, locale } = useI18n();
 
   if (tasks.length === 0) {
@@ -89,6 +91,11 @@ export function TaskTimeline({ tasks, onToggle }: TaskTimelineProps) {
                     <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-50 truncate">
                       {task.label}
                     </p>
+                    {task.amountLabel && (
+                      <span className="text-sm font-bold text-neutral-800 dark:text-neutral-200 flex-shrink-0">
+                        {task.amountLabel}
+                      </span>
+                    )}
                     {task.amount !== undefined && task.amount > 0 && (
                       <span className="text-sm font-bold text-neutral-800 dark:text-neutral-200 flex-shrink-0">
                         {task.currency ?? '$'}{task.amount.toLocaleString()}
@@ -122,8 +129,9 @@ export function TaskTimeline({ tasks, onToggle }: TaskTimelineProps) {
                 {/* Toggle */}
                 <button
                   onClick={() => onToggle?.(task.id)}
+                  disabled={toggleDisabled}
                   className={cn(
-                    'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors',
+                    'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors disabled:cursor-not-allowed disabled:opacity-50',
                     task.enabled
                       ? 'bg-red-50 text-red-400 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40'
                       : 'bg-green-50 text-green-500 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/40'

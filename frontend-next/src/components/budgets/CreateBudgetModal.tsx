@@ -16,8 +16,6 @@ import { useI18n } from '@/context/I18nContext';
 
 const EMOJIS = ['💰', '🏠', '🛒', '📈', '🎯', '✈️', '🏥', '🎓', '🎵', '⚡', '🍔', '🎮'];
 
-const PERIOD_VALUES = ['daily', 'weekly', 'monthly'] as const;
-
 interface CreateBudgetModalProps {
   open: boolean;
   onClose: () => void;
