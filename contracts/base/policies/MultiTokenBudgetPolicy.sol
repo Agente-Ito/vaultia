@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {IPolicy} from "../../policies/IPolicy.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {LSP14Ownable2StepInit} from "../LSP14Ownable2StepInit.sol";
 
 interface IPolicyEngineSimulation {
     function simulationActive() external view returns (bool);
@@ -22,7 +22,7 @@ interface IPolicyEngineSimulation {
 ///
 ///         Period reset uses no-drift arithmetic (same as BudgetPolicy) so late
 ///         transactions don't push the next reset forward by their delay.
-contract MultiTokenBudgetPolicy is IPolicy, Ownable {
+contract MultiTokenBudgetPolicy is IPolicy, LSP14Ownable2StepInit {
 
     enum Period { DAILY, WEEKLY, MONTHLY, HOURLY, FIVE_MINUTES }
 
@@ -55,10 +55,9 @@ contract MultiTokenBudgetPolicy is IPolicy, Ownable {
 
     /// @param initialOwner  Factory address (temp owner; transferred to user after setup)
     /// @param _policyEngine The PolicyEngine that calls validate() on this policy
-    constructor(address initialOwner, address _policyEngine) {
+    constructor(address initialOwner, address _policyEngine) LSP14Ownable2StepInit(initialOwner) {
         require(_policyEngine != address(0), "MTBP: zero policyEngine");
         policyEngine = _policyEngine;
-        _transferOwnership(initialOwner);
     }
 
     // ─── IPolicy ──────────────────────────────────────────────────────────────

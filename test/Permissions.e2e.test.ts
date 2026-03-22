@@ -83,6 +83,7 @@ describe("Permissions — E2E storage + execution", function () {
       agents:      [agent.address],
       agentBudgets: [],
       merchants:   [merchant.address],
+      recipientConfigs: [],
       label:       "E2E Test Vault",
       // STRICT_PAYMENTS: no SUPER_* bits; AllowedCalls enforced by LSP6 KeyManager
       agentMode:              AgentMode.STRICT_PAYMENTS,
@@ -157,7 +158,7 @@ describe("Permissions — E2E storage + execution", function () {
       const tx = await registry.connect(owner).deployVault({
         budget: BUDGET, period: 1, budgetToken: ethers.ZeroAddress,
         expiration: 0, agents: [agent.address, extra],
-        agentBudgets: [], merchants: [], label: "Multi-agent vault",
+        agentBudgets: [], merchants: [], recipientConfigs: [], label: "Multi-agent vault",
         // OPS_ADMIN: SETDATA only, no AllowedCalls requirement
         agentMode: AgentMode.OPS_ADMIN,
         allowSuperPermissions: false,
@@ -278,7 +279,7 @@ describe("Permissions — E2E storage + execution", function () {
     it("POWER_USER (CUSTOM + allowSuperPermissions=true): SUPER_* bits set, AllowedCalls empty", async function () {
       const tx = await registry.connect(owner).deployVault({
         budget: BUDGET, period: 1, budgetToken: ethers.ZeroAddress, expiration: 0,
-        agents: [agent.address], agentBudgets: [], merchants: [merchant.address],
+        agents: [agent.address], agentBudgets: [], merchants: [merchant.address], recipientConfigs: [],
         label: "Power User Vault",
         agentMode:              AgentMode.CUSTOM,
         allowSuperPermissions:  true,
@@ -303,7 +304,7 @@ describe("Permissions — E2E storage + execution", function () {
       await expect(
         registry.connect(owner).deployVault({
           budget: BUDGET, period: 1, budgetToken: ethers.ZeroAddress, expiration: 0,
-          agents: [agent.address], agentBudgets: [], merchants: [merchant.address],
+          agents: [agent.address], agentBudgets: [], merchants: [merchant.address], recipientConfigs: [],
           label: "Sneaky Vault",
           agentMode:              AgentMode.CUSTOM,
           allowSuperPermissions:  false,

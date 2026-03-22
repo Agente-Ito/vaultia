@@ -154,6 +154,35 @@ Expected: Agent pays merchant, BudgetPolicy validates spend, event emitted.
 
 ---
 
+## Live Testnet Proof
+
+The current LUKSO testnet stack has been redeployed and validated against live on-chain runs.
+
+Current live contracts:
+
+- Registry: `0x8EE9858A68C4e344A949B8AE530bf9800F19B381`
+- Coordinator: `0x1ED22E68c7B8634eD39E10949ADfaFdb441C1299`
+- TaskScheduler: `0x2975aDc7F8d8e323897e3849869C8CC23Ed89392`
+
+Recorded proof artifacts:
+
+- Native policy stress: [deployments/live-stress-4201.json](deployments/live-stress-4201.json)
+- LSP7 policy stress: [deployments/live-stress-lsp7-4201.json](deployments/live-stress-lsp7-4201.json)
+- Recurring automation proof: [deployments/live-automation-4201.json](deployments/live-automation-4201.json)
+
+Recurring automation proof highlights:
+
+- TaskScheduler task creation: `0xad6a6aa489dea4694b30ec1e6defd0e360c43565afb6aa266936bb753afb69b1`
+- Automated execution #1: `0x6d7606d37f5675daea4e7a91bb2745a1d8beb8d4907eb4017f801034a7596f23`
+- Automated execution #2: `0x30baf499e2e3f036d50630dde5bac8e792f1e0e36a07645c308ccf40451e4682`
+- Automated execution #3 after keeper fix: `0x805eee51325c1d526c34ddba93830858c1f30eba35d9c7b17da60b9777a8784a`
+
+Detailed write-up:
+
+- [STRESS_TEST_REPORT.md](STRESS_TEST_REPORT.md)
+
+---
+
 ## 💡 Policy-Governed Building Blocks
 
 ### AgentCoordinator: Multi-Agent Management

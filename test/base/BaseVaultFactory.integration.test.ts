@@ -106,7 +106,30 @@ describe("BaseVaultFactory — integration", () => {
       const vaultAddr = (await factory.getVaults(owner.address))[0].vault;
 
       const vault = await ethers.getContractAt("BaseAgentVault", vaultAddr) as BaseAgentVault;
+      expect(await vault.owner()).to.equal(await factory.getAddress());
+      expect(await (vault as any).pendingOwner()).to.equal(owner.address);
+    });
+
+    it("user can finalize ownership across the deployed Base stack", async () => {
+      const { owner, agent, factory, usdc } = await deployFactory();
+      const params = await singleTokenParams(usdc, [agent.address]);
+
+      await factory.connect(owner).deployVault(params);
+
+      const record = (await factory.getVaults(owner.address))[0];
+      const vault = await ethers.getContractAt("BaseAgentVault", record.vault) as BaseAgentVault;
+      const pe = await ethers.getContractAt("PolicyEngine", record.policyEngine) as PolicyEngine;
+      const policies = await pe.getPolicies();
+
+      await vault.connect(owner).acceptOwnership();
+      await pe.connect(owner).acceptOwnership();
+      for (const policyAddr of policies) {
+        const policy = await ethers.getContractAt("BudgetPolicy", policyAddr);
+        await (policy as any).connect(owner).acceptOwnership();
+      }
+
       expect(await vault.owner()).to.equal(owner.address);
+      expect(await pe.owner()).to.equal(owner.address);
     });
 
     it("agent is authorized after deployment", async () => {
@@ -333,7 +356,8 @@ describe("BaseVaultFactory — integration", () => {
 
       const vaultAddr = (await factory.getVaults(owner.address))[0].vault;
       const vault = await ethers.getContractAt("BaseAgentVault", vaultAddr) as BaseAgentVault;
-      expect(await vault.owner()).to.equal(owner.address);
+      expect(await vault.owner()).to.equal(await factory.getAddress());
+      expect(await (vault as any).pendingOwner()).to.equal(owner.address);
     });
 
     it("unauthorized caller is rejected", async () => {

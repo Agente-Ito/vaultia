@@ -44,6 +44,9 @@ async function deployFixture() {
   await vault.transferOwnership(owner.address);
   await pe.transferOwnership(owner.address);
   await mtbp.transferOwnership(owner.address);
+  await vault.connect(owner).acceptOwnership();
+  await pe.connect(owner).acceptOwnership();
+  await mtbp.connect(owner).acceptOwnership();
 
   // Deploy mock tokens
   const ERC20F = await ethers.getContractFactory("MockERC20");
@@ -80,7 +83,24 @@ describe("MultiTokenBudgetPolicy", () => {
       const { other, mtbp, usdc } = await deployFixture();
       await expect(
         mtbp.connect(other).setBudget(await usdc.getAddress(), 100n, DAILY)
-      ).to.be.revertedWith("Ownable: caller is not the owner");
+      ).to.be.reverted;
+    });
+
+    it("uses LSP14 pending owner flow before acceptance", async () => {
+      const [deployer, owner] = await ethers.getSigners();
+      const VaultFactory = await ethers.getContractFactory("BaseAgentVault");
+      const vault = await VaultFactory.deploy(deployer.address, DUMMY_EP) as BaseAgentVault;
+
+      const PEFactory = await ethers.getContractFactory("PolicyEngine");
+      const pe = await PEFactory.deploy(deployer.address, await vault.getAddress()) as PolicyEngine;
+
+      const MTBPFactory = await ethers.getContractFactory("MultiTokenBudgetPolicy");
+      const mtbp = await MTBPFactory.deploy(deployer.address, await pe.getAddress()) as MultiTokenBudgetPolicy;
+
+      await mtbp.transferOwnership(owner.address);
+
+      expect(await mtbp.owner()).to.equal(deployer.address);
+      expect(await (mtbp as any).pendingOwner()).to.equal(owner.address);
     });
 
     it("reverts on zero limit", async () => {

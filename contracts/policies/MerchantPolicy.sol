@@ -2,14 +2,14 @@
 pragma solidity ^0.8.20;
 
 import {IPolicy} from "./IPolicy.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {LSP14Ownable2StepInit} from "../base/LSP14Ownable2StepInit.sol";
 
 /// @title MerchantPolicy
 /// @notice Enforces a merchant whitelist. Payments to non-whitelisted addresses are blocked.
 ///         FIX #23: onlyPolicyEngine — consistent caller restriction with BudgetPolicy.
 ///         FIX #4: merchantList array for UI listing alongside O(1) isMerchant mapping.
 ///         FIX #5: MAX_MERCHANTS = 200 cap; batch add capped at 100.
-contract MerchantPolicy is IPolicy, Ownable {
+contract MerchantPolicy is IPolicy, LSP14Ownable2StepInit {
     /// @dev FIX #23: only the registered PolicyEngine can call validate()
     address public immutable policyEngine;
 
@@ -31,10 +31,9 @@ contract MerchantPolicy is IPolicy, Ownable {
 
     /// @param initialOwner  Factory address (temp owner; transferred to user after setup)
     /// @param _policyEngine The PolicyEngine that calls validate() on this policy
-    constructor(address initialOwner, address _policyEngine) {
+    constructor(address initialOwner, address _policyEngine) LSP14Ownable2StepInit(initialOwner) {
         require(_policyEngine != address(0), "MP: zero policyEngine");
         policyEngine = _policyEngine;
-        _transferOwnership(initialOwner);
     }
 
     function validate(

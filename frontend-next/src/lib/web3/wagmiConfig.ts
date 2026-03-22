@@ -12,6 +12,12 @@ import { createConfig, http } from "wagmi";
 import { base, baseSepolia } from "viem/chains";
 import { luksoTestnet, luksoMainnet } from "./chains";
 
+type WagmiConfigInstance = ReturnType<typeof createConfig>;
+
+const globalForWagmi = globalThis as typeof globalThis & {
+  __avpWagmiConfig?: WagmiConfigInstance;
+};
+
 const walletConnectProjectId =
   process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID?.trim() ?? "";
 
@@ -28,28 +34,34 @@ if (hasWalletConnectProjectId) {
   otherWallets.push(rainbowWallet, walletConnectWallet);
 }
 
-const connectors = connectorsForWallets(
-  [
-    {
-      groupName: "LUKSO",
-      wallets: [universalProfilesWallet],
-    },
-    {
-      groupName: "Other Wallets",
-      wallets: otherWallets,
-    },
-  ],
-  { appName: "AI Financial Operating System", projectId }
-);
+function buildWagmiConfig(): WagmiConfigInstance {
+  const connectors = connectorsForWallets(
+    [
+      {
+        groupName: "LUKSO",
+        wallets: [universalProfilesWallet],
+      },
+      {
+        groupName: "Other Wallets",
+        wallets: otherWallets,
+      },
+    ],
+    { appName: "AI Financial Operating System", projectId }
+  );
 
-export const wagmiConfig = createConfig({
-  connectors,
-  chains: [luksoTestnet, luksoMainnet, baseSepolia, base],
-  transports: {
-    [luksoTestnet.id]: http(),
-    [luksoMainnet.id]: http(),
-    [baseSepolia.id]: http(),
-    [base.id]: http(),
-  },
-  ssr: true,
-});
+  return createConfig({
+    connectors,
+    chains: [luksoTestnet, luksoMainnet, baseSepolia, base],
+    transports: {
+      [luksoTestnet.id]: http(),
+      [luksoMainnet.id]: http(),
+      [baseSepolia.id]: http(),
+      [base.id]: http(),
+    },
+    ssr: true,
+  });
+}
+
+export const wagmiConfig =
+  globalForWagmi.__avpWagmiConfig ??
+  (globalForWagmi.__avpWagmiConfig = buildWagmiConfig());

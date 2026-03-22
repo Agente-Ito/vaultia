@@ -7,13 +7,15 @@ import { AgentMode, decodeHardhatError, encodeAllowedCalls } from "./lsp6Keys";
 dotenv.config({ path: path.join(__dirname, "..", ".env") });
 
 const WEEKLY = 1;
-const VAULT_BUDGET = ethers.parseEther("1");
+const TOKEN_BUDGET = ethers.parseEther("1");
 const RECIPIENT_LIMIT = ethers.parseEther("0.3");
-const VAULT_FUNDING_AMOUNT = ethers.parseEther("1.1");
+const TOKEN_MINT_AMOUNT = ethers.parseEther("1.1");
+const LYX_SEED_AMOUNT = ethers.parseEther("0.2");
 const LIMITED_RECIPIENT_PAYMENT_AMOUNT = RECIPIENT_LIMIT;
 const LIMITED_RECIPIENT_OVER_LIMIT_AMOUNT = ethers.parseEther("0.1");
-const MERCHANT_PAYMENT_AMOUNT = VAULT_BUDGET - RECIPIENT_LIMIT;
+const MERCHANT_PAYMENT_AMOUNT = TOKEN_BUDGET - RECIPIENT_LIMIT;
 const VAULT_OVER_BUDGET_AMOUNT = ethers.parseEther("0.1");
+const WRONG_DENOMINATION_AMOUNT = ethers.parseEther("0.1");
 const EXPLORER_BASE_URL = "https://explorer.testnet.lukso.network";
 
 type OwnableLike = {
@@ -29,6 +31,28 @@ function getEnvAddress(name: string, fallback: string) {
     throw new Error(`Invalid address in ${name}: ${value}`);
   }
   return value;
+}
+
+function getDeployedDemoTokenAddress(chainId: bigint) {
+  const envValue = process.env.LIVE_STRESS_LSP7_TOKEN?.trim();
+  if (envValue) {
+    if (!ethers.isAddress(envValue)) {
+      throw new Error(`Invalid address in LIVE_STRESS_LSP7_TOKEN: ${envValue}`);
+    }
+    return envValue;
+  }
+
+  const deploymentPath = path.join(__dirname, "..", "deployments", `lukso-demo-token-${chainId}.json`);
+  if (!fs.existsSync(deploymentPath)) {
+    throw new Error(`Missing demo token deployment artifact at ${deploymentPath}`);
+  }
+
+  const parsed = JSON.parse(fs.readFileSync(deploymentPath, "utf8")) as { tokenAddress?: string };
+  if (!parsed.tokenAddress || !ethers.isAddress(parsed.tokenAddress)) {
+    throw new Error(`Invalid tokenAddress in ${deploymentPath}`);
+  }
+
+  return parsed.tokenAddress;
 }
 
 async function expectStaticRevert(label: string, action: Promise<unknown>, expectedReason: string) {
@@ -101,12 +125,15 @@ async function main() {
     "LIVE_STRESS_OUTSIDER",
     "0x2000000000000000000000000000000000000002",
   );
+  const tokenAddress = getDeployedDemoTokenAddress(network.chainId);
 
   const registry = await ethers.getContractAt("AgentVaultRegistry", registryAddress);
+  const token = await ethers.getContractAt("LSP7DemoToken", tokenAddress);
 
   console.log("Network:", network.name, `(chainId: ${network.chainId})`);
   console.log("Operator:", operator.address);
   console.log("Registry:", registryAddress);
+  console.log("Token:", tokenAddress);
   console.log("Merchant:", merchant);
   console.log("Limited recipient:", limitedRecipient);
   console.log("Outsider:", outsider);
@@ -115,9 +142,9 @@ async function main() {
   const toTxLink = (hash: string) => `${EXPLORER_BASE_URL}/tx/${hash}`;
 
   const deployTx = await registry.connect(operator).deployVault({
-    budget: VAULT_BUDGET,
+    budget: TOKEN_BUDGET,
     period: WEEKLY,
-    budgetToken: ethers.ZeroAddress,
+    budgetToken: tokenAddress,
     expiration: 0,
     agents: [operator.address],
     agentBudgets: [],
@@ -126,13 +153,13 @@ async function main() {
       { recipient: merchant, budget: 0, period: WEEKLY },
       { recipient: limitedRecipient, budget: RECIPIENT_LIMIT, period: WEEKLY },
     ],
-    label: `Live Stress Vault ${Date.now()}`,
+    label: `Live LSP7 Stress Vault ${Date.now()}`,
     agentMode: AgentMode.STRICT_PAYMENTS,
     allowSuperPermissions: false,
     customAgentPermissions: ethers.ZeroHash,
     allowedCallsByAgent: [{
       agent: operator.address,
-      allowedCalls: encodeAllowedCalls([merchant, limitedRecipient, outsider]),
+      allowedCalls: encodeAllowedCalls([tokenAddress, merchant, limitedRecipient, outsider]),
     }],
   });
   const receipt = await deployTx.wait();
@@ -140,7 +167,7 @@ async function main() {
     throw new Error("deployVault receipt missing");
   }
 
-  const deployedEvent = receipt!.logs
+  const deployedEvent = receipt.logs
     .map((log) => {
       try { return registry.interface.parseLog(log as any); } catch { return null; }
     })
@@ -176,42 +203,76 @@ async function main() {
     }
   }
 
-  const fundingTx = await operator.sendTransaction({ to: safeAddress, value: VAULT_FUNDING_AMOUNT });
-  const fundingReceipt = await fundingTx.wait();
+  const mintTx = await token.connect(operator).mint(safeAddress, TOKEN_MINT_AMOUNT);
+  const mintReceipt = await mintTx.wait();
 
-  const payPayload = (recipient: string, amount: bigint) =>
+  const lyxSeedTx = await operator.sendTransaction({ to: safeAddress, value: LYX_SEED_AMOUNT });
+  const lyxSeedReceipt = await lyxSeedTx.wait();
+
+  const tokenTransferPayload = (recipient: string, amount: bigint) => {
+    const transferData = token.interface.encodeFunctionData("transfer", [
+      safeAddress,
+      recipient,
+      amount,
+      true,
+      "0x",
+    ]);
+
+    return safe.interface.encodeFunctionData("execute", [
+      0,
+      tokenAddress,
+      0,
+      transferData,
+    ]);
+  };
+
+  const nativePayload = (recipient: string, amount: bigint) =>
     safe.interface.encodeFunctionData("execute", [0, recipient, amount, "0x"]);
 
-  console.log("\n[1/4] Successful limited recipient payment...");
+  console.log("\n[1/5] Successful limited recipient token payment...");
   const limitedRecipientTx = await keyManager.connect(operator).execute(
-    payPayload(limitedRecipient, LIMITED_RECIPIENT_PAYMENT_AMOUNT)
+    tokenTransferPayload(limitedRecipient, LIMITED_RECIPIENT_PAYMENT_AMOUNT)
   );
   const limitedRecipientReceipt = await limitedRecipientTx.wait();
-  console.log(`   Success: ${ethers.formatEther(LIMITED_RECIPIENT_PAYMENT_AMOUNT)} LYX sent to limited recipient`);
+  console.log(`   Success: ${ethers.formatEther(LIMITED_RECIPIENT_PAYMENT_AMOUNT)} tokens sent to limited recipient`);
 
-  console.log("\n[2/4] Over-limit recipient attempt via static call...");
+  console.log("\n[2/5] Over-limit recipient attempt via static call...");
   await expectStaticRevert(
     "recipient over-limit",
-    keyManager.connect(operator).execute.staticCall(payPayload(limitedRecipient, LIMITED_RECIPIENT_OVER_LIMIT_AMOUNT)),
+    keyManager.connect(operator).execute.staticCall(
+      tokenTransferPayload(limitedRecipient, LIMITED_RECIPIENT_OVER_LIMIT_AMOUNT)
+    ),
     "RBP: recipient limit exceeded",
   );
 
-  console.log("\n[3/4] Outsider attempt via static call...");
+  console.log("\n[3/5] Outsider token attempt via static call...");
   await expectStaticRevert(
     "outsider payment",
-    keyManager.connect(operator).execute.staticCall(payPayload(outsider, LIMITED_RECIPIENT_OVER_LIMIT_AMOUNT)),
+    keyManager.connect(operator).execute.staticCall(
+      tokenTransferPayload(outsider, LIMITED_RECIPIENT_OVER_LIMIT_AMOUNT)
+    ),
     "MP: merchant not whitelisted",
   );
 
-  console.log("\n[4/4] Vault ceiling check...");
+  console.log("\n[4/5] Successful merchant token payment to fill budget...");
   const merchantFundingTx = await keyManager.connect(operator).execute(
-    payPayload(merchant, MERCHANT_PAYMENT_AMOUNT)
+    tokenTransferPayload(merchant, MERCHANT_PAYMENT_AMOUNT)
   );
   const merchantFundingReceipt = await merchantFundingTx.wait();
+  console.log(`   Success: ${ethers.formatEther(MERCHANT_PAYMENT_AMOUNT)} tokens sent to merchant`);
+
+  console.log("\n[5/5] Token budget and denomination checks...");
   await expectStaticRevert(
     "vault budget exceeded",
-    keyManager.connect(operator).execute.staticCall(payPayload(merchant, VAULT_OVER_BUDGET_AMOUNT)),
+    keyManager.connect(operator).execute.staticCall(
+      tokenTransferPayload(merchant, VAULT_OVER_BUDGET_AMOUNT)
+    ),
     "BP: budget exceeded",
+  );
+  await expectStaticRevert(
+    "wrong denomination",
+    keyManager.connect(operator).execute.staticCall(nativePayload(merchant, WRONG_DENOMINATION_AMOUNT)),
+    "BP: wrong denomination",
   );
 
   const result = {
@@ -220,15 +281,17 @@ async function main() {
     explorerBaseUrl: EXPLORER_BASE_URL,
     operator: operator.address,
     registryAddress,
+    tokenAddress,
     safeAddress,
     keyManagerAddress,
     policyEngineAddress,
     merchant,
     limitedRecipient,
     outsider,
-    configuredBudget: ethers.formatEther(VAULT_BUDGET),
+    configuredTokenBudget: ethers.formatEther(TOKEN_BUDGET),
     configuredRecipientLimit: ethers.formatEther(RECIPIENT_LIMIT),
-    vaultFundingAmount: ethers.formatEther(VAULT_FUNDING_AMOUNT),
+    tokenMintAmount: ethers.formatEther(TOKEN_MINT_AMOUNT),
+    lyxSeedAmount: ethers.formatEther(LYX_SEED_AMOUNT),
     limitedRecipientPaymentAmount: ethers.formatEther(LIMITED_RECIPIENT_PAYMENT_AMOUNT),
     merchantPaymentAmount: ethers.formatEther(MERCHANT_PAYMENT_AMOUNT),
     blockNumber: receipt.blockNumber,
@@ -252,10 +315,15 @@ async function main() {
           link: acceptPolicyEngine.link,
         },
       } : {}),
-      fundVault: {
-        hash: fundingTx.hash,
-        blockNumber: fundingReceipt?.blockNumber ?? null,
-        link: toTxLink(fundingTx.hash),
+      mintTokenToVault: {
+        hash: mintTx.hash,
+        blockNumber: mintReceipt?.blockNumber ?? null,
+        link: toTxLink(mintTx.hash),
+      },
+      seedVaultLyx: {
+        hash: lyxSeedTx.hash,
+        blockNumber: lyxSeedReceipt?.blockNumber ?? null,
+        link: toTxLink(lyxSeedTx.hash),
       },
       limitedRecipientPayment: {
         hash: limitedRecipientTx.hash,
@@ -282,9 +350,14 @@ async function main() {
         expectedReason: "BP: budget exceeded",
         transactionHash: null,
       },
+      wrongDenomination: {
+        expectedReason: "BP: wrong denomination",
+        transactionHash: null,
+      },
     },
     links: {
       registry: toAddressLink(registryAddress),
+      token: toAddressLink(tokenAddress),
       safe: toAddressLink(safeAddress),
       keyManager: toAddressLink(keyManagerAddress),
       policyEngine: toAddressLink(policyEngineAddress),
@@ -295,12 +368,13 @@ async function main() {
     },
   };
 
-  const outputPath = path.join(__dirname, "..", "deployments", `live-stress-${network.chainId}.json`);
+  const outputPath = path.join(__dirname, "..", "deployments", `live-stress-lsp7-${network.chainId}.json`);
   fs.writeFileSync(outputPath, JSON.stringify(result, null, 2));
 
-  console.log("\nLive stress script completed.");
+  console.log("\nLive LSP7 stress script completed.");
   console.log(`Artifact written to ${outputPath}`);
   console.log("Explorer links:");
+  console.log("   Token:      ", result.links.token);
   console.log("   Safe:       ", result.links.safe);
   console.log("   KeyManager: ", result.links.keyManager);
   console.log("   PolicyEngine:", result.links.policyEngine);
@@ -312,7 +386,8 @@ async function main() {
   if ("acceptPolicyEngineOwnership" in result.transactions) {
     console.log("   acceptPEOwnership:     ", result.transactions.acceptPolicyEngineOwnership.link);
   }
-  console.log("   fundVault:             ", result.transactions.fundVault.link);
+  console.log("   mintTokenToVault:      ", result.transactions.mintTokenToVault.link);
+  console.log("   seedVaultLyx:          ", result.transactions.seedVaultLyx.link);
   console.log("   limitedRecipientPay:   ", result.transactions.limitedRecipientPayment.link);
   console.log("   merchantBudgetFillPay: ", result.transactions.merchantBudgetFillPayment.link);
   for (const acceptedPolicy of acceptedPolicies) {
@@ -321,6 +396,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error("Live stress script failed:", decodeHardhatError(error));
+  console.error("Live LSP7 stress script failed:", decodeHardhatError(error));
   process.exitCode = 1;
 });

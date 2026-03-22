@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {LSP14Ownable2StepInit} from "./LSP14Ownable2StepInit.sol";
 
 // ─── ERC-4337 v0.6 types (inline — no external AA dependency) ────────────────
 
@@ -68,7 +68,7 @@ interface IPolicyEngine {
 ///
 ///         Security: ReentrancyGuard on all execution paths. PolicyEngine.validate()
 ///         runs before any token transfer (CEI order preserved).
-contract BaseAgentVault is IAccount, Ownable, ReentrancyGuard {
+contract BaseAgentVault is IAccount, LSP14Ownable2StepInit, ReentrancyGuard {
     using ECDSA for bytes32;
 
     // ─── ERC-4337 SIG_VALIDATION constants ───────────────────────────────────
@@ -119,10 +119,9 @@ contract BaseAgentVault is IAccount, Ownable, ReentrancyGuard {
 
     /// @param initialOwner Factory address (temp owner; transferred to user after setup)
     /// @param _entryPoint  ERC-4337 EntryPoint address for this chain
-    constructor(address initialOwner, address _entryPoint) {
+    constructor(address initialOwner, address _entryPoint) LSP14Ownable2StepInit(initialOwner) {
         require(_entryPoint != address(0), "BAV: zero entryPoint");
         entryPoint = _entryPoint;
-        _transferOwnership(initialOwner);
     }
 
     // ─── ERC-4337 IAccount ────────────────────────────────────────────────────

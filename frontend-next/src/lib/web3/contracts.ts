@@ -1,5 +1,11 @@
 import { Contract, Provider, Signer, ContractTransactionResponse } from 'ethers';
 
+export type Ownable2StepContract = Contract & {
+  owner(): Promise<string>;
+  pendingOwner(): Promise<string>;
+  acceptOwnership(): Promise<ContractTransactionResponse>;
+};
+
 // ─── Typed contract interfaces ────────────────────────────────────────────────
 // Intersecting with Contract preserves queryFilter, filters, interface, etc.
 // while adding compile-time types for each contract's writable/readable methods.
@@ -73,7 +79,16 @@ const SafeAbi = [
 ];
 
 const PolicyEngineAbi = [
+  'function owner() external view returns (address)',
+  'function pendingOwner() external view returns (address)',
+  'function acceptOwnership() external',
   'function getPolicies() external view returns (address[])',
+];
+
+const Ownable2StepAbi = [
+  'function owner() external view returns (address)',
+  'function pendingOwner() external view returns (address)',
+  'function acceptOwnership() external',
 ];
 
 const BudgetPolicyAbi = [
@@ -206,6 +221,9 @@ export const getSafeContract = (address: string, provider: Provider | Signer) =>
 
 export const getPolicyEngineContract = (address: string, provider: Provider | Signer) =>
   new Contract(address, PolicyEngineAbi, provider);
+
+export const getOwnable2StepContract = (address: string, provider: Provider | Signer): Ownable2StepContract =>
+  new Contract(address, Ownable2StepAbi, provider) as Ownable2StepContract;
 
 export const getBudgetPolicyContract = (address: string, provider: Provider | Signer) =>
   new Contract(address, BudgetPolicyAbi, provider);

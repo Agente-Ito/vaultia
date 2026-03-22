@@ -50,6 +50,11 @@ interface IAgentBudgetPolicy {
 ///
 ///         Mirrors AgentVaultRegistry interface as closely as possible so the frontend
 ///         can use a unified abstraction over both LUKSO and Base vaults.
+///
+///         The deployed user-owned stack now uses LSP14 two-step ownership across
+///         BaseAgentVault, PolicyEngine, BudgetPolicy / MultiTokenBudgetPolicy, and
+///         any optional user-owned policy contracts. The user becomes `pendingOwner`
+///         during deploy and must call `acceptOwnership()` on each deployed contract.
 contract BaseVaultFactory is Ownable {
 
     // ─── Authorized callers ───────────────────────────────────────────────────

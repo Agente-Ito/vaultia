@@ -2,13 +2,13 @@
 pragma solidity ^0.8.20;
 
 import {IPolicy} from "./IPolicy.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {LSP14Ownable2StepInit} from "../base/LSP14Ownable2StepInit.sol";
 
 /// @title ExpirationPolicy
 /// @notice Blocks all payments after a configurable expiration timestamp.
 ///         expiration == 0 means no expiry (vault never expires).
 ///         FIX #23: onlyPolicyEngine — consistent with BudgetPolicy and MerchantPolicy.
-contract ExpirationPolicy is IPolicy, Ownable {
+contract ExpirationPolicy is IPolicy, LSP14Ownable2StepInit {
     /// @dev FIX #23: only the registered PolicyEngine can call validate()
     address public immutable policyEngine;
 
@@ -24,12 +24,11 @@ contract ExpirationPolicy is IPolicy, Ownable {
         address initialOwner,
         address _policyEngine,
         uint256 _expiration
-    ) {
+    ) LSP14Ownable2StepInit(initialOwner) {
         require(_policyEngine != address(0), "EP: zero policyEngine");
         require(_expiration == 0 || _expiration > block.timestamp, "EP: expiration in the past");
         policyEngine = _policyEngine;
         expiration = _expiration;
-        _transferOwnership(initialOwner);
     }
 
     function validate(

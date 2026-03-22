@@ -12,6 +12,7 @@ import { BudgetTreeView, type BudgetNode } from '@/components/dashboard/BudgetTr
 import { AgentCardScroll } from '@/components/dashboard/AgentCardScroll';
 import { PaymentTimeline } from '@/components/dashboard/PaymentTimeline';
 import { PermissionGraph } from '@/components/dashboard/PermissionGraph';
+import { VerifiedRunsPanel } from '@/components/dashboard/VerifiedRunsPanel';
 import { useWeb3 } from '@/context/Web3Context';
 import { useVaults } from '@/hooks/useVaults';
 import { useOnboarding } from '@/context/OnboardingContext';
@@ -305,6 +306,8 @@ export default function DashboardPage() {
           </Card>
         </div>
 
+        <VerifiedRunsPanel />
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <Card>
             <CardHeader>
@@ -431,6 +434,8 @@ export default function DashboardPage() {
           />
         </CardContent>
       </Card>
+
+      <VerifiedRunsPanel />
 
       {/* ─── Main: Budget tree + detail panel ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">

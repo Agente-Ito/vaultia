@@ -59,6 +59,7 @@ describe("AgentBudgetPolicy - Hybrid Budget Model", function () {
       agents: [agent1.address, agent2.address],
       agentBudgets: [AGENT1_BUDGET, AGENT2_BUDGET], // Per-agent budgets
       merchants: [merchant.address],
+      recipientConfigs: [],
       label: "Hybrid Budget Vault",
       // OPS_ADMIN: tests check policy deployment, not payment execution
       agentMode:              3, // AgentMode.OPS_ADMIN
@@ -129,6 +130,7 @@ describe("AgentBudgetPolicy - Hybrid Budget Model", function () {
         agents: [agent1.address],
         agentBudgets: [], // Empty = no AgentBudgetPolicy
         merchants: [],
+        recipientConfigs: [],
         label: "Simple Budget Vault",
         agentMode:              3, // OPS_ADMIN
         allowSuperPermissions:  false,

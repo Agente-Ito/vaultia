@@ -2,8 +2,8 @@
 pragma solidity ^0.8.20;
 
 import {IPolicy} from "./policies/IPolicy.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import {LSP14Ownable2StepInit} from "./base/LSP14Ownable2StepInit.sol";
 
 /// @title PolicyEngine
 /// @notice Executes a chain of IPolicy contracts. All must pass for a payment to proceed.
@@ -12,7 +12,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.
 ///         FIX #17: MAX_POLICIES = 20 prevents gas DoS via unbounded policy loop.
 ///         Includes a native pause switch so owners can freeze all safe-routed
 ///         payments without reconfiguring every policy individually.
-contract PolicyEngine is Ownable, ReentrancyGuard {
+contract PolicyEngine is LSP14Ownable2StepInit, ReentrancyGuard {
     /// @dev Only the linked AgentSafe can call validate()
     address public immutable safe;
 
@@ -54,10 +54,9 @@ contract PolicyEngine is Ownable, ReentrancyGuard {
 
     /// @param initialOwner Factory address (temp owner; transferred to user after setup)
     /// @param _safe        The AgentSafe this engine validates for
-    constructor(address initialOwner, address _safe) {
+    constructor(address initialOwner, address _safe) LSP14Ownable2StepInit(initialOwner) {
         require(_safe != address(0), "PE: zero safe");
         safe = _safe;
-        _transferOwnership(initialOwner);
     }
 
     /// @notice Called exclusively by the linked AgentSafe during agentExecute / agentTransferToken.

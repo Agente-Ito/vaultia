@@ -1,13 +1,13 @@
 {
   "network": "luksoTestnet",
   "chainId": 4201,
-  "coordinatorAddress": "0x764ff41A1b8FbC8E1102919D3BcE4860Cab33911",
-  "seededAt": 1774151321,
+  "coordinatorAddress": "0x1ED22E68c7B8634eD39E10949ADfaFdb441C1299",
+  "seededAt": 1774165334,
   "agents": [
     {
       "name": "Recurring Payments Agent",
-      "address": "0xa6b2fdbF30738Fe7A39D89998d2748F8Bf0D708c",
-      "privateKey": "0x415ed227b9c50edec154b65f0429a7f49dc228723d96c5456f1cf916976ac365",
+      "address": "0x419726D43C04abaAaED9200e295726D4Ef5E5Fe2",
+      "privateKey": "0xafa6723a891c8f52f4116a3340174ae6f55f68bfe4e184c3fb51894437f89ea2",
       "role": "PAYMENT_AGENT",
       "capabilities": [
         "CAN_PAY",
@@ -18,8 +18,8 @@
     },
     {
       "name": "Subscriptions Agent",
-      "address": "0x28cA88a62e89e629EB245e123f77a37544C26A07",
-      "privateKey": "0xdc9d9c1c7df25dc100ac6951e757857f95836dae44864a76cf3944f8a9da4ae2",
+      "address": "0x451543146b3bbf7ACcf8a33cc7C80b29216aab2A",
+      "privateKey": "0x8d8511812b9656523004e306221566fec8db340414342b1bed35c2784585d138",
       "role": "SUBSCRIPTION_AGENT",
       "capabilities": [
         "CAN_SUBSCRIBE"
@@ -29,8 +29,8 @@
     },
     {
       "name": "Treasury Agent",
-      "address": "0xa8BB6e6Af2Ad059Dc812db86ED9BDA509A953d94",
-      "privateKey": "0x35ce5d6cec45f8d697daa35d244561f1eb0798feb068ad3c512ad4e0f225a66a",
+      "address": "0x9730EF61165D11737F5026d93B07cA740878A982",
+      "privateKey": "0xca2e865015d9cdbd917e958dbb9c4e8cd1d5ad11d276147a0a6e6ca0b00d82f1",
       "role": "TREASURY_AGENT",
       "capabilities": [
         "CAN_REBALANCE",

@@ -22,6 +22,7 @@ const CORE_ITEMS: NavItem[] = [
   { href: '/missions',   labelKey: 'nav.active_automations', icon: '⚡' },
   { href: '/rules',      labelKey: 'nav.spending_rules',   icon: '⬡' },
   { href: '/activity',   labelKey: 'nav.activity',         icon: '◎' },
+  { href: '/verified-runs', labelKey: 'nav.verified_runs', icon: '▣' },
   { href: '/profiles',   labelKey: 'nav.profiles',         icon: '◉' },
 ];
 

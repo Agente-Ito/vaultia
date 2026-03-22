@@ -1,0 +1,64 @@
+{
+  "network": "luksoTestnet",
+  "chainId": 4201,
+  "explorerBaseUrl": "https://explorer.testnet.lukso.network",
+  "schedulerAddress": "0x2975aDc7F8d8e323897e3849869C8CC23Ed89392",
+  "registryAddress": "0x8EE9858A68C4e344A949B8AE530bf9800F19B381",
+  "vaultAddress": "0x814df0Acbe6FC01D5cFe5a179bf86a2E00cd0447",
+  "keyManagerAddress": "0xFd8dd1631e3eB91943dCd192a026D0Ccc7D0A458",
+  "keeperAddress": "0x859722730e0FE001962202d53d5c7b11e8327421",
+  "merchantAddress": "0x859722730e0FE001962202d53d5c7b11e8327421",
+  "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+  "amountPerExecutionLyx": "0.01",
+  "intervalSeconds": 120,
+  "keeperPollMs": 5000,
+  "vaultBalanceBeforeLyx": "1.0",
+  "vaultBalanceAfterLyx": "0.97",
+  "taskCreated": {
+    "txHash": "0xad6a6aa489dea4694b30ec1e6defd0e360c43565afb6aa266936bb753afb69b1",
+    "blockNumber": 7301658,
+    "firstNextExecution": "2026-03-22T07:48:43.000Z"
+  },
+  "executions": [
+    {
+      "txHash": "0x6d7606d37f5675daea4e7a91bb2745a1d8beb8d4907eb4017f801034a7596f23",
+      "blockNumber": 7301669,
+      "executedAt": "2026-03-22T07:49:36.000Z",
+      "newNextExecution": "2026-03-22T07:50:43.000Z"
+    },
+    {
+      "txHash": "0x30baf499e2e3f036d50630dde5bac8e792f1e0e36a07645c308ccf40451e4682",
+      "blockNumber": 7301677,
+      "executedAt": "2026-03-22T07:51:24.000Z",
+      "newNextExecution": "2026-03-22T07:52:43.000Z"
+    },
+    {
+      "txHash": "0x805eee51325c1d526c34ddba93830858c1f30eba35d9c7b17da60b9777a8784a",
+      "blockNumber": 7301688,
+      "executedAt": "2026-03-22T07:53:48.000Z",
+      "newNextExecution": "2026-03-22T07:54:51.000Z",
+      "notes": "Executed after fixing overlapping keeper polls in runner/keeper.js"
+    }
+  ],
+  "taskUpdated": {
+    "txHash": "0x65bda8ce49e9a60fe236e763f484a5be38981e66529f0e57e287a93196f6f02a",
+    "blockNumber": 7301680,
+    "newNextExecution": "2026-03-22T07:52:51.000Z",
+    "newIntervalSeconds": 120
+  },
+  "finalTaskState": {
+    "enabled": true,
+    "currentNextExecution": "2026-03-22T07:54:51.000Z"
+  },
+  "links": {
+    "scheduler": "https://explorer.testnet.lukso.network/address/0x2975aDc7F8d8e323897e3849869C8CC23Ed89392",
+    "registry": "https://explorer.testnet.lukso.network/address/0x8EE9858A68C4e344A949B8AE530bf9800F19B381",
+    "vault": "https://explorer.testnet.lukso.network/address/0x814df0Acbe6FC01D5cFe5a179bf86a2E00cd0447",
+    "keyManager": "https://explorer.testnet.lukso.network/address/0xFd8dd1631e3eB91943dCd192a026D0Ccc7D0A458",
+    "taskCreated": "https://explorer.testnet.lukso.network/tx/0xad6a6aa489dea4694b30ec1e6defd0e360c43565afb6aa266936bb753afb69b1",
+    "taskUpdated": "https://explorer.testnet.lukso.network/tx/0x65bda8ce49e9a60fe236e763f484a5be38981e66529f0e57e287a93196f6f02a",
+    "execution1": "https://explorer.testnet.lukso.network/tx/0x6d7606d37f5675daea4e7a91bb2745a1d8beb8d4907eb4017f801034a7596f23",
+    "execution2": "https://explorer.testnet.lukso.network/tx/0x30baf499e2e3f036d50630dde5bac8e792f1e0e36a07645c308ccf40451e4682",
+    "execution3": "https://explorer.testnet.lukso.network/tx/0x805eee51325c1d526c34ddba93830858c1f30eba35d9c7b17da60b9777a8784a"
+  }
+}

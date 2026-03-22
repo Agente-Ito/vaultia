@@ -490,19 +490,7 @@ export default function CreateVaultPage() {
         </div>
         <Alert variant="success">
           <AlertTitle>{t('create.success.ownership.title')}</AlertTitle>
-          <AlertDescription>
-            {t('create.success.ownership.desc').split('acceptOwnership()').map((part, i) =>
-              i === 0 ? part : (
-                <span key={i}>
-                  <code
-                    className="font-mono text-xs px-1 rounded"
-                    style={{ background: 'var(--card-mid)', color: 'var(--accent)' }}
-                  >acceptOwnership()</code>
-                  {part}
-                </span>
-              )
-            )}
-          </AlertDescription>
+          <AlertDescription>{t('create.success.ownership.desc')}</AlertDescription>
         </Alert>
         <div className="rounded-2xl p-5 space-y-4" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
           {[{ label: t('create.success.contract.safe'), value: deployed.safe }, { label: t('create.success.contract.key_manager'), value: deployed.keyManager }, { label: t('create.success.contract.policy_engine'), value: deployed.policyEngine }].map(({ label: lbl, value }) => (

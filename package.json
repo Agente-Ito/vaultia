@@ -8,7 +8,9 @@
     "node": "hardhat node",
     "deploy": "hardhat run scripts/deploy.ts",
     "deploy:coordinator": "hardhat run scripts/deployCoordinator.ts",
-    "seed:agents": "hardhat run scripts/seedAgents.ts"
+    "seed:agents": "hardhat run scripts/seedAgents.ts",
+    "ownership:accept": "hardhat run scripts/acceptLsp14Ownership.ts",
+    "stress:summary": "node scripts/summarizeLiveStressArtifacts.js"
   },
   "dependencies": {
     "@lukso/lsp-smart-contracts": "^0.16.7",

@@ -1,0 +1,107 @@
+{
+  "network": "luksoTestnet",
+  "chainId": 4201,
+  "explorerBaseUrl": "https://explorer.testnet.lukso.network",
+  "operator": "0x859722730e0FE001962202d53d5c7b11e8327421",
+  "registryAddress": "0x8EE9858A68C4e344A949B8AE530bf9800F19B381",
+  "tokenAddress": "0x1611f48aAFE636EaFb12ac3cccE3D21Dd2B86B7E",
+  "safeAddress": "0xDD39b21C9F7Ae994CaE57eE33D38b9F12E0c1132",
+  "keyManagerAddress": "0x6E604648C7A9fe6186D8754ffE58DAE9464cF4Ab",
+  "policyEngineAddress": "0x5072fDb0d70919d82e0316E1241Aa0151428F961",
+  "merchant": "0x859722730e0FE001962202d53d5c7b11e8327421",
+  "limitedRecipient": "0x1000000000000000000000000000000000000001",
+  "outsider": "0x2000000000000000000000000000000000000002",
+  "configuredTokenBudget": "1.0",
+  "configuredRecipientLimit": "0.3",
+  "tokenMintAmount": "1.1",
+  "lyxSeedAmount": "0.2",
+  "limitedRecipientPaymentAmount": "0.3",
+  "merchantPaymentAmount": "0.7",
+  "blockNumber": 7301528,
+  "transactions": {
+    "deployVault": {
+      "hash": "0x57bfb45c9c6ded2e32c283a1647c92b8f2390e114360cb02184d2edee08eb300",
+      "blockNumber": 7301528,
+      "link": "https://explorer.testnet.lukso.network/tx/0x57bfb45c9c6ded2e32c283a1647c92b8f2390e114360cb02184d2edee08eb300"
+    },
+    "acceptSafeOwnership": {
+      "hash": "0x9e12aeb1a756a2555525a8bc14788b3ef3f39a75a176c1c133ff832c7ef683b0",
+      "blockNumber": 7301533,
+      "link": "https://explorer.testnet.lukso.network/tx/0x9e12aeb1a756a2555525a8bc14788b3ef3f39a75a176c1c133ff832c7ef683b0"
+    },
+    "acceptPolicyEngineOwnership": {
+      "hash": "0x310ed6ba563d0c3d30768a94c9884fd0f57b8ba0ce200759563cc03ef12b3c95",
+      "blockNumber": 7301537,
+      "link": "https://explorer.testnet.lukso.network/tx/0x310ed6ba563d0c3d30768a94c9884fd0f57b8ba0ce200759563cc03ef12b3c95"
+    },
+    "mintTokenToVault": {
+      "hash": "0x712455a7c6a149d5825ab84909ab18f7632825ecc5ea077068d319b50001e19b",
+      "blockNumber": 7301544,
+      "link": "https://explorer.testnet.lukso.network/tx/0x712455a7c6a149d5825ab84909ab18f7632825ecc5ea077068d319b50001e19b"
+    },
+    "seedVaultLyx": {
+      "hash": "0x809ba719cb0de2743dbb6a3c6b3ab71fc514e38df20956945e591095d1bbe684",
+      "blockNumber": 7301547,
+      "link": "https://explorer.testnet.lukso.network/tx/0x809ba719cb0de2743dbb6a3c6b3ab71fc514e38df20956945e591095d1bbe684"
+    },
+    "limitedRecipientPayment": {
+      "hash": "0x30bf77e02777d83928c330bcc9aa46e052e6dcd4b5bff53ac87a965aaa1d7f0e",
+      "blockNumber": 7301552,
+      "link": "https://explorer.testnet.lukso.network/tx/0x30bf77e02777d83928c330bcc9aa46e052e6dcd4b5bff53ac87a965aaa1d7f0e"
+    },
+    "merchantBudgetFillPayment": {
+      "hash": "0x4181b44a2b44b7c69366288bb8ac766e54dad00fc960c3e2f74ce3e885e57747",
+      "blockNumber": 7301554,
+      "link": "https://explorer.testnet.lukso.network/tx/0x4181b44a2b44b7c69366288bb8ac766e54dad00fc960c3e2f74ce3e885e57747"
+    }
+  },
+  "acceptedPolicies": [
+    {
+      "address": "0x9B1a69d6Ef4527C58dE8F8baed575a9da9cb4335",
+      "hash": "0x0fcb353b7c6d38eafbb2fdf2c77dc0398c658adbabd32c1ad6345bf4456db467",
+      "blockNumber": 7301538,
+      "link": "https://explorer.testnet.lukso.network/tx/0x0fcb353b7c6d38eafbb2fdf2c77dc0398c658adbabd32c1ad6345bf4456db467"
+    },
+    {
+      "address": "0x8330d01869827563d22d66fA6aedB465C2038248",
+      "hash": "0xede617924acaa51f8ef69463ea5937bc09f22852f812f870fcf84e759673a1ac",
+      "blockNumber": 7301540,
+      "link": "https://explorer.testnet.lukso.network/tx/0xede617924acaa51f8ef69463ea5937bc09f22852f812f870fcf84e759673a1ac"
+    },
+    {
+      "address": "0x70eb5de39dc24f8ef7dd24F54a29bE90eB07CA35",
+      "hash": "0x8ab84eb28396f64fca0680afd64519dfeb4056ed4e5f43cc4e745943c76cfceb",
+      "blockNumber": 7301542,
+      "link": "https://explorer.testnet.lukso.network/tx/0x8ab84eb28396f64fca0680afd64519dfeb4056ed4e5f43cc4e745943c76cfceb"
+    }
+  ],
+  "staticChecks": {
+    "recipientOverLimit": {
+      "expectedReason": "RBP: recipient limit exceeded",
+      "transactionHash": null
+    },
+    "outsiderPayment": {
+      "expectedReason": "MP: merchant not whitelisted",
+      "transactionHash": null
+    },
+    "vaultBudgetExceeded": {
+      "expectedReason": "BP: budget exceeded",
+      "transactionHash": null
+    },
+    "wrongDenomination": {
+      "expectedReason": "BP: wrong denomination",
+      "transactionHash": null
+    }
+  },
+  "links": {
+    "registry": "https://explorer.testnet.lukso.network/address/0x8EE9858A68C4e344A949B8AE530bf9800F19B381",
+    "token": "https://explorer.testnet.lukso.network/address/0x1611f48aAFE636EaFb12ac3cccE3D21Dd2B86B7E",
+    "safe": "https://explorer.testnet.lukso.network/address/0xDD39b21C9F7Ae994CaE57eE33D38b9F12E0c1132",
+    "keyManager": "https://explorer.testnet.lukso.network/address/0x6E604648C7A9fe6186D8754ffE58DAE9464cF4Ab",
+    "policyEngine": "https://explorer.testnet.lukso.network/address/0x5072fDb0d70919d82e0316E1241Aa0151428F961",
+    "operator": "https://explorer.testnet.lukso.network/address/0x859722730e0FE001962202d53d5c7b11e8327421",
+    "merchant": "https://explorer.testnet.lukso.network/address/0x859722730e0FE001962202d53d5c7b11e8327421",
+    "limitedRecipient": "https://explorer.testnet.lukso.network/address/0x1000000000000000000000000000000000000001",
+    "outsider": "https://explorer.testnet.lukso.network/address/0x2000000000000000000000000000000000000002"
+  }
+}

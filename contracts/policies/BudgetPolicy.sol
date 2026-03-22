@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {IPolicy} from "./IPolicy.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {LSP14Ownable2StepInit} from "../base/LSP14Ownable2StepInit.sol";
 
 interface IPolicyEngineSimulation {
     function simulationActive() external view returns (bool);
@@ -13,7 +13,7 @@ interface IPolicyEngineSimulation {
 ///         FIX #8: validate() receives explicit `token` param and checks denomination.
 ///         FIX #18: onlyPolicyEngine — msg.sender in validate() is PolicyEngine (not AgentSafe).
 ///         Call chain: AgentSafe → PolicyEngine → BudgetPolicy
-contract BudgetPolicy is IPolicy, Ownable {
+contract BudgetPolicy is IPolicy, LSP14Ownable2StepInit {
     enum Period { DAILY, WEEKLY, MONTHLY, HOURLY, FIVE_MINUTES }
 
     /// @dev FIX #18: only the registered PolicyEngine can call validate()
@@ -42,10 +42,9 @@ contract BudgetPolicy is IPolicy, Ownable {
         uint256 _budget,
         Period  _period,
         address _budgetToken
-    ) {
+    ) LSP14Ownable2StepInit(initialOwner) {
         require(_budget > 0, "BP: budget must be > 0");
         require(uint8(_period) <= 4, "BP: invalid period");
-        _transferOwnership(initialOwner);
         policyEngine = _policyEngine;
         budget       = _budget;
         period       = _period;

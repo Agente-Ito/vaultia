@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import {AgentVaultDeployerCore} from "./AgentVaultDeployerCore.sol";
 import {AgentVaultDeployer} from "./AgentVaultDeployer.sol";
+import {AgentVaultOptionalPolicyDeployer} from "./AgentVaultOptionalPolicyDeployer.sol";
 import {AgentKMDeployer} from "./AgentKMDeployer.sol";
 import {BudgetPolicy} from "./policies/BudgetPolicy.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -88,8 +89,10 @@ interface ISharedBudgetPool {
 ///         - AgentBudgetPolicy: agent-level budgets (individual limits per agent)
 ///
 ///         After deployment, factory calls transferOwnership(user) on each contract.
-///         User must call acceptOwnership() on safe and pe in separate transactions
-///         (LSP14 two-step transfer — dApp should prompt).
+///         User must call acceptOwnership() on AgentSafe, PolicyEngine, and every
+///         deployed policy contract to finalize LSP14 two-step ownership.
+///         AgentSafe uses LSP14 two-step ownership via LSP9Vault. PolicyEngine and the
+///         user-owned policy contracts also use LSP14 two-step ownership directly.
 ///
 ///         All `new` calls are delegated to AgentVaultDeployerCore and AgentVaultDeployer
 ///         so this contract embeds no creation bytecode and stays under EIP-170.
@@ -109,9 +112,10 @@ contract AgentVaultRegistry is Ownable {
 
     error InsufficientGasForDeployment(uint256 available, uint256 required);
 
-    AgentVaultDeployerCore public immutable core;
-    AgentVaultDeployer     public immutable deployer;
-    AgentKMDeployer        public immutable kmDeployer;
+    AgentVaultDeployerCore        public immutable core;
+    AgentVaultDeployer            public immutable deployer;
+    AgentVaultOptionalPolicyDeployer public immutable optionalDeployer;
+    AgentKMDeployer               public immutable kmDeployer;
 
     /// @notice The AgentCoordinator that tracks agent capabilities and delegation depth.
     ///         Required for deployForAgent() to validate and register agents atomically.
@@ -155,17 +159,26 @@ contract AgentVaultRegistry is Ownable {
     /// @dev First 16 bytes of AP_ARRAY_KEY — combined with bytes16(uint128(index)) for element keys.
     bytes16 private constant AP_ARRAY_KEY_PREFIX = 0xdf30dba06db6a30e65354d9a64c60986;
 
-    constructor(address _core, address _deployer, address _km, address _coordinator, address _pool) Ownable() {
-        require(_core        != address(0), "Registry: zero core");
-        require(_deployer    != address(0), "Registry: zero deployer");
-        require(_km          != address(0), "Registry: zero km");
-        require(_coordinator != address(0), "Registry: zero coordinator");
-        require(_pool        != address(0), "Registry: zero pool");
-        core        = AgentVaultDeployerCore(_core);
-        deployer    = AgentVaultDeployer(_deployer);
-        kmDeployer  = AgentKMDeployer(_km);
-        coordinator = IAgentCoordinator(_coordinator);
-        pool        = ISharedBudgetPool(_pool);
+    constructor(
+        address _core,
+        address _deployer,
+        address _optionalDeployer,
+        address _km,
+        address _coordinator,
+        address _pool
+    ) Ownable() {
+        require(_core             != address(0), "Registry: zero core");
+        require(_deployer         != address(0), "Registry: zero deployer");
+        require(_optionalDeployer != address(0), "Registry: zero optional deployer");
+        require(_km               != address(0), "Registry: zero km");
+        require(_coordinator      != address(0), "Registry: zero coordinator");
+        require(_pool             != address(0), "Registry: zero pool");
+        core             = AgentVaultDeployerCore(_core);
+        deployer         = AgentVaultDeployer(_deployer);
+        optionalDeployer = AgentVaultOptionalPolicyDeployer(_optionalDeployer);
+        kmDeployer       = AgentKMDeployer(_km);
+        coordinator      = IAgentCoordinator(_coordinator);
+        pool             = ISharedBudgetPool(_pool);
     }
 
     /// @notice Grant or revoke permission to call deployVaultOnBehalf.
@@ -554,7 +567,9 @@ contract AgentVaultRegistry is Ownable {
         _setDataVerified(safe, LSP6KeyLib.apPermissionsKey(rootOwner), abi.encodePacked(superPerm));
         _appendToAddressPermissionsArray(safe, rootOwner, 0);
 
-        // 7. Transfer ownership to rootOwner (LSP14 two-step \u2014 rootOwner calls acceptOwnership() next)
+        // 7. Transfer ownership to rootOwner.
+        //    AgentSafe, PolicyEngine, and BudgetPolicy all use LSP14 two-step ownership,
+        //    so rootOwner must call acceptOwnership() on each contract.
         safe.transferOwnership(rootOwner);
         pe.transferOwnership(rootOwner);
         budgetPolicy.transferOwnership(rootOwner);
@@ -662,7 +677,7 @@ contract AgentVaultRegistry is Ownable {
         // 4. Optionally deploy MerchantPolicy
         if (p.merchants.length > 0) {
             require(p.merchants.length <= 100, "Registry: too many merchants");
-            IMerchantPolicy mp = IMerchantPolicy(deployer.newMerchantPolicy(address(this), address(pe)));
+            IMerchantPolicy mp = IMerchantPolicy(optionalDeployer.newMerchantPolicy(address(this), address(pe)));
             mp.addMerchants(p.merchants);
             pe.addPolicy(address(mp));
             mp.transferOwnership(owner);
@@ -671,7 +686,7 @@ contract AgentVaultRegistry is Ownable {
         // 4.5. Optionally deploy RecipientBudgetPolicy (per-recipient limits + whitelist)
         if (p.recipientConfigs.length > 0) {
             IRecipientBudgetPolicy rbp = IRecipientBudgetPolicy(
-                deployer.newRecipientBudgetPolicy(address(this), address(pe), p.budgetToken)
+                optionalDeployer.newRecipientBudgetPolicy(address(this), address(pe), p.budgetToken)
             );
             for (uint256 i = 0; i < p.recipientConfigs.length; i++) {
                 rbp.setRecipientLimit(
@@ -688,7 +703,7 @@ contract AgentVaultRegistry is Ownable {
         if (p.expiration > 0) {
             require(p.expiration > block.timestamp, "Registry: expiration in the past");
             IExpirationPolicy ep = IExpirationPolicy(
-                deployer.newExpirationPolicy(address(this), address(pe), p.expiration)
+                optionalDeployer.newExpirationPolicy(address(this), address(pe), p.expiration)
             );
             pe.addPolicy(address(ep));
             ep.transferOwnership(owner);
@@ -697,7 +712,7 @@ contract AgentVaultRegistry is Ownable {
         // 6. Optionally deploy AgentBudgetPolicy (agent-level budgets)
         if (p.agentBudgets.length > 0) {
             IAgentBudgetPolicy agentBudgetPolicy = IAgentBudgetPolicy(
-                deployer.newAgentBudgetPolicy(address(this), address(pe), p.period, p.budgetToken)
+                optionalDeployer.newAgentBudgetPolicy(address(this), address(pe), p.period, p.budgetToken)
             );
             for (uint256 i = 0; i < p.agents.length; i++) {
                 agentBudgetPolicy.setAgentBudget(p.agents[i], p.agentBudgets[i]);
@@ -731,7 +746,9 @@ contract AgentVaultRegistry is Ownable {
         //     per-agent AllowedCalls to add a second enforcement layer on top of PolicyEngine.
         apIdx = _configureAgentPermissions(safe, p, apIdx);
 
-        // 12. Transfer ownership to user (LSP14 two-step — user calls acceptOwnership() next)
+        // 12. Transfer ownership to user.
+        //     AgentSafe, PolicyEngine, BudgetPolicy, and any optional policies all use
+        //     LSP14 two-step ownership, so the user must call acceptOwnership() on each.
         safe.transferOwnership(owner);
         pe.transferOwnership(owner);
         budgetPolicy.transferOwnership(owner);

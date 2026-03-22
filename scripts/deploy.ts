@@ -19,6 +19,7 @@ interface DeploymentResult {
   deployer: string;
   registryAddress: string;
   merchantRegistryAddress: string;
+  optionalPolicyDeployerAddress: string;
   coordinatorAddress: string;
   sharedBudgetPoolAddress: string;
   taskSchedulerAddress: string;
@@ -30,6 +31,32 @@ interface DeploymentResult {
   safeBalance: string;
   deploymentTimestamp: number;
   blockNumber: number;
+}
+
+async function acceptOwnershipIfNeeded(
+  label: string,
+  contract: any,
+  operatorAddress: string,
+) {
+  const owner = await contract.owner();
+  if (owner.toLowerCase() === operatorAddress.toLowerCase()) {
+    console.log(`✅ ${label}: already owned by operator`);
+    return false;
+  }
+
+  try {
+    const pendingOwner = await contract.pendingOwner();
+    if (pendingOwner.toLowerCase() !== operatorAddress.toLowerCase()) {
+      throw new Error(`${label}: operator is not pending owner`);
+    }
+  } catch (error) {
+    throw new Error(`${label}: pendingOwner unavailable while owner is still ${owner}`);
+  }
+
+  const tx = await contract.acceptOwnership();
+  await tx.wait();
+  console.log(`✅ ${label}: ownership accepted`);
+  return true;
 }
 
 async function main() {
@@ -73,8 +100,15 @@ async function main() {
   const vdAddr = await vd.getAddress();
   console.log("✅ AgentVaultDeployer:", vdAddr);
 
+  console.log("\n[4/6] Deploying AgentVaultOptionalPolicyDeployer...");
+  const OptionalDeployerFactory = await ethers.getContractFactory("AgentVaultOptionalPolicyDeployer");
+  const optionalDeployer = await OptionalDeployerFactory.deploy({ nonce: nonce++ });
+  await optionalDeployer.waitForDeployment();
+  const optionalDeployerAddr = await optionalDeployer.getAddress();
+  console.log("✅ AgentVaultOptionalPolicyDeployer:", optionalDeployerAddr);
+
   // 4. Deploy AgentKMDeployer
-  console.log("\n[4/6] Deploying AgentKMDeployer...");
+  console.log("\n[5/7] Deploying AgentKMDeployer...");
   const KMFactory = await ethers.getContractFactory("AgentKMDeployer");
   const km = await KMFactory.deploy({ nonce: nonce++ });
   await km.waitForDeployment();
@@ -82,7 +116,7 @@ async function main() {
   console.log("✅ AgentKMDeployer:", kmDeployerAddr);
 
   // 5. Deploy TaskScheduler
-  console.log("\n[5/6] Deploying TaskScheduler...");
+  console.log("\n[6/7] Deploying TaskScheduler...");
   const TaskSchedulerFactory = await ethers.getContractFactory("TaskScheduler");
   const taskScheduler = await TaskSchedulerFactory.deploy({ nonce: nonce++ });
   await taskScheduler.waitForDeployment();
@@ -110,7 +144,7 @@ async function main() {
   console.log("\n[8/8] Deploying AgentVaultRegistry...");
   const AgentVaultRegistryFactory = await ethers.getContractFactory("AgentVaultRegistry");
   const registry = await AgentVaultRegistryFactory.deploy(
-    coreAddr, vdAddr, kmDeployerAddr, coordinatorAddr, sharedBudgetPoolAddr,
+    coreAddr, vdAddr, optionalDeployerAddr, kmDeployerAddr, coordinatorAddr, sharedBudgetPoolAddr,
     { nonce: nonce++ }
   );
   const registryAddr = await registry.getAddress();
@@ -206,17 +240,24 @@ async function main() {
     throw err;
   }
 
-  // 5. Accept ownership on AgentSafe (LSP14 two-step — only Safe uses LSP14)
-  //    PolicyEngine and BudgetPolicy use OZ Ownable (single-step), no acceptOwnership needed.
-  console.log("\n🔐 Accepting ownership on AgentSafe (LSP14)...");
+  // 5. Accept ownership where required by the deployed stack.
+  console.log("\n🔐 Finalizing ownership where required by the deployed stack...");
   const safe = await ethers.getContractAt("AgentSafe", safeAddr);
+  const policyEngine = await ethers.getContractAt("PolicyEngine", peAddr);
 
   try {
-    const acceptTx = await safe.acceptOwnership();
-    await acceptTx.wait();
-    console.log("✅ Ownership accepted on AgentSafe");
+    await acceptOwnershipIfNeeded("AgentSafe", safe, deployer.address);
+    await acceptOwnershipIfNeeded("PolicyEngine", policyEngine, deployer.address);
+
+    const policyAddresses = await policyEngine.getPolicies();
+    for (const policyAddress of policyAddresses) {
+      const policy = await ethers.getContractAt("BudgetPolicy", policyAddress);
+      await acceptOwnershipIfNeeded(`Policy ${policyAddress}`, policy, deployer.address);
+    }
+
+    console.log(`✅ Ownership finalized across deployed stack (${policyAddresses.length} policies checked)`);
   } catch (err: any) {
-    console.error("⚠️  AgentSafe acceptOwnership failed:", err.message);
+    console.error("⚠️  Ownership finalization failed:", err.message);
     throw err;
   }
 
@@ -238,6 +279,7 @@ async function main() {
     deployer: deployer.address,
     registryAddress: registryAddr,
     merchantRegistryAddress: merchantRegistryAddr,
+    optionalPolicyDeployerAddress: optionalDeployerAddr,
     coordinatorAddress: coordinatorAddr,
     sharedBudgetPoolAddress: sharedBudgetPoolAddr,
     taskSchedulerAddress: taskSchedulerAddr,

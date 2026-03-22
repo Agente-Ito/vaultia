@@ -1,5 +1,906 @@
 [
   {
+    "ts": "2026-03-22T07:55:37.922Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:55:34.026Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:55:27.272Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:55:24.567Z",
+    "process": "keeper",
+    "level": "debug",
+    "msg": "Skipping overlapping poll tick"
+  },
+  {
+    "ts": "2026-03-22T07:55:17.224Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:55:12.984Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:55:09.565Z",
+    "process": "keeper",
+    "level": "debug",
+    "msg": "Skipping overlapping poll tick"
+  },
+  {
+    "ts": "2026-03-22T07:55:02.074Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:54:59.565Z",
+    "process": "keeper",
+    "level": "debug",
+    "msg": "Skipping overlapping poll tick"
+  },
+  {
+    "ts": "2026-03-22T07:54:54.565Z",
+    "process": "keeper",
+    "level": "debug",
+    "msg": "Skipping overlapping poll tick"
+  },
+  {
+    "ts": "2026-03-22T07:54:49.564Z",
+    "process": "keeper",
+    "level": "debug",
+    "msg": "Skipping overlapping poll tick"
+  },
+  {
+    "ts": "2026-03-22T07:54:39.627Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:54:39.565Z",
+    "process": "keeper",
+    "level": "debug",
+    "msg": "Skipping overlapping poll tick"
+  },
+  {
+    "ts": "2026-03-22T07:54:30.471Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:54:29.564Z",
+    "process": "keeper",
+    "level": "debug",
+    "msg": "Skipping overlapping poll tick"
+  },
+  {
+    "ts": "2026-03-22T07:54:24.564Z",
+    "process": "keeper",
+    "level": "debug",
+    "msg": "Skipping overlapping poll tick"
+  },
+  {
+    "ts": "2026-03-22T07:54:15.771Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:54:14.544Z",
+    "process": "keeper",
+    "level": "debug",
+    "msg": "Skipping overlapping poll tick"
+  },
+  {
+    "ts": "2026-03-22T07:54:08.304Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "✅ Task executed successfully",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x805eee51325c1d526c34ddba93830858c1f30eba35d9c7b17da60b9777a8784a",
+    "blockNumber": 7301688,
+    "gasUsed": "163622"
+  },
+  {
+    "ts": "2026-03-22T07:54:04.544Z",
+    "process": "keeper",
+    "level": "debug",
+    "msg": "Skipping overlapping poll tick"
+  },
+  {
+    "ts": "2026-03-22T07:53:59.545Z",
+    "process": "keeper",
+    "level": "debug",
+    "msg": "Skipping overlapping poll tick"
+  },
+  {
+    "ts": "2026-03-22T07:53:54.543Z",
+    "process": "keeper",
+    "level": "debug",
+    "msg": "Skipping overlapping poll tick"
+  },
+  {
+    "ts": "2026-03-22T07:53:49.544Z",
+    "process": "keeper",
+    "level": "debug",
+    "msg": "Skipping overlapping poll tick"
+  },
+  {
+    "ts": "2026-03-22T07:53:44.544Z",
+    "process": "keeper",
+    "level": "debug",
+    "msg": "Skipping overlapping poll tick"
+  },
+  {
+    "ts": "2026-03-22T07:53:39.860Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Transaction sent",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x805eee51325c1d526c34ddba93830858c1f30eba35d9c7b17da60b9777a8784a"
+  },
+  {
+    "ts": "2026-03-22T07:53:39.543Z",
+    "process": "keeper",
+    "level": "debug",
+    "msg": "Skipping overlapping poll tick"
+  },
+  {
+    "ts": "2026-03-22T07:53:34.543Z",
+    "process": "keeper",
+    "level": "debug",
+    "msg": "Skipping overlapping poll tick"
+  },
+  {
+    "ts": "2026-03-22T07:53:29.543Z",
+    "process": "keeper",
+    "level": "debug",
+    "msg": "Skipping overlapping poll tick"
+  },
+  {
+    "ts": "2026-03-22T07:53:24.543Z",
+    "process": "keeper",
+    "level": "debug",
+    "msg": "Skipping overlapping poll tick"
+  },
+  {
+    "ts": "2026-03-22T07:53:23.174Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x814df0Acbe6FC01D5cFe5a179bf86a2E00cd0447",
+    "nextExecution": "2026-03-22T07:52:51.000Z"
+  },
+  {
+    "ts": "2026-03-22T07:53:22.267Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T07:53:17.599Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:53:14.359Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:53:09.111Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:53:02.039Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:52:58.821Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:52:49.534Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Polling every 5s — press Ctrl+C to stop"
+  },
+  {
+    "ts": "2026-03-22T07:52:49.530Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:52:39.513Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "TaskScheduler ready",
+    "address": "0x2975aDc7F8d8e323897e3849869C8CC23Ed89392",
+    "registeredTasks": "1",
+    "keeperWhitelistEnabled": true,
+    "keeperAllowed": true
+  },
+  {
+    "ts": "2026-03-22T07:52:36.225Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Connected",
+    "network": "unknown",
+    "chainId": "4201",
+    "keeper": "0x859722730e0FE001962202d53d5c7b11e8327421",
+    "balance": "3.307175290161594251 LYX"
+  },
+  {
+    "ts": "2026-03-22T07:52:34.099Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "🚀 Keeper starting",
+    "rpc": "https://rpc.testnet.lukso.network",
+    "scheduler": "0x2975aDc7F8d8e323897e3849869C8CC23Ed89392",
+    "pollMs": 5000
+  },
+  {
+    "ts": "2026-03-22T07:51:38.819Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x814df0Acbe6FC01D5cFe5a179bf86a2E00cd0447",
+    "nextExecution": "2026-03-22T07:50:43.000Z"
+  },
+  {
+    "ts": "2026-03-22T07:51:37.582Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T07:51:32.605Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x814df0Acbe6FC01D5cFe5a179bf86a2E00cd0447",
+    "nextExecution": "2026-03-22T07:50:43.000Z"
+  },
+  {
+    "ts": "2026-03-22T07:51:32.601Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Transaction sent",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0xb14a143a5545bb55ea14d22e912bd6e8e7d72d6979ffb52e14acf8a84f98f413"
+  },
+  {
+    "ts": "2026-03-22T07:51:30.575Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T07:51:29.668Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x814df0Acbe6FC01D5cFe5a179bf86a2E00cd0447",
+    "nextExecution": "2026-03-22T07:50:43.000Z"
+  },
+  {
+    "ts": "2026-03-22T07:51:28.990Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T07:51:23.633Z",
+    "process": "keeper",
+    "level": "error",
+    "msg": "❌ executeTask() failed",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "error": "could not coalesce error (error={ \"code\": -32000, \"message\": \"already known\" }, payload={ \"id\": 231, \"jsonrpc\": \"2.0\", \"method\": \"eth_sendRawTransaction\", \"params\": [ \"0x02f895821069820140850110a0a342850110a0a3508302f014942975adc7f8d8e323897e3849869c8cc23ed8939280a4dcf1165c85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9c001a06e3b9d7508dbb0da62a6a72b9b2f2be5e0ebbe63a1535db729e4e922e4fff9ffa01957e35b3edef30bb3755227016c115c1ddce1bf129a9c819a627bf48c9ee0fb\" ] }, code=UNKNOWN_ERROR, version=6.16.0)"
+  },
+  {
+    "ts": "2026-03-22T07:51:22.958Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x814df0Acbe6FC01D5cFe5a179bf86a2E00cd0447",
+    "nextExecution": "2026-03-22T07:50:43.000Z"
+  },
+  {
+    "ts": "2026-03-22T07:51:21.619Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T07:51:19.135Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Transaction sent",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x30baf499e2e3f036d50630dde5bac8e792f1e0e36a07645c308ccf40451e4682"
+  },
+  {
+    "ts": "2026-03-22T07:51:15.802Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x814df0Acbe6FC01D5cFe5a179bf86a2E00cd0447",
+    "nextExecution": "2026-03-22T07:50:43.000Z"
+  },
+  {
+    "ts": "2026-03-22T07:51:15.414Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T07:51:11.070Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x814df0Acbe6FC01D5cFe5a179bf86a2E00cd0447",
+    "nextExecution": "2026-03-22T07:50:43.000Z"
+  },
+  {
+    "ts": "2026-03-22T07:51:10.725Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T07:51:08.865Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:51:06.914Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:51:06.910Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:50:52.432Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:50:51.395Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:50:46.484Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:50:43.247Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:50:37.731Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:50:28.391Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:50:24.997Z",
+    "process": "keeper",
+    "level": "error",
+    "msg": "❌ executeTask() failed",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "error": "transaction execution reverted (action=\"sendTransaction\", data=null, reason=null, invocation=null, revert=null, transaction={ \"data\": \"\", \"from\": \"0x859722730e0FE001962202d53d5c7b11e8327421\", \"to\": \"0x2975aDc7F8d8e323897e3849869C8CC23Ed89392\" }, receipt={ \"_type\": \"TransactionReceipt\", \"blobGasPrice\": null, \"blobGasUsed\": null, \"blockHash\": \"0x77635a405c3afc3213349ef4263c16b635d9e13aa27369971df81cfd12d568d0\", \"blockNumber\": 7301670, \"contractAddress\": null, \"cumulativeGasUsed\": \"40363\", \"from\": \"0x859722730e0FE001962202d53d5c7b11e8327421\", \"gasPrice\": \"4573930313\", \"gasUsed\": \"40363\", \"hash\": \"0x9afbcfec56c3c84d8271107f9d6644a11556d0568b24530b28ba3f0ff38ef92e\", \"index\": 0, \"logs\": [  ], \"logsBloom\": \"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\", \"root\": null, \"status\": 0, \"to\": \"0x2975aDc7F8d8e323897e3849869C8CC23Ed89392\" }, code=CALL_EXCEPTION, version=6.16.0)"
+  },
+  {
+    "ts": "2026-03-22T07:50:23.982Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:50:16.736Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:50:15.232Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:50:14.216Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:50:14.214Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "✅ Task executed successfully",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x6d7606d37f5675daea4e7a91bb2745a1d8beb8d4907eb4017f801034a7596f23",
+    "blockNumber": 7301669,
+    "gasUsed": "180722"
+  },
+  {
+    "ts": "2026-03-22T07:50:09.760Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:50:09.757Z",
+    "process": "keeper",
+    "level": "error",
+    "msg": "❌ executeTask() failed",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "error": "could not coalesce error (error={ \"code\": -32000, \"message\": \"already known\" }, payload={ \"id\": 151, \"jsonrpc\": \"2.0\", \"method\": \"eth_sendRawTransaction\", \"params\": [ \"0x02f89582106982013f850110a0a342850110a0a350830333de942975adc7f8d8e323897e3849869c8cc23ed8939280a4dcf1165c85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9c001a0bf2567c23f03a639fc79ada0dc4e2c40962f6fdae97d4114f093d5a666a82040a01d2312f0bc400b4dc49d55c8665abd79f29e0ef8f5dfbce527e4dec60822bcb2\" ] }, code=UNKNOWN_ERROR, version=6.16.0)"
+  },
+  {
+    "ts": "2026-03-22T07:50:04.848Z",
+    "process": "keeper",
+    "level": "error",
+    "msg": "❌ executeTask() failed",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "error": "could not coalesce error (error={ \"code\": -32000, \"message\": \"already known\" }, payload={ \"id\": 145, \"jsonrpc\": \"2.0\", \"method\": \"eth_sendRawTransaction\", \"params\": [ \"0x02f89582106982013f850110a0a342850110a0a350830333de942975adc7f8d8e323897e3849869c8cc23ed8939280a4dcf1165c85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9c001a0bf2567c23f03a639fc79ada0dc4e2c40962f6fdae97d4114f093d5a666a82040a01d2312f0bc400b4dc49d55c8665abd79f29e0ef8f5dfbce527e4dec60822bcb2\" ] }, code=UNKNOWN_ERROR, version=6.16.0)"
+  },
+  {
+    "ts": "2026-03-22T07:50:04.843Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:49:59.377Z",
+    "process": "keeper",
+    "level": "error",
+    "msg": "❌ executeTask() failed",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "error": "TS: not executable yet"
+  },
+  {
+    "ts": "2026-03-22T07:49:59.375Z",
+    "process": "keeper",
+    "level": "error",
+    "msg": "❌ executeTask() failed",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "error": "could not coalesce error (error={ \"code\": -32000, \"message\": \"already known\" }, payload={ \"id\": 138, \"jsonrpc\": \"2.0\", \"method\": \"eth_sendRawTransaction\", \"params\": [ \"0x02f89582106982013f850110a0a342850110a0a350830333de942975adc7f8d8e323897e3849869c8cc23ed8939280a4dcf1165c85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9c001a0bf2567c23f03a639fc79ada0dc4e2c40962f6fdae97d4114f093d5a666a82040a01d2312f0bc400b4dc49d55c8665abd79f29e0ef8f5dfbce527e4dec60822bcb2\" ] }, code=UNKNOWN_ERROR, version=6.16.0)"
+  },
+  {
+    "ts": "2026-03-22T07:49:59.372Z",
+    "process": "keeper",
+    "level": "error",
+    "msg": "❌ executeTask() failed",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "error": "could not coalesce error (error={ \"code\": -32000, \"message\": \"already known\" }, payload={ \"id\": 137, \"jsonrpc\": \"2.0\", \"method\": \"eth_sendRawTransaction\", \"params\": [ \"0x02f89582106982013f850110a0a342850110a0a350830333de942975adc7f8d8e323897e3849869c8cc23ed8939280a4dcf1165c85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9c001a0bf2567c23f03a639fc79ada0dc4e2c40962f6fdae97d4114f093d5a666a82040a01d2312f0bc400b4dc49d55c8665abd79f29e0ef8f5dfbce527e4dec60822bcb2\" ] }, code=UNKNOWN_ERROR, version=6.16.0)"
+  },
+  {
+    "ts": "2026-03-22T07:49:55.342Z",
+    "process": "keeper",
+    "level": "error",
+    "msg": "❌ executeTask() failed",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "error": "TS: not executable yet"
+  },
+  {
+    "ts": "2026-03-22T07:49:53.677Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x814df0Acbe6FC01D5cFe5a179bf86a2E00cd0447",
+    "nextExecution": "2026-03-22T07:48:43.000Z"
+  },
+  {
+    "ts": "2026-03-22T07:49:52.365Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Transaction sent",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x9afbcfec56c3c84d8271107f9d6644a11556d0568b24530b28ba3f0ff38ef92e"
+  },
+  {
+    "ts": "2026-03-22T07:49:52.361Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x814df0Acbe6FC01D5cFe5a179bf86a2E00cd0447",
+    "nextExecution": "2026-03-22T07:48:43.000Z"
+  },
+  {
+    "ts": "2026-03-22T07:49:52.348Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T07:49:50.135Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x814df0Acbe6FC01D5cFe5a179bf86a2E00cd0447",
+    "nextExecution": "2026-03-22T07:48:43.000Z"
+  },
+  {
+    "ts": "2026-03-22T07:49:50.131Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T07:49:48.770Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x814df0Acbe6FC01D5cFe5a179bf86a2E00cd0447",
+    "nextExecution": "2026-03-22T07:48:43.000Z"
+  },
+  {
+    "ts": "2026-03-22T07:49:48.102Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T07:49:41.381Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T07:49:41.377Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x814df0Acbe6FC01D5cFe5a179bf86a2E00cd0447",
+    "nextExecution": "2026-03-22T07:48:43.000Z"
+  },
+  {
+    "ts": "2026-03-22T07:49:41.374Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x814df0Acbe6FC01D5cFe5a179bf86a2E00cd0447",
+    "nextExecution": "2026-03-22T07:48:43.000Z"
+  },
+  {
+    "ts": "2026-03-22T07:49:32.986Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T07:49:32.983Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T07:49:23.779Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Transaction sent",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "txHash": "0x6d7606d37f5675daea4e7a91bb2745a1d8beb8d4907eb4017f801034a7596f23"
+  },
+  {
+    "ts": "2026-03-22T07:49:21.558Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x814df0Acbe6FC01D5cFe5a179bf86a2E00cd0447",
+    "nextExecution": "2026-03-22T07:48:43.000Z"
+  },
+  {
+    "ts": "2026-03-22T07:49:20.471Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T07:49:17.050Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Executing task",
+    "taskId": "0x85e63639109b6728bf82246642eb47af81c302a2c195a0a56f00e8a0c20548b9",
+    "vault": "0x814df0Acbe6FC01D5cFe5a179bf86a2E00cd0447",
+    "nextExecution": "2026-03-22T07:48:43.000Z"
+  },
+  {
+    "ts": "2026-03-22T07:49:16.247Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "1 task(s) eligible for execution",
+    "taskIds": [
+      "0x85e63639109b6728…"
+    ]
+  },
+  {
+    "ts": "2026-03-22T07:49:14.896Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:49:10.396Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:49:06.850Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:49:02.388Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:48:53.287Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:48:51.616Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:48:50.755Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:48:50.751Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:48:32.821Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:48:32.396Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:48:22.168Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:48:19.033Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:48:11.433Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:48:09.909Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:48:03.677Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:47:59.960Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:47:49.923Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Polling every 5s — press Ctrl+C to stop"
+  },
+  {
+    "ts": "2026-03-22T07:47:49.919Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "No eligible tasks",
+    "checked": "1"
+  },
+  {
+    "ts": "2026-03-22T07:47:47.448Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "TaskScheduler ready",
+    "address": "0x2975aDc7F8d8e323897e3849869C8CC23Ed89392",
+    "registeredTasks": "1",
+    "keeperWhitelistEnabled": true,
+    "keeperAllowed": true
+  },
+  {
+    "ts": "2026-03-22T07:47:40.559Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "Connected",
+    "network": "unknown",
+    "chainId": "4201",
+    "keeper": "0x859722730e0FE001962202d53d5c7b11e8327421",
+    "balance": "3.289320943741074116 LYX"
+  },
+  {
+    "ts": "2026-03-22T07:47:35.705Z",
+    "process": "keeper",
+    "level": "info",
+    "msg": "🚀 Keeper starting",
+    "rpc": "https://rpc.testnet.lukso.network",
+    "scheduler": "0x2975aDc7F8d8e323897e3849869C8CC23Ed89392",
+    "pollMs": 5000
+  },
+  {
     "ts": "2026-03-22T02:54:59.631Z",
     "process": "keeper",
     "level": "info",

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {IPolicy} from "./IPolicy.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {LSP14Ownable2StepInit} from "../base/LSP14Ownable2StepInit.sol";
 
 /// @notice Minimal interface for SharedBudgetPool interaction
 interface ISharedBudgetPool {
@@ -16,7 +16,7 @@ interface ISharedBudgetPool {
 ///
 ///         Use this INSTEAD of BudgetPolicy when a vault is part of a SharedBudgetPool.
 ///         The pool itself holds the budget limits and tracks spending across vaults.
-contract SharedBudgetPolicy is IPolicy, Ownable {
+contract SharedBudgetPolicy is IPolicy, LSP14Ownable2StepInit {
 
     /// @dev The SharedBudgetPool contract that tracks hierarchical budgets
     address public sharedBudgetPool;
@@ -49,11 +49,10 @@ contract SharedBudgetPolicy is IPolicy, Ownable {
         address _sharedBudgetPool,
         address _vault,
         address _budgetToken
-    ) {
+    ) LSP14Ownable2StepInit(initialOwner) {
         require(_policyEngine     != address(0), "SBPolicy: invalid engine");
         require(_sharedBudgetPool != address(0), "SBPolicy: invalid pool");
         require(_vault            != address(0), "SBPolicy: invalid vault");
-        _transferOwnership(initialOwner);
         policyEngine     = _policyEngine;
         sharedBudgetPool = _sharedBudgetPool;
         vault            = _vault;

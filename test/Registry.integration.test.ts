@@ -69,6 +69,7 @@ describe("AgentVaultRegistry — Integration", function () {
     agents: string[];
     agentBudgets: bigint[];
     merchants: string[];
+    recipientConfigs: Array<{ recipient: string; budget: bigint; period: number }>;
     label: string;
     agentMode: number;
     allowSuperPermissions: boolean;
@@ -83,6 +84,7 @@ describe("AgentVaultRegistry — Integration", function () {
       agents: [agent.address],
       agentBudgets: [], // No per-agent budgets by default
       merchants: params?.merchants ?? [],
+      recipientConfigs: [],
       label: "Test Vault",
       // Default: OPS_ADMIN — SETDATA only, no AllowedCalls required
       agentMode:              AgentMode.OPS_ADMIN,
@@ -175,7 +177,7 @@ describe("AgentVaultRegistry — Integration", function () {
   });
 
   describe("LSP14 two-step ownership transfer", function () {
-    it("full flow: deployVault → acceptOwnership on safe and policyEngine → agent still works", async function () {
+    it("full flow: deployVault → acceptOwnership across the LSP14 stack → agent still works", async function () {
       const tx = await deployVault({
         merchants: [merchant.address],
         agentMode: AgentMode.STRICT_PAYMENTS,
@@ -195,21 +197,33 @@ describe("AgentVaultRegistry — Integration", function () {
       const safe = await ethers.getContractAt("AgentSafe", safeAddr);
       const km = await ethers.getContractAt("LSP6KeyManager", kmAddr);
       const pe = await ethers.getContractAt("PolicyEngine", peAddr);
+      const policies = await pe.getPolicies();
 
-      // AgentSafe uses LSP14 two-step (extends LSP9Vault → LSP14Ownable2Step).
-      // PolicyEngine uses OZ Ownable (single-step, no acceptOwnership needed).
-      // Registry already transferred PE ownership directly via transferOwnership().
+      // AgentSafe, PolicyEngine, and deployed policies all use LSP14 two-step ownership.
+      // The registry remains owner until the user accepts on each contract.
 
       // Before acceptOwnership: pendingOwner is set, registry is still owner of Safe
       const pendingOwner = await (safe as any).pendingOwner();
       expect(pendingOwner).to.equal(owner.address);
 
-      // PolicyEngine: OZ Ownable — ownership already transferred, owner is the user
-      expect(await (pe as any).owner()).to.equal(owner.address);
+      expect(await (pe as any).pendingOwner()).to.equal(owner.address);
+      expect(await (pe as any).owner()).to.equal(await registry.getAddress());
+      for (const policyAddr of policies) {
+        const policy = await ethers.getContractAt("BudgetPolicy", policyAddr);
+        expect(await (policy as any).pendingOwner()).to.equal(owner.address);
+      }
 
-      // Safe: LSP14 — user must accept to become owner
+      // Finalize ownership for the full stack.
       await safe.connect(owner).acceptOwnership();
+      await pe.connect(owner).acceptOwnership();
+      for (const policyAddr of policies) {
+        const policy = await ethers.getContractAt("BudgetPolicy", policyAddr);
+        await (policy as any).connect(owner).acceptOwnership();
+        expect(await (policy as any).owner()).to.equal(owner.address);
+      }
+
       expect(await (safe as any).owner()).to.equal(owner.address);
+      expect(await (pe as any).owner()).to.equal(owner.address);
 
       // Fund safe
       await owner.sendTransaction({ to: safeAddr, value: ethers.parseEther("10") });
@@ -359,6 +373,7 @@ describe("AgentVaultRegistry — Integration", function () {
         agents: [agent.address],
         agentBudgets: [],
         merchants: [],
+        recipientConfigs: [],
         label: "Perm Test Vault",
         // OPS_ADMIN: SETDATA only, no AllowedCalls required
         agentMode:              AgentMode.OPS_ADMIN,
@@ -421,6 +436,7 @@ describe("AgentVaultRegistry — Integration", function () {
         agents: [agentB.address, agentC.address],
         agentBudgets: [],
         merchants: [],
+        recipientConfigs: [],
         label: "Multi-agent Vault",
         // OPS_ADMIN: no AllowedCalls needed, just verify array storage
         agentMode:              AgentMode.OPS_ADMIN,

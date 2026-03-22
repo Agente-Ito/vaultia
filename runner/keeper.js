@@ -200,12 +200,22 @@ async function main() {
   // ── Polling loop ─────────────────────────────────────────────────────────────
   log('info', `Polling every ${POLL_MS / 1000}s — press Ctrl+C to stop`);
 
+  let pollInFlight = false;
+
   setInterval(async () => {
+    if (pollInFlight) {
+      log('debug', 'Skipping overlapping poll tick');
+      return;
+    }
+
+    pollInFlight = true;
     try {
       await runOnce(scheduler, wallet);
     } catch (err) {
       // Top-level catch: log and keep the interval alive
       log('error', 'Unhandled error in runOnce', { error: err.message });
+    } finally {
+      pollInFlight = false;
     }
   }, POLL_MS);
 }

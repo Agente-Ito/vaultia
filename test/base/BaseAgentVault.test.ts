@@ -45,6 +45,9 @@ async function deployVaultFixture() {
   await vault.transferOwnership(owner.address);
   await pe.transferOwnership(owner.address);
   await bp.transferOwnership(owner.address);
+  await vault.connect(owner).acceptOwnership();
+  await pe.connect(owner).acceptOwnership();
+  await bp.connect(owner).acceptOwnership();
 
   return { deployer, owner, agent, agent2, other, vault, pe, bp, usdc };
 }
@@ -56,6 +59,17 @@ describe("BaseAgentVault", () => {
       const { deployer, owner, vault } = await deployVaultFixture();
       expect(await vault.owner()).to.equal(owner.address);
       expect(await vault.entryPoint()).to.equal(DUMMY_EP);
+    });
+
+    it("uses LSP14 pending owner flow before acceptance", async () => {
+      const [deployer, owner] = await ethers.getSigners();
+      const VaultF = await ethers.getContractFactory("BaseAgentVault");
+      const vault  = await VaultF.deploy(deployer.address, DUMMY_EP) as BaseAgentVault;
+
+      await vault.transferOwnership(owner.address);
+
+      expect(await vault.owner()).to.equal(deployer.address);
+      expect(await (vault as any).pendingOwner()).to.equal(owner.address);
     });
 
     it("policyEngine is set after factory wiring", async () => {
@@ -82,7 +96,7 @@ describe("BaseAgentVault", () => {
     it("non-owner cannot add agent", async () => {
       const { other, agent2, vault } = await deployVaultFixture();
       await expect(vault.connect(other).addAgent(agent2.address))
-        .to.be.revertedWith("Ownable: caller is not the owner");
+        .to.be.reverted;
     });
 
     it("duplicate addAgent reverts", async () => {
@@ -111,7 +125,7 @@ describe("BaseAgentVault", () => {
     it("non-owner cannot set policyEngine", async () => {
       const { other, vault, pe } = await deployVaultFixture();
       await expect(vault.connect(other).setPolicyEngine(await pe.getAddress()))
-        .to.be.revertedWith("Ownable: caller is not the owner");
+        .to.be.reverted;
     });
   });
 
@@ -234,7 +248,7 @@ describe("BaseAgentVault", () => {
       const { other, vault, usdc } = await deployVaultFixture();
       await expect(
         vault.connect(other).withdraw(await usdc.getAddress(), 1n)
-      ).to.be.revertedWith("Ownable: caller is not the owner");
+      ).to.be.reverted;
     });
 
     it("depositToken transfers ERC-20 into vault", async () => {

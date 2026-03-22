@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import {IPolicy} from "./IPolicy.sol";
 import {BudgetPolicy} from "./BudgetPolicy.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {LSP14Ownable2StepInit} from "../base/LSP14Ownable2StepInit.sol";
 
 interface IPolicyEngineSimulationRBP {
     function simulationActive() external view returns (bool);
@@ -23,7 +23,7 @@ interface IPolicyEngineSimulationRBP {
 ///         If `limit == 0`, the recipient is whitelisted with no individual cap (only the
 ///         vault-level BudgetPolicy applies). If `limit > 0`, the recipient is capped at
 ///         `limit` per `period`.
-contract RecipientBudgetPolicy is IPolicy, Ownable {
+contract RecipientBudgetPolicy is IPolicy, LSP14Ownable2StepInit {
     /// @dev Only the registered PolicyEngine can call validate()
     address public immutable policyEngine;
 
@@ -50,11 +50,10 @@ contract RecipientBudgetPolicy is IPolicy, Ownable {
     /// @param initialOwner   Factory address (temp owner; transferred to user after setup)
     /// @param _policyEngine  The PolicyEngine that calls validate()
     /// @param _budgetToken   address(0) for LYX; LSP7 contract address for token budget
-    constructor(address initialOwner, address _policyEngine, address _budgetToken) {
+    constructor(address initialOwner, address _policyEngine, address _budgetToken) LSP14Ownable2StepInit(initialOwner) {
         require(_policyEngine != address(0), "RBP: zero policyEngine");
         policyEngine = _policyEngine;
         budgetToken  = _budgetToken;
-        _transferOwnership(initialOwner);
     }
 
     /// @notice Validate that the recipient is whitelisted and within their individual budget.

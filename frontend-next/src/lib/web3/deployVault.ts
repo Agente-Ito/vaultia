@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
 import type { ContractTransactionReceipt, ContractTransactionResponse } from 'ethers';
-import type { RegistryContract } from '@/lib/web3/contracts';
+import { getOwnable2StepContract, getPolicyEngineContract, type RegistryContract } from '@/lib/web3/contracts';
 import type { RecipientEntry } from '@/context/OnboardingContext';
 
 export const AgentMode = {
@@ -329,6 +329,54 @@ function extractDeployedVault(receipt: ContractTransactionReceipt, registry: Reg
   return safe ? { safe, keyManager, policyEngine, label } : null;
 }
 
+async function acceptOwnershipIfPending(contractAddress: string, ownerAddress: string, signer: ethers.Signer) {
+  const contract = getOwnable2StepContract(contractAddress, signer);
+  const currentOwner = await contract.owner();
+  if (currentOwner.toLowerCase() === ownerAddress.toLowerCase()) {
+    return;
+  }
+
+  const pendingOwner = await contract.pendingOwner();
+  if (pendingOwner.toLowerCase() !== ownerAddress.toLowerCase()) {
+    throw new Error(`Ownership for ${contractAddress} is pending for ${pendingOwner}, not ${ownerAddress}.`);
+  }
+
+  const tx = await contract.acceptOwnership();
+  await tx.wait();
+}
+
+async function finalizeVaultOwnership(
+  registry: RegistryContract,
+  deployed: { safe: string; keyManager: string; policyEngine: string; label: string } | null,
+  owner?: string
+) {
+  if (!deployed || !owner) {
+    return;
+  }
+
+  const runner = registry.runner;
+  if (!runner || !("getAddress" in runner)) {
+    throw new Error('Registry signer unavailable for ownership finalization.');
+  }
+
+  const signer = runner as ethers.Signer;
+
+  await acceptOwnershipIfPending(deployed.safe, owner, signer);
+
+  const policyEngine = getPolicyEngineContract(deployed.policyEngine, signer) as ReturnType<typeof getPolicyEngineContract> & {
+    owner(): Promise<string>;
+    pendingOwner(): Promise<string>;
+    acceptOwnership(): Promise<ContractTransactionResponse>;
+  };
+
+  await acceptOwnershipIfPending(deployed.policyEngine, owner, signer);
+
+  const policies = await policyEngine.getPolicies();
+  for (const policyAddress of policies) {
+    await acceptOwnershipIfPending(policyAddress, owner, signer);
+  }
+}
+
 export async function deployRegistryVault(options: DeployRegistryVaultOptions): Promise<{
   tx: ContractTransactionResponse;
   receipt: ContractTransactionReceipt;
@@ -352,6 +400,8 @@ export async function deployRegistryVault(options: DeployRegistryVaultOptions): 
       latest.find((vault) => !options.existingSafeAddresses?.has(vault.safe.toLowerCase())) ??
       null;
   }
+
+  await finalizeVaultOwnership(options.registry, deployed, options.owner);
 
   return { tx, receipt, deployed };
 }

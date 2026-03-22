@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import {IPolicy} from "./IPolicy.sol";
 import {BudgetPolicy} from "./BudgetPolicy.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {LSP14Ownable2StepInit} from "../base/LSP14Ownable2StepInit.sol";
 
 interface IPolicyEngineSimulationABP {
     function simulationActive() external view returns (bool);
@@ -21,7 +21,7 @@ interface IPolicyEngineSimulationABP {
 ///      - Agent starvation (individual limits)
 ///      - Budget overflow (vault-level enforcement)
 ///      - Overcomplicated logic (separate policies, independent resets)
-contract AgentBudgetPolicy is IPolicy, Ownable {
+contract AgentBudgetPolicy is IPolicy, LSP14Ownable2StepInit {
     /// @dev Only the registered PolicyEngine can call validate()
     address public immutable policyEngine;
 
@@ -64,14 +64,13 @@ contract AgentBudgetPolicy is IPolicy, Ownable {
         address _policyEngine,
         BudgetPolicy.Period _period,
         address _budgetToken
-    ) {
+    ) LSP14Ownable2StepInit(initialOwner) {
         require(_policyEngine != address(0), "ABP: zero policyEngine");
         require(uint8(_period) <= 2, "ABP: invalid period");
         policyEngine = _policyEngine;
         period = _period;
         budgetToken = _budgetToken;
         periodStart = block.timestamp;
-        _transferOwnership(initialOwner);
     }
 
     /// @notice Validate that agent's spending does not exceed their individual budget.

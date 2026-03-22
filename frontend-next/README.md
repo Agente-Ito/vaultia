@@ -37,6 +37,7 @@ Automation note:
 - New scheduler deployments start with keeper whitelist enforcement enabled by default.
 - The deployer is whitelisted automatically; additional keepers must be added explicitly on-chain.
 - This frontend does not currently manage keeper allowlists directly.
+- Live recurring-payment proof for the current testnet stack is recorded in [../deployments/live-automation-4201.json](../deployments/live-automation-4201.json).
 
 ## Local development
 
@@ -49,7 +50,10 @@ Create `.env.local`:
 
 ```env
 NEXT_PUBLIC_RPC_URL=https://rpc.testnet.lukso.network
-NEXT_PUBLIC_REGISTRY_ADDRESS=0x...
+NEXT_PUBLIC_REGISTRY_ADDRESS=0x8EE9858A68C4e344A949B8AE530bf9800F19B381
+NEXT_PUBLIC_COORDINATOR_ADDRESS=0x1ED22E68c7B8634eD39E10949ADfaFdb441C1299
+NEXT_PUBLIC_TASK_SCHEDULER_ADDRESS=0x2975aDc7F8d8e323897e3849869C8CC23Ed89392
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=ec956db17465182bf67315c05499eb58
 ```
 
 ```bash
@@ -58,13 +62,23 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+Development note:
+
+- WalletConnect is configured through a cached wagmi singleton to avoid duplicate connector initialization during normal `next dev` reloads.
+- If you still see `WalletConnect Core is already initialized`, the usual cause is multiple dev servers or a stale `.next` cache after aggressive Fast Refresh or env reloads.
+- First response: stop extra `next dev` processes, remove `.next`, and start the dev server again.
+- Production builds are not affected by this dev-only warning.
+
 ## Deploy to Vercel
 
 Set two environment variables in the Vercel dashboard:
 
 ```env
 NEXT_PUBLIC_RPC_URL=https://rpc.testnet.lukso.network
-NEXT_PUBLIC_REGISTRY_ADDRESS=0x<your_registry_address>
+NEXT_PUBLIC_REGISTRY_ADDRESS=0x8EE9858A68C4e344A949B8AE530bf9800F19B381
+NEXT_PUBLIC_COORDINATOR_ADDRESS=0x1ED22E68c7B8634eD39E10949ADfaFdb441C1299
+NEXT_PUBLIC_TASK_SCHEDULER_ADDRESS=0x2975aDc7F8d8e323897e3849869C8CC23Ed89392
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=ec956db17465182bf67315c05499eb58
 ```
 
 Then push — all routes are static, no serverless functions required.
@@ -94,6 +108,9 @@ Operational note:
 | --- | --- | --- |
 | `NEXT_PUBLIC_RPC_URL` | Yes | LUKSO JSON-RPC endpoint |
 | `NEXT_PUBLIC_REGISTRY_ADDRESS` | Yes | Deployed `AgentVaultRegistry` contract address |
+| `NEXT_PUBLIC_COORDINATOR_ADDRESS` | No | Enables the Agents view and live coordinator-backed features |
+| `NEXT_PUBLIC_TASK_SCHEDULER_ADDRESS` | No | Enables automation flows backed by the live `TaskScheduler` |
+| `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | No | Enables WalletConnect QR/mobile wallet support |
 
 ## License
 

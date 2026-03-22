@@ -27,6 +27,7 @@ const PAGE_META: Record<string, { titleKey: string; ctaLabelKey?: string; ctaHre
   '/vaults/create': { titleKey: 'create.title' },
   '/rules':         { titleKey: 'nav.spending_rules' },
   '/activity':      { titleKey: 'nav.activity' },
+  '/verified-runs': { titleKey: 'nav.verified_runs' },
   '/profiles':      { titleKey: 'nav.profiles' },
   '/agents':        { titleKey: 'nav.automations' },
   '/automation':    { titleKey: 'nav.automation' },

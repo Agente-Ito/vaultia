@@ -64,6 +64,10 @@ const config: HardhatUserConfig = {
         version: "0.8.20",
         settings: { optimizer: { enabled: true, runs: 1 }, viaIR: true },
       },
+      "contracts/AgentVaultOptionalPolicyDeployer.sol": {
+        version: "0.8.20",
+        settings: { optimizer: { enabled: true, runs: 1 }, viaIR: true },
+      },
       "contracts/AgentKMDeployer.sol": {
         version: "0.8.20",
         settings: { optimizer: { enabled: true, runs: 1 }, viaIR: true },

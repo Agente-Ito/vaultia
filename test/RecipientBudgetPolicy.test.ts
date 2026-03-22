@@ -42,6 +42,23 @@ async function deployFixture() {
   return { owner, agent, recipient1, recipient2, recipient3, other, registry, deployer };
 }
 
+async function deployStandaloneRecipientBudgetPolicy(
+  ownerAddress: string,
+  budgetToken: string = ethers.ZeroAddress,
+) {
+  const MockPolicyEngineFactory = await ethers.getContractFactory("MockPolicyEngineCaller");
+  const mockPolicyEngine = await MockPolicyEngineFactory.deploy();
+
+  const RBPFactory = await ethers.getContractFactory("RecipientBudgetPolicy");
+  const rbp = await RBPFactory.deploy(
+    ownerAddress,
+    await mockPolicyEngine.getAddress(),
+    budgetToken,
+  ) as RecipientBudgetPolicy;
+
+  return { rbp, mockPolicyEngine };
+}
+
 describe("RecipientBudgetPolicy", function () {
 
   describe("Whitelist enforcement", function () {
@@ -295,13 +312,8 @@ describe("RecipientBudgetPolicy", function () {
 
   describe("Direct RecipientBudgetPolicy management", function () {
     it("owner can add and remove recipients", async function () {
-      const { owner, recipient1, recipient2, deployer } = await deployFixture();
-
-      // Deploy a standalone PolicyEngine mock via registry
-      const [,,,,, pe] = await ethers.getSigners();
-
-      const RBPFactory = await ethers.getContractFactory("RecipientBudgetPolicy");
-      const rbp = await RBPFactory.deploy(owner.address, pe.address, ethers.ZeroAddress) as RecipientBudgetPolicy;
+      const { owner, recipient1, recipient2 } = await deployFixture();
+      const { rbp } = await deployStandaloneRecipientBudgetPolicy(owner.address);
 
       expect(await rbp.recipientCount()).to.equal(0);
 
@@ -319,10 +331,7 @@ describe("RecipientBudgetPolicy", function () {
 
     it("batch set works correctly", async function () {
       const { owner, recipient1, recipient2, recipient3 } = await deployFixture();
-      const [,,,,, pe] = await ethers.getSigners();
-
-      const RBPFactory = await ethers.getContractFactory("RecipientBudgetPolicy");
-      const rbp = await RBPFactory.deploy(owner.address, pe.address, ethers.ZeroAddress) as RecipientBudgetPolicy;
+      const { rbp } = await deployStandaloneRecipientBudgetPolicy(owner.address);
 
       await rbp.connect(owner).setRecipientLimitsBatch(
         [recipient1.address, recipient2.address, recipient3.address],
@@ -338,10 +347,7 @@ describe("RecipientBudgetPolicy", function () {
 
     it("only PolicyEngine can call validate()", async function () {
       const { owner, recipient1, other } = await deployFixture();
-      const [,,,,, pe] = await ethers.getSigners();
-
-      const RBPFactory = await ethers.getContractFactory("RecipientBudgetPolicy");
-      const rbp = await RBPFactory.deploy(owner.address, pe.address, ethers.ZeroAddress) as RecipientBudgetPolicy;
+      const { rbp } = await deployStandaloneRecipientBudgetPolicy(owner.address);
 
       await rbp.connect(owner).setRecipientLimit(recipient1.address, ethers.parseEther("100"), WEEKLY);
 
@@ -352,127 +358,197 @@ describe("RecipientBudgetPolicy", function () {
 
     it("rejects wrong token denomination", async function () {
       const { owner, recipient1 } = await deployFixture();
-      const [,,,,, pe, fakeToken] = await ethers.getSigners();
-
-      const RBPFactory = await ethers.getContractFactory("RecipientBudgetPolicy");
-      // Deploy with fakeToken as budgetToken
-      const rbp = await RBPFactory.deploy(owner.address, pe.address, fakeToken.address) as RecipientBudgetPolicy;
+      const [,,,,,, fakeToken] = await ethers.getSigners();
+      const { rbp, mockPolicyEngine } = await deployStandaloneRecipientBudgetPolicy(owner.address, fakeToken.address);
 
       await rbp.connect(owner).setRecipientLimit(recipient1.address, ethers.parseEther("100"), WEEKLY);
 
       // Call with ZeroAddress (wrong token)
       await expect(
-        rbp.connect(pe).validate(pe.address, ethers.ZeroAddress, recipient1.address, ethers.parseEther("10"), "0x")
+        mockPolicyEngine.callValidate(
+          await rbp.getAddress(),
+          await mockPolicyEngine.getAddress(),
+          ethers.ZeroAddress,
+          recipient1.address,
+          ethers.parseEther("10"),
+          "0x",
+        )
       ).to.be.revertedWith("RBP: wrong denomination");
     });
 
     it("rejects unregistered recipient", async function () {
-      const { owner, recipient1, other } = await deployFixture();
-      const [,,,,, pe] = await ethers.getSigners();
-
-      const RBPFactory = await ethers.getContractFactory("RecipientBudgetPolicy");
-      const rbp = await RBPFactory.deploy(owner.address, pe.address, ethers.ZeroAddress) as RecipientBudgetPolicy;
+      const { owner, other } = await deployFixture();
+      const { rbp, mockPolicyEngine } = await deployStandaloneRecipientBudgetPolicy(owner.address);
 
       await expect(
-        rbp.connect(pe).validate(pe.address, ethers.ZeroAddress, other.address, ethers.parseEther("10"), "0x")
+        mockPolicyEngine.callValidate(
+          await rbp.getAddress(),
+          await mockPolicyEngine.getAddress(),
+          ethers.ZeroAddress,
+          other.address,
+          ethers.parseEther("10"),
+          "0x",
+        )
       ).to.be.revertedWith("RBP: not whitelisted");
     });
 
     it("rejects payment that exceeds limit", async function () {
       const { owner, recipient1 } = await deployFixture();
-      const [,,,,, pe] = await ethers.getSigners();
-
-      const RBPFactory = await ethers.getContractFactory("RecipientBudgetPolicy");
-      const rbp = await RBPFactory.deploy(owner.address, pe.address, ethers.ZeroAddress) as RecipientBudgetPolicy;
+      const { rbp, mockPolicyEngine } = await deployStandaloneRecipientBudgetPolicy(owner.address);
 
       await rbp.connect(owner).setRecipientLimit(recipient1.address, ethers.parseEther("100"), WEEKLY);
 
       // First payment: 60 — OK
-      await rbp.connect(pe).validate(pe.address, ethers.ZeroAddress, recipient1.address, ethers.parseEther("60"), "0x");
+      await mockPolicyEngine.callValidate(
+        await rbp.getAddress(),
+        await mockPolicyEngine.getAddress(),
+        ethers.ZeroAddress,
+        recipient1.address,
+        ethers.parseEther("60"),
+        "0x",
+      );
       expect((await rbp.recipientLimits(recipient1.address)).spent).to.equal(ethers.parseEther("60"));
 
       // Second payment: 50 — exceeds 100 limit (60 + 50 = 110)
       await expect(
-        rbp.connect(pe).validate(pe.address, ethers.ZeroAddress, recipient1.address, ethers.parseEther("50"), "0x")
+        mockPolicyEngine.callValidate(
+          await rbp.getAddress(),
+          await mockPolicyEngine.getAddress(),
+          ethers.ZeroAddress,
+          recipient1.address,
+          ethers.parseEther("50"),
+          "0x",
+        )
       ).to.be.revertedWith("RBP: recipient limit exceeded");
     });
 
     it("resets spent after FIVE_MINUTES and allows new payments", async function () {
       const { owner, recipient1 } = await deployFixture();
-      const [,,,,, pe] = await ethers.getSigners();
-
-      const RBPFactory = await ethers.getContractFactory("RecipientBudgetPolicy");
-      const rbp = await RBPFactory.deploy(owner.address, pe.address, ethers.ZeroAddress) as RecipientBudgetPolicy;
+      const { rbp, mockPolicyEngine } = await deployStandaloneRecipientBudgetPolicy(owner.address);
 
       await rbp.connect(owner).setRecipientLimit(recipient1.address, ethers.parseEther("100"), FIVE_MINUTES);
 
       // Spend 80
-      await rbp.connect(pe).validate(pe.address, ethers.ZeroAddress, recipient1.address, ethers.parseEther("80"), "0x");
+      await mockPolicyEngine.callValidate(
+        await rbp.getAddress(),
+        await mockPolicyEngine.getAddress(),
+        ethers.ZeroAddress,
+        recipient1.address,
+        ethers.parseEther("80"),
+        "0x",
+      );
       expect((await rbp.recipientLimits(recipient1.address)).spent).to.equal(ethers.parseEther("80"));
 
       // Advance time past 5 minutes
       await time.increase(301);
 
       // Now a payment of 80 should succeed (period reset lazily on next validate)
-      await rbp.connect(pe).validate(pe.address, ethers.ZeroAddress, recipient1.address, ethers.parseEther("80"), "0x");
+      await mockPolicyEngine.callValidate(
+        await rbp.getAddress(),
+        await mockPolicyEngine.getAddress(),
+        ethers.ZeroAddress,
+        recipient1.address,
+        ethers.parseEther("80"),
+        "0x",
+      );
       expect((await rbp.recipientLimits(recipient1.address)).spent).to.equal(ethers.parseEther("80"));
     });
 
     it("resets spent after DAILY period", async function () {
       const { owner, recipient1 } = await deployFixture();
-      const [,,,,, pe] = await ethers.getSigners();
-
-      const RBPFactory = await ethers.getContractFactory("RecipientBudgetPolicy");
-      const rbp = await RBPFactory.deploy(owner.address, pe.address, ethers.ZeroAddress) as RecipientBudgetPolicy;
+      const { rbp, mockPolicyEngine } = await deployStandaloneRecipientBudgetPolicy(owner.address);
 
       await rbp.connect(owner).setRecipientLimit(recipient1.address, ethers.parseEther("100"), DAILY);
 
-      await rbp.connect(pe).validate(pe.address, ethers.ZeroAddress, recipient1.address, ethers.parseEther("90"), "0x");
+      await mockPolicyEngine.callValidate(
+        await rbp.getAddress(),
+        await mockPolicyEngine.getAddress(),
+        ethers.ZeroAddress,
+        recipient1.address,
+        ethers.parseEther("90"),
+        "0x",
+      );
 
       await time.increase(86401); // 1 day + 1 sec
 
-      await rbp.connect(pe).validate(pe.address, ethers.ZeroAddress, recipient1.address, ethers.parseEther("90"), "0x");
+      await mockPolicyEngine.callValidate(
+        await rbp.getAddress(),
+        await mockPolicyEngine.getAddress(),
+        ethers.ZeroAddress,
+        recipient1.address,
+        ethers.parseEther("90"),
+        "0x",
+      );
       expect((await rbp.recipientLimits(recipient1.address)).spent).to.equal(ethers.parseEther("90"));
     });
 
     it("whitelist-only recipient (limit=0) always passes regardless of amount", async function () {
       const { owner, recipient1 } = await deployFixture();
-      const [,,,,, pe] = await ethers.getSigners();
-
-      const RBPFactory = await ethers.getContractFactory("RecipientBudgetPolicy");
-      const rbp = await RBPFactory.deploy(owner.address, pe.address, ethers.ZeroAddress) as RecipientBudgetPolicy;
+      const { rbp, mockPolicyEngine } = await deployStandaloneRecipientBudgetPolicy(owner.address);
 
       await rbp.connect(owner).setRecipientLimit(recipient1.address, 0, WEEKLY); // whitelist-only
 
       // Any amount should pass (only global BudgetPolicy limits apply)
-      await rbp.connect(pe).validate(pe.address, ethers.ZeroAddress, recipient1.address, ethers.parseEther("999999"), "0x");
+      await mockPolicyEngine.callValidate(
+        await rbp.getAddress(),
+        await mockPolicyEngine.getAddress(),
+        ethers.ZeroAddress,
+        recipient1.address,
+        ethers.parseEther("999999"),
+        "0x",
+      );
       // spent stays 0 for limit==0 recipients
       expect((await rbp.recipientLimits(recipient1.address)).spent).to.equal(0);
     });
 
     it("independent periods: two recipients with different periods reset independently", async function () {
       const { owner, recipient1, recipient2 } = await deployFixture();
-      const [,,,,, pe] = await ethers.getSigners();
-
-      const RBPFactory = await ethers.getContractFactory("RecipientBudgetPolicy");
-      const rbp = await RBPFactory.deploy(owner.address, pe.address, ethers.ZeroAddress) as RecipientBudgetPolicy;
+      const { rbp, mockPolicyEngine } = await deployStandaloneRecipientBudgetPolicy(owner.address);
 
       await rbp.connect(owner).setRecipientLimit(recipient1.address, ethers.parseEther("100"), FIVE_MINUTES);
       await rbp.connect(owner).setRecipientLimit(recipient2.address, ethers.parseEther("200"), DAILY);
 
       // Spend on both
-      await rbp.connect(pe).validate(pe.address, ethers.ZeroAddress, recipient1.address, ethers.parseEther("80"), "0x");
-      await rbp.connect(pe).validate(pe.address, ethers.ZeroAddress, recipient2.address, ethers.parseEther("150"), "0x");
+      await mockPolicyEngine.callValidate(
+        await rbp.getAddress(),
+        await mockPolicyEngine.getAddress(),
+        ethers.ZeroAddress,
+        recipient1.address,
+        ethers.parseEther("80"),
+        "0x",
+      );
+      await mockPolicyEngine.callValidate(
+        await rbp.getAddress(),
+        await mockPolicyEngine.getAddress(),
+        ethers.ZeroAddress,
+        recipient2.address,
+        ethers.parseEther("150"),
+        "0x",
+      );
 
       // Advance 5 minutes: recipient1 resets, recipient2 does not
       await time.increase(301);
 
       // recipient1 can spend again
-      await rbp.connect(pe).validate(pe.address, ethers.ZeroAddress, recipient1.address, ethers.parseEther("80"), "0x");
+      await mockPolicyEngine.callValidate(
+        await rbp.getAddress(),
+        await mockPolicyEngine.getAddress(),
+        ethers.ZeroAddress,
+        recipient1.address,
+        ethers.parseEther("80"),
+        "0x",
+      );
 
       // recipient2 cannot (still within its daily period)
       await expect(
-        rbp.connect(pe).validate(pe.address, ethers.ZeroAddress, recipient2.address, ethers.parseEther("60"), "0x")
+        mockPolicyEngine.callValidate(
+          await rbp.getAddress(),
+          await mockPolicyEngine.getAddress(),
+          ethers.ZeroAddress,
+          recipient2.address,
+          ethers.parseEther("60"),
+          "0x",
+        )
       ).to.be.revertedWith("RBP: recipient limit exceeded");
     });
   });
