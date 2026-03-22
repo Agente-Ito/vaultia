@@ -9,12 +9,23 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 contract AgentCoordinator is Ownable {
 
     /// @dev Predefined capability identifiers (expandable)
-    bytes32 public constant CAN_PAY = keccak256("CAN_PAY");
-    bytes32 public constant CAN_TRADE = keccak256("CAN_TRADE");
+    bytes32 public constant CAN_PAY       = keccak256("CAN_PAY");
+    bytes32 public constant CAN_TRADE     = keccak256("CAN_TRADE");
     bytes32 public constant CAN_REBALANCE = keccak256("CAN_REBALANCE");
     bytes32 public constant CAN_SUBSCRIBE = keccak256("CAN_SUBSCRIBE");
-    bytes32 public constant CAN_TRANSFER = keccak256("CAN_TRANSFER");
-    bytes32 public constant CAN_YIELD = keccak256("CAN_YIELD");
+    bytes32 public constant CAN_TRANSFER  = keccak256("CAN_TRANSFER");
+    bytes32 public constant CAN_YIELD     = keccak256("CAN_YIELD");
+
+    /// @dev Deployment capability — grants an agent the right to call deployForAgent() in the registry.
+    ///      This capability is never self-assignable: only a human owner or an agent
+    ///      that already holds CAN_DEPLOY can grant it to another agent.
+    ///      CAN_DEPLOY and CAN_DELEGATE are independent — holding one does not imply the other.
+    bytes32 public constant CAN_DEPLOY = keccak256("CAN_DEPLOY");
+
+    /// @dev Maximum depth of the agent delegation chain rooted at a human owner.
+    ///      An agent at depth N can deploy sub-agents at depth N+1.
+    ///      At MAX_DELEGATION_DEPTH, the chain is sealed: no further deployments allowed.
+    uint256 public constant MAX_DELEGATION_DEPTH = 3;
 
     struct AgentConfig {
         bool isContract;           // true if agent.code.length > 0 at registration
@@ -41,6 +52,17 @@ contract AgentCoordinator is Ownable {
 
     /// @notice Agent + Capability → has this capability
     mapping(address => mapping(bytes32 => bool)) public hasCapability;
+
+    /// @notice Delegation depth of each agent within its root-human trust chain.
+    ///         Humans who call deployVault() directly have depth 0.
+    ///         Agents deployed by a depth-N agent have depth N+1.
+    mapping(address => uint256) public delegationDepth;
+
+    /// @notice Addresses authorized to call registerAgent(), assignRole(), and setDelegationDepth()
+    ///         on behalf of the protocol. Only the Registry should be added here.
+    ///         This allows the Registry to complete deployForAgent() in a single atomic transaction
+    ///         without requiring the Registry to be the roleAdmin.
+    mapping(address => bool) public authorizedCaller;
 
     /// @notice Role admin (default: owner, can be changed)
     address public roleAdmin;
@@ -69,6 +91,7 @@ contract AgentCoordinator is Ownable {
     event CapabilityRevoked(address indexed agent, bytes32 indexed capability);
 
     event RoleAdminChanged(address indexed oldAdmin, address indexed newAdmin);
+    event AuthorizedCallerChanged(address indexed caller, bool enabled);
 
     // ═════════════════════════════════════════════════════════════════════
     // INITIALIZATION
@@ -83,7 +106,10 @@ contract AgentCoordinator is Ownable {
     // ═════════════════════════════════════════════════════════════════════
 
     modifier onlyRoleAdmin() {
-        require(msg.sender == roleAdmin, "AC: only roleAdmin");
+        require(
+            msg.sender == roleAdmin || authorizedCaller[msg.sender],
+            "AC: only roleAdmin"
+        );
         _;
     }
 
@@ -92,6 +118,16 @@ contract AgentCoordinator is Ownable {
         address oldAdmin = roleAdmin;
         roleAdmin = newAdmin;
         emit RoleAdminChanged(oldAdmin, newAdmin);
+    }
+
+    /// @notice Grant or revoke protocol-level caller authorization.
+    ///         Only the contract owner can modify this list.
+    ///         Intended for the AgentVaultRegistry so it can register and configure
+    ///         agents in a single atomic transaction during deployForAgent().
+    function setAuthorizedCaller(address caller, bool enabled) external onlyOwner {
+        require(caller != address(0), "AC: invalid caller");
+        authorizedCaller[caller] = enabled;
+        emit AuthorizedCallerChanged(caller, enabled);
     }
 
     // ═════════════════════════════════════════════════════════════════════
@@ -326,5 +362,43 @@ contract AgentCoordinator is Ownable {
     /// @notice Check if agent can be automated
     function canBeAutomated(address agent) external view returns (bool) {
         return agents[agent].allowedAutomation;
+    }
+
+    // ═════════════════════════════════════════════════════════════════════
+    // DELEGATION DEPTH
+    // ═════════════════════════════════════════════════════════════════════
+
+    /// @notice Set the delegation depth for an agent.
+    ///         Called by the Registry during deployForAgent() to record the
+    ///         position of this agent within the root-human trust chain.
+    ///         Only callable by an authorizedCaller (i.e. the Registry).
+    function setDelegationDepth(address agent, uint256 depth) external {
+        require(authorizedCaller[msg.sender], "AC: only authorizedCaller");
+        require(isAgentRegistered[agent], "AC: agent not registered");
+        delegationDepth[agent] = depth;
+    }
+
+    /// @notice Return the delegation depth of an agent within its root-human trust chain.
+    function getDelegationDepth(address agent) external view returns (uint256) {
+        return delegationDepth[agent];
+    }
+
+    // ═════════════════════════════════════════════════════════════════════
+    // CAPABILITY SUBSET VALIDATION
+    // ═════════════════════════════════════════════════════════════════════
+
+    /// @notice Returns true if the agent holds every capability in the provided list.
+    ///         Used by the Registry to enforce the invariant that a deploying agent
+    ///         cannot grant sub-agents more than it was itself granted.
+    /// @param agent        The agent whose capabilities to check
+    /// @param capabilities List of capabilities to test as a subset
+    function isSubset(
+        address agent,
+        bytes32[] calldata capabilities
+    ) external view returns (bool) {
+        for (uint256 i = 0; i < capabilities.length; i++) {
+            if (!hasCapability[agent][capabilities[i]]) return false;
+        }
+        return true;
     }
 }

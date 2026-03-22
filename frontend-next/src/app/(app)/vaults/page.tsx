@@ -1,7 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
@@ -19,6 +19,30 @@ import { AddressDisplay } from '@/components/common/AddressDisplay';
 import { useManageVaultPolicy } from '@/hooks/useManageVaultPolicy';
 import { useDemoToken } from '@/hooks/useDemoToken';
 import { ethers, parseUnits } from 'ethers';
+
+// ─── Animated counter ─────────────────────────────────────────────────────────
+
+function useCountUp(target: number, duration = 700) {
+  const [value, setValue] = useState(0);
+  const prev = useRef(0);
+  useEffect(() => {
+    const from = prev.current;
+    prev.current = target;
+    if (from === target) return;
+    const start = performance.now();
+    let raf: number;
+    const tick = (now: number) => {
+      const p = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - p, 3); // ease-out cubic
+      setValue(from + (target - from) * eased);
+      if (p < 1) raf = requestAnimationFrame(tick);
+      else setValue(target);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+  return value;
+}
 
 // ─── Spend bar ────────────────────────────────────────────────────────────────
 
@@ -72,6 +96,8 @@ function VaultCard({
   const short = (addr: string) => `${addr.slice(0, 8)}…${addr.slice(-6)}`;
   const spent  = detail ? parseFloat(detail.policySummary.spent ?? '0') : 0;
   const budget = detail?.policySummary.budget ? parseFloat(detail.policySummary.budget) : 0;
+  const balanceNum = detail ? parseFloat(detail.balance) : 0;
+  const animatedBalance = useCountUp(balanceNum);
 
   const handleUpdateBudget = async () => {
     if (!signer || !detail?.policySummary.budgetPolicyAddress || !newBudget) return;
@@ -106,7 +132,7 @@ function VaultCard({
             <CardTitle>{vault.label || 'Unnamed Vault'}</CardTitle>
             <CardDescription className="font-mono text-xs mt-xs">{short(vault.safe)}</CardDescription>
           </div>
-          <Badge variant="success">{t('common.active')}</Badge>
+          <Badge variant="success" pulse>{t('common.active')}</Badge>
         </div>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col gap-md">
@@ -132,7 +158,7 @@ function VaultCard({
                   </p>
                 ) : (
                   <p className="text-2xl font-bold leading-tight" style={{ color: 'var(--text)' }}>
-                    {detail.balance}
+                    {animatedBalance.toFixed(4)}
                     <span className="text-sm font-medium ml-1" style={{ color: 'var(--text-muted)' }}>LYX</span>
                   </p>
                 )}
@@ -540,13 +566,14 @@ export default function VaultsPage() {
 
       {vaults.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
-          {vaults.map((vault) => (
-            <VaultCard
-              key={vault.safe}
-              vault={vault}
-              signer={signer}
-              onAddAgent={setAgentModalVault}
-            />
+          {vaults.map((vault, i) => (
+            <div key={vault.safe} className="animate-fade-up" style={{ animationDelay: `${i * 60}ms` }}>
+              <VaultCard
+                vault={vault}
+                signer={signer}
+                onAddAgent={setAgentModalVault}
+              />
+            </div>
           ))}
         </div>
       )}

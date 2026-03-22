@@ -181,12 +181,13 @@ export default function AgentsPage() {
         </div>
       ) : isCoordinatorConfigured ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {agents.map((agent) => (
-            <AgentCard
-              key={agent.address}
-              agent={agent}
-              onClick={() => setDrawerAgent(agent)}
-            />
+          {agents.map((agent, i) => (
+            <div key={agent.address} className="animate-fade-up" style={{ animationDelay: `${i * 60}ms` }}>
+              <AgentCard
+                agent={agent}
+                onClick={() => setDrawerAgent(agent)}
+              />
+            </div>
           ))}
         </div>
       ) : null}

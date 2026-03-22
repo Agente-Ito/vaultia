@@ -16,6 +16,7 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
+import type { HDNodeWallet } from "ethers";
 import {
   AgentVaultRegistry,
   AgentVaultDeployerCore,
@@ -69,11 +70,11 @@ describe("MissionPermissions — dynamic controller key lifecycle", function () 
 
   let registry: AgentVaultRegistry;
   let safe: AgentSafe;
-  let kmContract: Awaited<ReturnType<typeof ethers.getContractAt>>;
+  let kmContract: any;
   let budgetPolicy: BudgetPolicy;
 
   /** A freshly-generated wallet representing the Mission Manager controller key */
-  let controller: ethers.Wallet;
+  let controller: HDNodeWallet;
 
   beforeEach(async function () {
     [owner, merchant, nonMerchant, stranger] = await ethers.getSigners();
@@ -83,15 +84,21 @@ describe("MissionPermissions — dynamic controller key lifecycle", function () 
     const deployerC = await ethers.getContractFactory("AgentVaultDeployer");
     const kmC      = await ethers.getContractFactory("AgentKMDeployer");
     const regC     = await ethers.getContractFactory("AgentVaultRegistry");
+    const coordC   = await ethers.getContractFactory("AgentCoordinator");
+    const poolC    = await ethers.getContractFactory("SharedBudgetPool");
 
     const vdCore = await coreC.deploy()     as AgentVaultDeployerCore;
     const vd     = await deployerC.deploy() as AgentVaultDeployer;
     const km     = await kmC.deploy()       as AgentKMDeployer;
+    const coord  = await coordC.deploy();
+    const pool   = await poolC.deploy(owner.address);
 
     registry = await regC.deploy(
       await vdCore.getAddress(),
       await vd.getAddress(),
       await km.getAddress(),
+      await coord.getAddress(),
+      await pool.getAddress(),
     ) as AgentVaultRegistry;
 
     // ── Deploy vault (NO agents at creation — controller added dynamically) ─
@@ -108,6 +115,7 @@ describe("MissionPermissions — dynamic controller key lifecycle", function () 
       allowSuperPermissions:  false,
       customAgentPermissions: ethers.ZeroHash,
       allowedCallsByAgent:    [],
+      recipientConfigs:       [],
     });
     const receipt = await tx.wait();
 
@@ -170,7 +178,7 @@ describe("MissionPermissions — dynamic controller key lifecycle", function () 
 
   /** Encode a safe.execute(CALL, to, amount, 0x) calldata for km.execute(). */
   function payCalldata(to: string, amount: bigint) {
-    return safe.interface.encodeFunctionData("execute(uint256,address,uint256,bytes)", [
+    return safe.interface.encodeFunctionData("execute", [
       0,   // operationType = CALL
       to,
       amount,

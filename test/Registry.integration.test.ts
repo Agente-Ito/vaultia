@@ -46,11 +46,18 @@ describe("AgentVaultRegistry — Integration", function () {
     const kmC = await ethers.getContractFactory("AgentKMDeployer");
     const km = await kmC.deploy() as AgentKMDeployer;
 
+    const coordC = await ethers.getContractFactory("AgentCoordinator");
+    const coord  = await coordC.deploy();
+    const poolC  = await ethers.getContractFactory("SharedBudgetPool");
+    const pool   = await poolC.deploy(owner.address);
+
     const RegistryFactory = await ethers.getContractFactory("AgentVaultRegistry");
     registry = await RegistryFactory.deploy(
       await vdCore.getAddress(),
       await vd.getAddress(),
       await km.getAddress(),
+      await coord.getAddress(),
+      await pool.getAddress(),
     ) as AgentVaultRegistry;
   });
 

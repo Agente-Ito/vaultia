@@ -23,14 +23,20 @@ async function deployFixture() {
   const DeployerFactory = await ethers.getContractFactory("AgentVaultDeployer");
   const KmFactory       = await ethers.getContractFactory("AgentKMDeployer");
   const RegFactory      = await ethers.getContractFactory("AgentVaultRegistry");
+  const CoordFactory    = await ethers.getContractFactory("AgentCoordinator");
+  const PoolFactory     = await ethers.getContractFactory("SharedBudgetPool");
 
   const core     = await CoreFactory.deploy()     as AgentVaultDeployerCore;
   const deployer = await DeployerFactory.deploy() as AgentVaultDeployer;
   const km       = await KmFactory.deploy()       as AgentKMDeployer;
+  const coord    = await CoordFactory.deploy();
+  const pool     = await PoolFactory.deploy(owner.address);
   const registry = await RegFactory.deploy(
     await core.getAddress(),
     await deployer.getAddress(),
     await km.getAddress(),
+    await coord.getAddress(),
+    await pool.getAddress(),
   ) as AgentVaultRegistry;
 
   return { owner, agent, recipient1, recipient2, recipient3, other, registry, deployer };

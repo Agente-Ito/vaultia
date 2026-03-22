@@ -18,14 +18,16 @@ type Variant = keyof typeof VARIANT_STYLES;
 
 interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: Variant;
+  pulse?: boolean;
 }
 
 const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
-  ({ className, variant = 'neutral', style, ...props }, ref) => (
+  ({ className, variant = 'neutral', pulse, style, ...props }, ref) => (
     <div
       ref={ref}
       className={cn(
         'inline-flex items-center rounded-full px-2 py-0.5 text-xs whitespace-nowrap',
+        pulse && 'animate-breathe',
         className,
       )}
       style={{

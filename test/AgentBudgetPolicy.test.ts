@@ -34,6 +34,10 @@ describe("AgentBudgetPolicy - Hybrid Budget Model", function () {
     const vd = await deployerC.deploy() as AgentVaultDeployer;
     const kmC = await ethers.getContractFactory("AgentKMDeployer");
     const km = await kmC.deploy() as AgentKMDeployer;
+    const coordC = await ethers.getContractFactory("AgentCoordinator");
+    const coord  = await coordC.deploy();
+    const poolC  = await ethers.getContractFactory("SharedBudgetPool");
+    const pool   = await poolC.deploy(owner.address);
 
     // Deploy registry
     const RegistryFactory = await ethers.getContractFactory("AgentVaultRegistry");
@@ -41,6 +45,8 @@ describe("AgentBudgetPolicy - Hybrid Budget Model", function () {
       await vdCore.getAddress(),
       await vd.getAddress(),
       await km.getAddress(),
+      await coord.getAddress(),
+      await pool.getAddress(),
     ) as AgentVaultRegistry;
     registryAddr = await registry.getAddress();
 

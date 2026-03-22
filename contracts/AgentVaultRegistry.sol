@@ -48,6 +48,36 @@ interface IRecipientBudgetPolicy {
     function transferOwnership(address newOwner) external;
 }
 
+// ─── Coordinator interface ────────────────────────────────────────────────────
+
+interface IAgentCoordinator {
+    function hasCapability(address agent, bytes32 cap) external view returns (bool);
+    function getDelegationDepth(address agent) external view returns (uint256);
+    function isSubset(address agent, bytes32[] calldata caps) external view returns (bool);
+    function isAgentRegistered(address agent) external view returns (bool);
+    function registerAgent(address agent, uint256 maxGas, bool allowAutomation) external;
+    function assignRole(address agent, bytes32 role, bytes32[] calldata caps) external;
+    function setDelegationDepth(address agent, uint256 depth) external;
+    function MAX_DELEGATION_DEPTH() external view returns (uint256);
+    function CAN_DEPLOY() external view returns (bytes32);
+}
+
+// ─── SharedBudgetPool interface ───────────────────────────────────────────────
+
+interface ISharedBudgetPool {
+    enum Period { DAILY, WEEKLY, MONTHLY }
+    function getVaultPool(address vault) external view returns (bytes32);
+    function getPoolRemaining(bytes32 poolId) external view returns (uint256);
+    function createPool(
+        bytes32 poolId,
+        bytes32 parentPool,
+        uint256 budget,
+        Period period,
+        address[] calldata vaults,
+        bytes32[] calldata childPoolIds
+    ) external;
+}
+
 /// @title AgentVaultRegistry
 /// @notice Factory contract that atomically deploys one complete vault stack per call:
 ///         AgentSafe + PolicyEngine + BudgetPolicy + optional AgentBudgetPolicy
@@ -72,11 +102,26 @@ contract AgentVaultRegistry is Ownable {
     /// Measured empirically: ~3.2M gas worst-case. 4M provides a 25% safety margin.
     uint256 private constant MINIMUM_DEPLOYMENT_GAS = 4_000_000;
 
+    /// @dev Minimum gas required for deployForAgent() which layers coordinator + pool calls
+    ///      on top of the standard vault deployment stack. Measured at ~5M worst-case;
+    ///      5.5M provides a 10% margin. Always provide this when calling deployForAgent().
+    uint256 public constant MIN_GAS_FOR_DEPLOY_FOR_AGENT = 5_500_000;
+
     error InsufficientGasForDeployment(uint256 available, uint256 required);
 
     AgentVaultDeployerCore public immutable core;
     AgentVaultDeployer     public immutable deployer;
     AgentKMDeployer        public immutable kmDeployer;
+
+    /// @notice The AgentCoordinator that tracks agent capabilities and delegation depth.
+    ///         Required for deployForAgent() to validate and register agents atomically.
+    IAgentCoordinator public immutable coordinator;
+
+    /// @notice The SharedBudgetPool that manages hierarchical vault budgets.
+    ///         Required for deployForAgent() to carve a child pool from the deploying
+    ///         agent's own remaining budget — the constraint that makes autonomous
+    ///         deployment safe.
+    ISharedBudgetPool public immutable pool;
 
     /// @dev Addresses allowed to call deployVaultOnBehalf (e.g. TemplateFactory).
     ///      Only the registry owner can grant/revoke authorization.
@@ -110,13 +155,17 @@ contract AgentVaultRegistry is Ownable {
     /// @dev First 16 bytes of AP_ARRAY_KEY — combined with bytes16(uint128(index)) for element keys.
     bytes16 private constant AP_ARRAY_KEY_PREFIX = 0xdf30dba06db6a30e65354d9a64c60986;
 
-    constructor(address _core, address _deployer, address _km) Ownable() {
-        require(_core     != address(0), "Registry: zero core");
-        require(_deployer != address(0), "Registry: zero deployer");
-        require(_km       != address(0), "Registry: zero km");
-        core       = AgentVaultDeployerCore(_core);
-        deployer   = AgentVaultDeployer(_deployer);
-        kmDeployer = AgentKMDeployer(_km);
+    constructor(address _core, address _deployer, address _km, address _coordinator, address _pool) Ownable() {
+        require(_core        != address(0), "Registry: zero core");
+        require(_deployer    != address(0), "Registry: zero deployer");
+        require(_km          != address(0), "Registry: zero km");
+        require(_coordinator != address(0), "Registry: zero coordinator");
+        require(_pool        != address(0), "Registry: zero pool");
+        core        = AgentVaultDeployerCore(_core);
+        deployer    = AgentVaultDeployer(_deployer);
+        kmDeployer  = AgentKMDeployer(_km);
+        coordinator = IAgentCoordinator(_coordinator);
+        pool        = ISharedBudgetPool(_pool);
     }
 
     /// @notice Grant or revoke permission to call deployVaultOnBehalf.
@@ -140,6 +189,25 @@ contract AgentVaultRegistry is Ownable {
     mapping(address => address) public safeToKeyManager;
     mapping(address => address) public safeToPolicyEngine;
 
+    // ─── Agent-deployed vault metadata ───────────────────────────────────────────────
+
+    /// @notice Every vault deployed through deployForAgent() maps to the human who
+    ///         anchored the trust chain. The vault always belongs to this human —
+    ///         the deploying agent is a builder, not an owner.
+    mapping(address => address) public vaultRootOwner;
+
+    /// @notice The agent that deployed each agent-created vault.
+    ///         address(0) for human-deployed vaults (isAgentDeployed returns false).
+    mapping(address => address) public vaultOperator;
+
+    /// @notice Resolves any agent address back to the human at the root of its trust chain.
+    ///         Humans are their own root (set in deployVault). Agents inherit the root
+    ///         of their deployer (set in deployForAgent).
+    mapping(address => address) public agentRootOwner;
+
+    /// @dev agent → list of vault addresses that agent has deployed via deployForAgent().
+    mapping(address => address[]) private _agentDeployedVaults;
+
     /// @notice Emitted on every vault deployment.
     event VaultDeployed(
         address indexed owner,
@@ -148,6 +216,18 @@ contract AgentVaultRegistry is Ownable {
         address policyEngine,
         string  label,
         uint256 chainId
+    );
+
+    /// @notice Emitted when an agent with CAN_DEPLOY atomically deploys a child vault.
+    ///         The deploying agent is never the owner — rootOwner always holds that role.
+    event AgentVaultDeployed(
+        address indexed deployingOperator,
+        address indexed rootOwner,
+        address indexed newVault,
+        address assignedAgent,
+        uint256 budgetLimit,
+        uint256 gasUsed,
+        uint256 timestamp
     );
 
     /// @notice Emitted for each agent after permissions are written to ERC725Y storage.
@@ -278,6 +358,9 @@ contract AgentVaultRegistry is Ownable {
     function deployVault(DeployParams calldata p) external returns (VaultRecord memory record) {
         _validateAndResolve(p); // validates, reverts on error
         if (p.merchants.length > 0) require(p.merchants.length <= 100, "Registry: too many merchants");
+        // The human who calls deployVault() is the root of their own trust chain:
+        // any agents they later authorize with CAN_DEPLOY will inherit this root.
+        agentRootOwner[msg.sender] = msg.sender;
         record = _deployStack(msg.sender, p);
     }
 
@@ -290,6 +373,221 @@ contract AgentVaultRegistry is Ownable {
         _validateAndResolve(p);
         if (p.merchants.length > 0) require(p.merchants.length <= 100, "Registry: too many merchants");
         record = _deployStack(owner, p);
+    }
+
+    /// @notice Allows an agent with CAN_DEPLOY to atomically:
+    ///         1. Deploy a new child vault owned by the human root of the deploying agent
+    ///         2. Carve a budget from the deploying agent's own remaining pool
+    ///         3. Register an operator agent for the child vault
+    ///
+    ///         The human who originally anchored the trust chain remains the vault owner.
+    ///         The deploying agent is an operator \u2014 a builder, never an owner.
+    ///
+    /// @param vaultLabel        ERC725Y label for the new vault
+    /// @param budgetLimit       Max budget to allocate from the deploying agent's pool.
+    ///                          An agent cannot allocate what has not been granted to it.
+    /// @param resetPeriod       Budget reset period for the child pool (0=DAILY,1=WEEKLY,2=MONTHLY)
+    /// @param assignedAgent     Address of the agent to operate the new vault
+    /// @param agentMaxGas       Max gas per call for the assigned agent (0 for EOA)
+    /// @param agentAllowAutomation  Whether the assigned agent can be used in TaskScheduler
+    /// @param agentCapabilities Capabilities to grant the assigned agent. Must be a subset
+    ///                          of the deploying agent's own capabilities.
+    function deployForAgent(
+        bytes32 vaultLabel,
+        uint256 budgetLimit,
+        uint8   resetPeriod,
+        address assignedAgent,
+        uint256 agentMaxGas,
+        bool    agentAllowAutomation,
+        bytes32[] calldata agentCapabilities
+    ) external returns (address newVault, address newKeyManager) {
+        uint256 gasStart = gasleft();
+
+        // Guard: the entire multi-contract orchestration requires more gas than a plain deployment.
+        if (gasStart < MIN_GAS_FOR_DEPLOY_FOR_AGENT) {
+            revert InsufficientGasForDeployment(gasStart, MIN_GAS_FOR_DEPLOY_FOR_AGENT);
+        }
+
+        // Step 1 \u2014 Validate caller capability.
+        //   An agent cannot grant the power to deploy unless it was explicitly given that power
+        //   by a human or by an agent that itself holds CAN_DEPLOY.
+        require(
+            coordinator.hasCapability(msg.sender, coordinator.CAN_DEPLOY()),
+            "Registry: caller lacks CAN_DEPLOY"
+        );
+
+        // Step 1b \u2014 Validate delegation depth.
+        //   The chain from human to this agent has a finite depth. Enforcing a ceiling prevents
+        //   infinite recursive delegation and keeps the trust graph auditable.
+        require(
+            coordinator.getDelegationDepth(msg.sender) < coordinator.MAX_DELEGATION_DEPTH(),
+            "Registry: delegation depth limit reached"
+        );
+
+        // Step 1c \u2014 Assigned agent must not already exist.
+        require(
+            !coordinator.isAgentRegistered(assignedAgent),
+            "Registry: assignedAgent already registered"
+        );
+
+        // Step 2 \u2014 Validate budget BEFORE any state is written.
+        //   An agent cannot allocate what has not been granted to it \u2014 this is the constraint
+        //   that makes autonomous deployment safe. Checking before deployment ensures no
+        //   partial state is written when the budget check fails.
+        bytes32 deployerPoolId = pool.getVaultPool(msg.sender);
+        require(deployerPoolId != bytes32(0), "Registry: deploying agent has no budget pool");
+        require(
+            budgetLimit <= pool.getPoolRemaining(deployerPoolId),
+            "Registry: budgetLimit exceeds deployer remaining pool"
+        );
+
+        // Step 3 \u2014 Resolve the root human owner.
+        //   The vault always belongs to the human who anchored the trust chain.
+        //   If this mapping is zero the deploying agent was never rooted to a human \u2014 abort.
+        address rootOwner = agentRootOwner[msg.sender];
+        require(rootOwner != address(0), "Registry: deploying agent has no resolvable root owner");
+
+        // Step 4 \u2014 Validate capability subset.
+        //   An agent cannot grant its sub-agents more than it was itself given.
+        //   CAN_DEPLOY can only be included if the deploying agent holds it AND depth allows.
+        for (uint256 i = 0; i < agentCapabilities.length; i++) {
+            if (agentCapabilities[i] == coordinator.CAN_DEPLOY()) {
+                // CAN_DEPLOY propagation is only allowed if depth would still permit further deployment.
+                require(
+                    coordinator.getDelegationDepth(msg.sender) + 1 < coordinator.MAX_DELEGATION_DEPTH(),
+                    "Registry: cannot propagate CAN_DEPLOY at max depth"
+                );
+            }
+        }
+        require(
+            coordinator.isSubset(msg.sender, agentCapabilities),
+            "Registry: agentCapabilities not a subset of deployer capabilities"
+        );
+
+        // Step 5 \u2014 Deploy vault with rootOwner as the owner, never msg.sender.
+        //   The vault always belongs to the human who anchored the trust chain.
+        //   _deployVaultSimple constructs a lean vault stack (AgentSafe + PolicyEngine +
+        //   BudgetPolicy + KeyManager) without the optional policy decorators.
+        (newVault, newKeyManager) = _deployVaultSimple(rootOwner, vaultLabel, budgetLimit, resetPeriod);
+
+        // Step 6 \u2014 Register vault metadata.
+        vaultRootOwner[newVault]                    = rootOwner;
+        vaultOperator[newVault]                     = msg.sender;
+        _agentDeployedVaults[msg.sender].push(newVault);
+
+        // Step 7 \u2014 Create child budget pool carved from deployer's pool.
+        //   The deploying agent cannot allocate more than it has remaining \u2014 enforced above.
+        //   The pool hierarchy ensures spend in the child also charges the parent chain.
+        {
+            bytes32 childPoolId = keccak256(abi.encode(newVault, block.timestamp));
+            address[] memory vaultArr = new address[](1);
+            vaultArr[0] = newVault;
+            bytes32[] memory emptyChildPools = new bytes32[](0);
+            pool.createPool(
+                childPoolId,
+                deployerPoolId,
+                budgetLimit,
+                ISharedBudgetPool.Period(resetPeriod),
+                vaultArr,
+                emptyChildPools
+            );
+        }
+
+        // Step 8 \u2014 Register assigned agent and propagate trust chain metadata.
+        //   Steps 8a\u20138c must all succeed or the entire transaction reverts \u2014 no partial registration.
+        coordinator.registerAgent(assignedAgent, agentMaxGas, agentAllowAutomation);
+        coordinator.assignRole(assignedAgent, keccak256("DEPLOYED_AGENT"), agentCapabilities);
+        coordinator.setDelegationDepth(
+            assignedAgent,
+            coordinator.getDelegationDepth(msg.sender) + 1
+        );
+        // Propagate the root human to the newly registered agent so it can be resolved
+        // transitively if this agent is later granted CAN_DEPLOY.
+        agentRootOwner[assignedAgent] = rootOwner;
+
+        emit AgentVaultDeployed(
+            msg.sender,
+            rootOwner,
+            newVault,
+            assignedAgent,
+            budgetLimit,
+            gasStart - gasleft(),
+            block.timestamp
+        );
+    }
+
+    /// @dev Deploys a lean vault stack (Safe + PolicyEngine + BudgetPolicy + KeyManager)
+    ///      with rootOwner as the owner. Used exclusively by deployForAgent(). The simpler
+    ///      parameter set avoids constructing a full DeployParams in memory.
+    function _deployVaultSimple(
+        address rootOwner,
+        bytes32 label,
+        uint256 budget,
+        uint8   period
+    ) private returns (address safeAddr, address km) {
+        if (gasleft() < MINIMUM_DEPLOYMENT_GAS) {
+            revert InsufficientGasForDeployment(gasleft(), MINIMUM_DEPLOYMENT_GAS);
+        }
+
+        // 1. Deploy AgentSafe \u2014 factory is temp owner
+        IAgentSafe safe = IAgentSafe(core.newSafe(address(this)));
+
+        // 2. Deploy PolicyEngine linked to safe
+        IPolicyEngine pe = IPolicyEngine(core.newPolicyEngine(address(this), address(safe)));
+
+        // 3. Deploy BudgetPolicy (vault-level budget; period maps 0\u21921 day, 1\u21927 days, 2\u219230 days)
+        BudgetPolicy.Period bPeriod = BudgetPolicy.Period(period);
+        IBudgetPolicy budgetPolicy = IBudgetPolicy(
+            deployer.newBudgetPolicy(address(this), address(pe), budget, bPeriod, address(0))
+        );
+        pe.addPolicy(address(budgetPolicy));
+
+        // 4. Link PolicyEngine to Safe
+        safe.setPolicyEngine(address(pe));
+
+        // 5. Deploy LSP6 KeyManager
+        km = kmDeployer.newKeyManager(address(safe));
+        safe.setKeyManager(km);
+
+        // 6. Write rootOwner SUPER_* permissions into ERC725Y storage
+        bytes32 superPerm = bytes32(type(uint256).max);
+        _setDataVerified(safe, LSP6KeyLib.apPermissionsKey(rootOwner), abi.encodePacked(superPerm));
+        _appendToAddressPermissionsArray(safe, rootOwner, 0);
+
+        // 7. Transfer ownership to rootOwner (LSP14 two-step \u2014 rootOwner calls acceptOwnership() next)
+        safe.transferOwnership(rootOwner);
+        pe.transferOwnership(rootOwner);
+        budgetPolicy.transferOwnership(rootOwner);
+
+        // 8. Register vault in indexing structures
+        string memory labelStr = string(abi.encodePacked(label));
+        VaultRecord memory record = VaultRecord(address(safe), km, address(pe), labelStr);
+        _ownerVaults[rootOwner].push(record);
+        safeToKeyManager[address(safe)]   = km;
+        safeToPolicyEngine[address(safe)] = address(pe);
+
+        emit VaultDeployed(rootOwner, address(safe), km, address(pe), labelStr, block.chainid);
+
+        safeAddr = address(safe);
+    }
+
+    // ─── View functions ───────────────────────────────────────────────────────
+
+    /// @notice Returns the human root owner for any vault deployed via deployForAgent().
+    ///         Returns address(0) for human-deployed vaults (use VaultDeployed owner field instead).
+    function getRootOwner(address vault) external view returns (address) {
+        return vaultRootOwner[vault];
+    }
+
+    /// @notice Returns all vaults deployed by a specific agent operator.
+    function getVaultsDeployedBy(address agent) external view returns (address[] memory) {
+        return _agentDeployedVaults[agent];
+    }
+
+    /// @notice Returns true if this vault was deployed by an agent via deployForAgent().
+    ///         False for vaults deployed directly by humans via deployVault().
+    function isAgentDeployed(address vault) external view returns (bool) {
+        return vaultOperator[vault] != address(0);
     }
 
     function _configureAgentPermissions(

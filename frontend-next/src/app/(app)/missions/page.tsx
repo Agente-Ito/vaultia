@@ -65,8 +65,10 @@ export default function MissionsPage() {
 
       {!loading && missions.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {missions.map((mission) => (
-            <MissionCard key={mission.id} mission={mission} onUpdate={reload} />
+          {missions.map((mission, i) => (
+            <div key={mission.id} className="animate-fade-up" style={{ animationDelay: `${i * 60}ms` }}>
+              <MissionCard mission={mission} onUpdate={reload} />
+            </div>
           ))}
         </div>
       )}

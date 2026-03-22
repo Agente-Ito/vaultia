@@ -17,7 +17,7 @@ export function AgentCard({ agent, onClick }: AgentCardProps) {
 
   return (
     <div
-      className="rounded-xl p-5 flex flex-col gap-4 hover:shadow-md transition-shadow"
+      className="rounded-xl p-5 flex flex-col gap-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
       style={{
         background: 'var(--card)',
         border: '1px solid var(--border)',
@@ -42,7 +42,7 @@ export function AgentCard({ agent, onClick }: AgentCardProps) {
             <InfoTooltip content={agent.isContract ? t('agents.tooltip.contract') : t('agents.tooltip.eoa')} />
           </span>
           <span className="inline-flex items-center gap-1">
-            <Badge variant={agent.allowedAutomation ? 'success' : 'neutral'}>
+            <Badge variant={agent.allowedAutomation ? 'success' : 'neutral'} pulse={agent.allowedAutomation}>
               {agent.allowedAutomation ? t('agents.badge.auto') : t('agents.card.automation_disabled')}
             </Badge>
             <InfoTooltip content={t('agents.tooltip.automation')} />

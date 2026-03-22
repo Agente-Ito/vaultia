@@ -20,6 +20,7 @@ interface DeploymentResult {
   registryAddress: string;
   merchantRegistryAddress: string;
   coordinatorAddress: string;
+  sharedBudgetPoolAddress: string;
   taskSchedulerAddress: string;
   agentSafeAddress: string;
   keyManagerAddress: string;
@@ -89,20 +90,40 @@ async function main() {
   console.log("✅ TaskScheduler:", taskSchedulerAddr);
 
   // 6. Deploy AgentCoordinator
-  console.log("\n[6/7] Deploying AgentCoordinator...");
+  console.log("\n[6/8] Deploying AgentCoordinator...");
   const AgentCoordinatorFactory = await ethers.getContractFactory("AgentCoordinator");
   const coordinator = await AgentCoordinatorFactory.deploy({ nonce: nonce++ });
   await coordinator.waitForDeployment();
   const coordinatorAddr = await coordinator.getAddress();
   console.log("✅ AgentCoordinator:", coordinatorAddr);
 
-  // 7. Deploy AgentVaultRegistry
-  console.log("\n[7/7] Deploying AgentVaultRegistry...");
+  // 7. Deploy SharedBudgetPool (authorizedPolicy set to deployer as placeholder;
+  //    update via setAuthorizedPolicy() once a SharedBudgetPolicy is deployed)
+  console.log("\n[7/8] Deploying SharedBudgetPool...");
+  const SharedBudgetPoolFactory = await ethers.getContractFactory("SharedBudgetPool");
+  const sharedBudgetPool = await SharedBudgetPoolFactory.deploy(deployer.address, { nonce: nonce++ });
+  await sharedBudgetPool.waitForDeployment();
+  const sharedBudgetPoolAddr = await sharedBudgetPool.getAddress();
+  console.log("✅ SharedBudgetPool:", sharedBudgetPoolAddr);
+
+  // 8. Deploy AgentVaultRegistry (now requires coordinator + pool)
+  console.log("\n[8/8] Deploying AgentVaultRegistry...");
   const AgentVaultRegistryFactory = await ethers.getContractFactory("AgentVaultRegistry");
-  const registry = await AgentVaultRegistryFactory.deploy(coreAddr, vdAddr, kmDeployerAddr, { nonce: nonce++ });
+  const registry = await AgentVaultRegistryFactory.deploy(
+    coreAddr, vdAddr, kmDeployerAddr, coordinatorAddr, sharedBudgetPoolAddr,
+    { nonce: nonce++ }
+  );
   const registryAddr = await registry.getAddress();
   await registry.waitForDeployment();
   console.log("✅ AgentVaultRegistry:", registryAddr);
+
+  // Wire authorizations: registry is allowed to call registerAgent/assignRole
+  // on coordinator and createPool on the budget pool during deployForAgent().
+  console.log("\n🔑 Wiring protocol authorizations...");
+  await coordinator.setAuthorizedCaller(registryAddr, true, { nonce: nonce++ });
+  console.log("✅ Registry authorized in AgentCoordinator");
+  await sharedBudgetPool.setAuthorizedDeployer(registryAddr, true, { nonce: nonce++ });
+  console.log("✅ Registry authorized in SharedBudgetPool");
 
   // 3. Deploy demo vault
   console.log("\n📦 Deploying demo vault...");
@@ -217,6 +238,7 @@ async function main() {
     registryAddress: registryAddr,
     merchantRegistryAddress: merchantRegistryAddr,
     coordinatorAddress: coordinatorAddr,
+    sharedBudgetPoolAddress: sharedBudgetPoolAddr,
     taskSchedulerAddress: taskSchedulerAddr,
     agentSafeAddress: safeAddr,
     keyManagerAddress: kmAddr,

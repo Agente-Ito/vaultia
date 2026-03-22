@@ -41,11 +41,19 @@ function StatusBadge({ status }: { status: MissionRecord['status'] }) {
     status === 'active' ? 'success' :
     status === 'paused' ? 'warning' :
     status === 'revoked' ? 'danger' : 'neutral';
-  const label =
-    status === 'active' ? '● Active' :
-    status === 'paused' ? '⏸ Paused' :
-    status === 'revoked' ? '✕ Revoked' : '⚠ Error';
-  return <Badge variant={variant}>{label}</Badge>;
+  return (
+    <Badge variant={variant}>
+      {status === 'active' && (
+        <span
+          className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 animate-status-pulse"
+          style={{ background: 'currentColor' }}
+        />
+      )}
+      {status === 'active' ? 'Active' :
+       status === 'paused' ? '⏸ Paused' :
+       status === 'revoked' ? '✕ Revoked' : '⚠ Error'}
+    </Badge>
+  );
 }
 
 // ─── Agent Run button (browser-side execution) ───────────────────────────────

@@ -52,15 +52,23 @@ describe("Permissions — E2E storage + execution", function () {
     const deployerC = await ethers.getContractFactory("AgentVaultDeployer");
     const kmC      = await ethers.getContractFactory("AgentKMDeployer");
     const regC     = await ethers.getContractFactory("AgentVaultRegistry");
+    const coordC   = await ethers.getContractFactory("AgentCoordinator");
+    const poolC    = await ethers.getContractFactory("SharedBudgetPool");
 
     const vdCore = await coreC.deploy() as AgentVaultDeployerCore;
     const vd     = await deployerC.deploy() as AgentVaultDeployer;
     const km     = await kmC.deploy() as AgentKMDeployer;
+    // Coordinator and pool are required by the Registry constructor but not exercised
+    // in these permission-focused tests. Deploy real instances as stubs.
+    const coord  = await coordC.deploy();
+    const pool   = await poolC.deploy(owner.address); // owner as dummy authorizedPolicy
 
     registry = await regC.deploy(
       await vdCore.getAddress(),
       await vd.getAddress(),
       await km.getAddress(),
+      await coord.getAddress(),
+      await pool.getAddress(),
     ) as AgentVaultRegistry;
   });
 

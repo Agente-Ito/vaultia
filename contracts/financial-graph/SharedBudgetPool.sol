@@ -41,7 +41,10 @@ contract SharedBudgetPool is Ownable, ReentrancyGuard {
 
     /// @notice The SharedBudgetPolicy (or other policy) authorized to call recordSpend()
     address public authorizedPolicy;
-
+    /// @notice Addresses authorized to call createPool() on behalf of the protocol.
+    ///         Only the AgentVaultRegistry should be added here so it can atomically
+    ///         create child pools during deployForAgent() without being the contract owner.
+    mapping(address => bool) public authorizedDeployer;
     // ─── Events ───────────────────────────────────────────────────────────────
 
     event PoolCreated(bytes32 indexed poolId, bytes32 indexed parentPool, uint256 budget, Period period);
@@ -50,6 +53,7 @@ contract SharedBudgetPool is Ownable, ReentrancyGuard {
     event BudgetSpent(bytes32 indexed poolId, address indexed vault, uint256 amount, uint256 newSpent);
     event PeriodReset(bytes32 indexed poolId, uint256 newPeriodStart);
     event AuthorizedPolicyChanged(address indexed oldPolicy, address indexed newPolicy);
+    event AuthorizedDeployerChanged(address indexed deployer, bool enabled);
 
     // ─── Initialization ────────────────────────────────────────────────────────
 
@@ -63,6 +67,14 @@ contract SharedBudgetPool is Ownable, ReentrancyGuard {
         address oldPolicy = authorizedPolicy;
         authorizedPolicy  = _authorizedPolicy;
         emit AuthorizedPolicyChanged(oldPolicy, _authorizedPolicy);
+    }
+
+    /// @notice Grant or revoke the right to call createPool() outside of the owner.
+    ///         Only the AgentVaultRegistry should be authorized here.
+    function setAuthorizedDeployer(address deployer_, bool enabled) external onlyOwner {
+        require(deployer_ != address(0), "SBPool: invalid deployer");
+        authorizedDeployer[deployer_] = enabled;
+        emit AuthorizedDeployerChanged(deployer_, enabled);
     }
 
     // ─── Pool creation & management ───────────────────────────────────────────
@@ -81,7 +93,11 @@ contract SharedBudgetPool is Ownable, ReentrancyGuard {
         Period    _period,
         address[] calldata vaults,
         bytes32[] calldata childPoolIds
-    ) external onlyOwner {
+    ) external {
+        require(
+            msg.sender == owner() || authorizedDeployer[msg.sender],
+            "SBPool: not authorized"
+        );
         require(poolId != bytes32(0), "SBPool: invalid poolId");
         require(!pools[poolId].initialized, "SBPool: pool exists");
         require(budget > 0, "SBPool: budget must be > 0");

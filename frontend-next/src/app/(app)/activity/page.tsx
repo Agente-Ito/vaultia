@@ -21,6 +21,8 @@ interface SafePaymentLog {
   blockNumber: number;
 }
 
+const short = (addr: string) => addr ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : '';
+
 
 export default function ActivityPage() {
   const { registry, account, isConnected, chainId } = useWeb3();

@@ -201,7 +201,10 @@ function ConnectedAccount({
             >
               <Badge
                 variant={isKnownChain ? 'success' : 'danger'}
-                className="cursor-pointer hover:opacity-70 transition-opacity"
+                className={cn(
+                  'cursor-pointer hover:opacity-70 transition-opacity',
+                  !isKnownChain && 'animate-[pulse_1.2s_ease-in-out_infinite]'
+                )}
                 style={{ fontSize: '0.65rem', letterSpacing: '0.06em' }}
               >
                 {chainLabel}
@@ -378,24 +381,33 @@ export function TopBar({ account, chainId, onMenuClick, onConnect }: TopBarProps
         <div className="flex items-center gap-3 flex-shrink-0">
           {/* Mode toggle */}
           <div
-            className="hidden sm:flex items-center gap-1 rounded-md p-0.5"
+            className="relative hidden sm:flex items-center rounded-md p-0.5"
             style={{ background: 'var(--inactive)', border: '1px solid var(--border)' }}
           >
+            {/* Sliding active indicator */}
+            <span
+              className="absolute top-0.5 bottom-0.5 rounded pointer-events-none"
+              style={{
+                background: 'var(--bg-surface)',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
+                left: mode === 'simple' ? '2px' : 'calc(50%)',
+                width: 'calc(50% - 2px)',
+                transition: 'left 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+              }}
+            />
             {(['simple', 'advanced'] as const).map((m) => (
               <button
                 key={m}
                 onClick={() => handleModeSwitch(m)}
-                className={cn(
-                  'px-2.5 py-1 rounded transition-all duration-150',
-                )}
+                className="relative z-10 px-2.5 py-1 rounded transition-colors duration-150"
                 style={{
+                  flex: '1',
                   fontSize: '0.7rem',
                   fontWeight: mode === m ? 400 : 300,
                   letterSpacing: '0.06em',
                   textTransform: 'uppercase',
-                  background: mode === m ? 'var(--bg-surface)' : 'transparent',
+                  background: 'transparent',
                   color: mode === m ? 'var(--text)' : 'var(--text-muted)',
-                  boxShadow: mode === m ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
                 }}
               >
                 {t(m === 'simple' ? 'topbar.simple' : 'topbar.advanced')}

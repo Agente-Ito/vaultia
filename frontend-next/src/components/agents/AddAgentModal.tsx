@@ -188,6 +188,11 @@ export function AddAgentModal({ vault, open, onClose, onSuccess }: AddAgentModal
         </SheetHeader>
 
         <SheetBody className="space-y-6">
+          {/* Explanation */}
+          <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+            {t('add_agent.explanation')}
+          </p>
+
           {/* Vault info */}
           <div className="rounded-xl px-4 py-3" style={{ background: 'var(--card-mid)', border: '1px solid var(--border)' }}>
             <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
