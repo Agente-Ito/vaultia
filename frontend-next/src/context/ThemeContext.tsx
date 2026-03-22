@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import { readLocalStorage, writeLocalStorage } from '@/lib/browserStorage';
 
 type Theme = 'dark' | 'light';
 
@@ -20,7 +21,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY) as Theme | null;
+    const saved = readLocalStorage(STORAGE_KEY) as Theme | null;
     if (saved === 'light' || saved === 'dark') {
       setThemeState(saved);
     }
@@ -31,7 +32,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (!hydrated) return;
     const root = document.documentElement;
     root.setAttribute('data-theme', theme);
-    localStorage.setItem(STORAGE_KEY, theme);
+    writeLocalStorage(STORAGE_KEY, theme);
   }, [theme, hydrated]);
 
   const setTheme = useCallback((t: Theme) => setThemeState(t), []);

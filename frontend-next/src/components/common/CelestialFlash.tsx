@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { readSessionStorage, writeSessionStorage } from '@/lib/browserStorage';
 
 /**
  * CelestialFlash — Animated splash screen
@@ -29,13 +30,11 @@ export function CelestialFlash({ onDone }: { onDone?: () => void }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     // Only show once per session
-    if (typeof window !== 'undefined') {
-      if (sessionStorage.getItem(SESSION_FLAG)) {
-        onDone?.();
-        return;
-      }
-      sessionStorage.setItem(SESSION_FLAG, '1');
+    if (readSessionStorage(SESSION_FLAG)) {
+      onDone?.();
+      return;
     }
+    writeSessionStorage(SESSION_FLAG, '1');
 
     setMounted(true);
     let cancelled = false;

@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import type { BudgetNode } from '@/components/dashboard/BudgetTreeView';
 import type { AgentMiniRecord } from '@/components/dashboard/AgentCardScroll';
 import type { PaymentEvent } from '@/components/dashboard/PaymentTimeline';
+import { readLocalStorage, removeLocalStorage, writeLocalStorage } from '@/lib/browserStorage';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -216,25 +217,25 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   const [demoPersonaId, setDemoPersonaId]   = useState<DemoPersonaId>('individual');
 
   useEffect(() => {
-    setIsDemo(localStorage.getItem(STORAGE_KEY) === 'true');
-    const saved = localStorage.getItem(STORAGE_PERSONA_KEY) as DemoPersonaId | null;
+    setIsDemo(readLocalStorage(STORAGE_KEY) === 'true');
+    const saved = readLocalStorage(STORAGE_PERSONA_KEY) as DemoPersonaId | null;
     if (saved && DEMO_PERSONAS.some((p) => p.id === saved)) setDemoPersonaId(saved);
     setHydrated(true);
   }, []);
 
   const enableDemo = useCallback(() => {
     setIsDemo(true);
-    localStorage.setItem(STORAGE_KEY, 'true');
+    writeLocalStorage(STORAGE_KEY, 'true');
   }, []);
 
   const disableDemo = useCallback(() => {
     setIsDemo(false);
-    localStorage.removeItem(STORAGE_KEY);
+    removeLocalStorage(STORAGE_KEY);
   }, []);
 
   const switchDemoPersona = useCallback((id: DemoPersonaId) => {
     setDemoPersonaId(id);
-    localStorage.setItem(STORAGE_PERSONA_KEY, id);
+    writeLocalStorage(STORAGE_PERSONA_KEY, id);
   }, []);
 
   const activePersona = DEMO_PERSONAS.find((p) => p.id === demoPersonaId) ?? DEMO_PERSONAS[0];

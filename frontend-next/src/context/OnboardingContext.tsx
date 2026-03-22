@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import { readLocalStorage, removeLocalStorage, writeLocalStorage } from '@/lib/browserStorage';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -83,7 +84,7 @@ const WIZARD_DEFAULTS = {
 
 function loadWizardProgress(): Partial<typeof WIZARD_DEFAULTS> {
   try {
-    const raw = localStorage.getItem(STORAGE_WIZARD);
+    const raw = readLocalStorage(STORAGE_WIZARD);
     return raw ? JSON.parse(raw) : {};
   } catch {
     return {};
@@ -129,7 +130,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const [safetyLevel, setSafetyLevelState]     = useState<SafetyLevel>(WIZARD_DEFAULTS.safetyLevel);
 
   useEffect(() => {
-    const isCompleted = localStorage.getItem(STORAGE_COMPLETED) === 'true';
+    const isCompleted = readLocalStorage(STORAGE_COMPLETED) === 'true';
     setCompleted(isCompleted);
 
     // Restore wizard progress
@@ -153,18 +154,16 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   // Persist wizard progress to localStorage whenever key fields change
   useEffect(() => {
     if (!hydrated) return;
-    try {
-      localStorage.setItem(STORAGE_WIZARD, JSON.stringify({
-        wizardVaultName, goal, recipientNetwork, baseToken, luksoToken, recipients, maxPerTx, frequency, wizardMode, executor, safetyLevel, agentEnabled,
-      }));
-    } catch { /* ignore */ }
+    writeLocalStorage(STORAGE_WIZARD, JSON.stringify({
+      wizardVaultName, goal, recipientNetwork, baseToken, luksoToken, recipients, maxPerTx, frequency, wizardMode, executor, safetyLevel, agentEnabled,
+    }));
   }, [wizardVaultName, goal, recipientNetwork, baseToken, luksoToken, recipients, maxPerTx, frequency, wizardMode, executor, safetyLevel, agentEnabled, hydrated]);
 
   const finish = useCallback(() => {
     setCompleted(true);
-    localStorage.setItem(STORAGE_COMPLETED, 'true');
+    writeLocalStorage(STORAGE_COMPLETED, 'true');
     // Clear wizard progress after success
-    try { localStorage.removeItem(STORAGE_WIZARD); } catch { /* ignore */ }
+    removeLocalStorage(STORAGE_WIZARD);
   }, []);
 
   const setWizardMode       = useCallback((m: WizardMode) => setWizardModeState(m), []);

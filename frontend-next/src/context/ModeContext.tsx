@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { readLocalStorage, writeLocalStorage } from '@/lib/browserStorage';
 
 type UIMode = 'simple' | 'advanced';
 
@@ -17,7 +18,7 @@ export function ModeProvider({ children }: { children: React.ReactNode }) {
 
   // Sync from localStorage after hydration — always render the Provider so useMode() never throws
   useEffect(() => {
-    const savedMode = localStorage.getItem('ui-mode') as UIMode | null;
+    const savedMode = readLocalStorage('ui-mode') as UIMode | null;
     if (savedMode === 'advanced' || savedMode === 'simple') {
       setModeState(savedMode);
     }
@@ -25,9 +26,7 @@ export function ModeProvider({ children }: { children: React.ReactNode }) {
 
   const setMode = (newMode: UIMode) => {
     setModeState(newMode);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('ui-mode', newMode);
-    }
+    writeLocalStorage('ui-mode', newMode);
   };
 
   return (

@@ -3,6 +3,7 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import en, { type LocaleKey } from '@/i18n/en';
 import es from '@/i18n/es';
+import { readLocalStorage, writeLocalStorage } from '@/lib/browserStorage';
 
 type Locale = 'en' | 'es';
 
@@ -22,7 +23,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   // SSR hydration guard — read from localStorage after mount
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = readLocalStorage(STORAGE_KEY);
     if (stored === 'en' || stored === 'es') {
       setLocaleState(stored);
     }
@@ -30,7 +31,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   const setLocale = useCallback((l: Locale) => {
     setLocaleState(l);
-    localStorage.setItem(STORAGE_KEY, l);
+    writeLocalStorage(STORAGE_KEY, l);
   }, []);
 
   const t = useCallback(
