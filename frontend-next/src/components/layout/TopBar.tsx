@@ -14,6 +14,7 @@ import { useDisplayName } from '@/hooks/useDisplayName';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Button } from '@/components/common/Button';
 import { Badge } from '@/components/common/Badge';
+import { VaultiaLogoLink } from '@/components/common/VaultiaLogo';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { cn } from '@/lib/utils/cn';
 import { lookupBasename, BASENAME_CHAINS } from '@/lib/web3/basename';
@@ -23,13 +24,13 @@ import { lookupBasename, BASENAME_CHAINS } from '@/lib/web3/basename';
 const PAGE_META: Record<string, { titleKey: string; ctaLabelKey?: string; ctaHref?: string }> = {
   '/dashboard':     { titleKey: 'nav.dashboard' },
   '/setup':         { titleKey: 'nav.setup_cta' },
-  '/vaults':        { titleKey: 'nav.spaces',         ctaLabelKey: 'vaults.create', ctaHref: '/vaults/create' },
+  '/vaults':        { titleKey: 'nav.vaults',         ctaLabelKey: 'vaults.create', ctaHref: '/vaults/create' },
   '/vaults/create': { titleKey: 'create.title' },
-  '/rules':         { titleKey: 'nav.spending_rules' },
+  '/rules':         { titleKey: 'nav.rules' },
   '/activity':      { titleKey: 'nav.activity' },
   '/verified-runs': { titleKey: 'nav.verified_runs' },
   '/profiles':      { titleKey: 'nav.profiles' },
-  '/agents':        { titleKey: 'nav.automations' },
+  '/agents':        { titleKey: 'nav.agents' },
   '/automation':    { titleKey: 'nav.automation' },
   '/budgets':       { titleKey: 'nav.budgets' },
   '/settings':      { titleKey: 'nav.settings' },
@@ -277,7 +278,9 @@ function ConnectedAccount({
                   className="w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:opacity-80"
                   style={{ color: 'var(--text)' }}
                 >
-                  <span>⬡</span>
+                  <span className="flex h-4 w-4 items-center justify-center" aria-hidden="true">
+                    <span className="h-2.5 w-2.5 rounded-full border" style={{ borderColor: 'var(--accent)', background: 'var(--accent)' }} />
+                  </span>
                   {t('topbar.switch_network')}
                 </button>
 
@@ -343,6 +346,9 @@ export function TopBar({ account, chainId, onMenuClick, onConnect }: TopBarProps
       }}
     >
       <div className="px-lg py-3 flex items-center gap-md">
+        {/* Logo */}
+        <VaultiaLogoLink height={20} />
+
         {/* Mobile menu */}
         <button
           onClick={onMenuClick}
@@ -458,6 +464,19 @@ export function TopBar({ account, chainId, onMenuClick, onConnect }: TopBarProps
               </svg>
             )}
           </button>
+
+          <Link
+            href="/settings"
+            title={t('nav.settings')}
+            className="hidden sm:flex items-center justify-center rounded p-1.5 transition-opacity hover:opacity-50"
+            style={{ color: pathname === '/settings' ? 'var(--accent)' : 'var(--text-muted)' }}
+          >
+            {/* Heroicons cog-6-tooth — teeth clearly distinguish it from the sun icon */}
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.6">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+            </svg>
+          </Link>
 
           {/* Notification bell — only for UP users */}
           {isUniversalProfile && account && (

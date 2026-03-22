@@ -72,7 +72,7 @@ The script will:
 4. ✅ Deploy `TaskScheduler` with keeper whitelist enabled by default and the deployer as the initial keeper
 5. ✅ Deploy `AgentCoordinator` and `SharedBudgetPool`
 6. ✅ Deploy `AgentVaultRegistry` and wire protocol authorizations into `AgentCoordinator` and `SharedBudgetPool`
-7. ✅ Deploy a demo vault with:
+7. ✅ Deploy a starter test vault with:
    - **AgentSafe** (LSP9Vault)
    - **PolicyEngine** (policy orchestrator)
    - **BudgetPolicy** (100 LYX/week limit)
@@ -95,8 +95,8 @@ The script will:
 📦 Deploying AgentVaultRegistry...
 ✅ AgentVaultRegistry: 0xdef0...
 
-📦 Deploying demo vault...
-🤖 Demo agent address: 0x5678...
+📦 Deploying starter test vault...
+🤖 Sample agent address: 0x5678...
 ⚡ Estimated gas: 8500000
 
 ✅ Vault deployed in block: 9845213
@@ -283,10 +283,12 @@ Example:
 npx hardhat verify --network luksoTestnet 0x1234... 0x5678 # AgentVaultRegistry
 ```
 
-## Frontend Beta/Demo Deploys (Vercel)
+## Frontend Preview/Staging Deploys (Vercel)
 
-For a hackathon, beta, or internal demo, the frontend can be deployed safely to
+For a beta preview, staging environment, or internal testnet review, the frontend can be deployed safely to
 Vercel as long as the required public environment variables are configured.
+
+The old interactive frontend demo mode has been removed. This section is only about deploying the real testnet UI with the features you want exposed.
 
 Current scope:
 
@@ -321,7 +323,7 @@ NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id_here
 Notes:
 
 - `NEXT_PUBLIC_COORDINATOR_ADDRESS` is only needed if the Agents page should be enabled.
-- `NEXT_PUBLIC_TASK_SCHEDULER_ADDRESS` is only needed if automation features are part of the demo.
+- `NEXT_PUBLIC_TASK_SCHEDULER_ADDRESS` is only needed if automation features should be visible in that preview.
 - `NEXT_PUBLIC_INDEXER_URL` is optional; when omitted, profile data falls back to direct ERC725.js reads.
 - `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` is optional; when omitted, the frontend hides WalletConnect and Rainbow wallet options instead of showing broken mobile/QR flows.
 
@@ -332,7 +334,7 @@ In the Vercel project:
 1. Open `Settings`.
 2. Open `Environment Variables`.
 3. Add every required `NEXT_PUBLIC_*` variable.
-4. Add optional values only for the features you want visible in the beta/demo.
+4. Add optional values only for the features you want visible in that preview environment.
 5. Apply them to `Preview` and `Production` environments as needed.
 
 Important:
@@ -354,7 +356,7 @@ Recommended domains to register:
 
 - your production domain
 - your Vercel preview domain pattern if you plan to test previews
-- any custom staging domain used during the hackathon/demo
+- any custom staging domain used during internal review or preview testing
 
 If you skip this step:
 
@@ -372,7 +374,7 @@ npm run build
 
 If the local production build succeeds, connect the repository to Vercel and deploy the `frontend-next` app directory.
 
-### 5. Validate the hosted demo
+### 5. Validate the hosted frontend preview
 
 After deployment, verify:
 

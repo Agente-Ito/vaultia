@@ -1,3 +1,4 @@
+import path from "path";
 import type { NextConfig } from "next";
 
 const requiredEnvVars = [
@@ -33,6 +34,7 @@ function validateProductionEnv() {
 validateProductionEnv();
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: path.join(process.cwd(), ".."),
   webpack(config) {
     // @metamask/sdk pulls in a React Native storage dependency that doesn't
     // exist in the browser. Stub it out so the bundler doesn't error.

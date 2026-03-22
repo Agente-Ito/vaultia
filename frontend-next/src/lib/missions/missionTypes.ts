@@ -45,7 +45,7 @@ export interface MissionPreset {
   /** Human-readable summary of the typical policy rules applied */
   rulesPreview: string[];
   defaultRules: MissionDefaultRules;
-  /** Whether this preset is fully demo-ready for hackathon (others are "Beta") */
+  /** Whether this preset is ready for the current beta experience */
   stable: boolean;
   /** Whether this preset is coming soon (disabled, not selectable) */
   comingSoon?: boolean;

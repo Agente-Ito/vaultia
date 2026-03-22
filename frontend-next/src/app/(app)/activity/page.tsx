@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from '@/components/common/Alert';
 import { useI18n } from '@/context/I18nContext';
 import { useContacts, CATEGORY_META } from '@/hooks/useContacts';
 import { AddressDisplay } from '@/components/common/AddressDisplay';
+import { VerifiedRunsPanel } from '@/components/dashboard/VerifiedRunsPanel';
 
 interface AgentEvent { type: 'LYX' | 'TOKEN'; to: string; token?: string; amount: string; txHash: string; blockNumber: number; }
 interface SafePaymentLog {
@@ -119,10 +120,13 @@ export default function ActivityPage() {
                   <div key={`${ev.txHash}-${i}`} className="flex items-start gap-3">
                     <div className="flex flex-col items-center flex-shrink-0">
                       <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-base"
+                        className="flex h-8 w-8 items-center justify-center rounded-full"
                         style={{ background: 'var(--card-mid)' }}
                       >
-                        {ev.type === 'LYX' ? '⚡' : '🪙'}
+                        <span
+                          className="h-3 w-3 rounded-full"
+                          style={{ background: ev.type === 'LYX' ? 'var(--success)' : 'var(--accent)' }}
+                        />
                       </div>
                       {i < events.length - 1 && (
                         <div className="w-px h-4 mt-1" style={{ background: 'var(--border)' }} />
@@ -175,6 +179,8 @@ export default function ActivityPage() {
           )}
         </CardContent>
       </Card>
+
+      <VerifiedRunsPanel />
     </div>
   );
 }

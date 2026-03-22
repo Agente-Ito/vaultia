@@ -11,6 +11,15 @@ export const AgentMode = {
   CUSTOM: 4,
 } as const;
 
+const LSP14_ERRORS_INTERFACE = new ethers.Interface([
+  'error LSP14CallerNotPendingOwner(address caller)',
+  'error LSP14MustAcceptOwnershipInSeparateTransaction()',
+]);
+
+const ACCEPT_OWNERSHIP_INTERFACE = new ethers.Interface([
+  'function acceptOwnership() external',
+]);
+
 const PERM_STRICT_PAYMENTS = '0x0000000000000000000000000000000000000000000000000000000000000A00';
 const PERM_SUBSCRIPTIONS = '0x0000000000000000000000000000000000000000000000000000000000400A00';
 const PERM_TREASURY_BALANCED = '0x0000000000000000000000000000000000000000000000000000000000002A00';
@@ -62,6 +71,20 @@ export interface DeployRegistryVaultOptions {
   params: RegistryDeployParams;
   owner?: string;
   existingSafeAddresses?: Set<string>;
+}
+
+export interface DeployedVaultSummary {
+  safe: string;
+  keyManager: string;
+  policyEngine: string;
+  label: string;
+}
+
+export interface RegistryVaultDeploymentResult {
+  tx: ContractTransactionResponse;
+  receipt: ContractTransactionReceipt;
+  deployed: DeployedVaultSummary | null;
+  ownershipWarnings: string[];
 }
 
 export interface SimpleWizardDeployInput {
@@ -329,20 +352,139 @@ function extractDeployedVault(receipt: ContractTransactionReceipt, registry: Reg
   return safe ? { safe, keyManager, policyEngine, label } : null;
 }
 
+function getErrorData(error: unknown): string | null {
+  if (!error || typeof error !== 'object') {
+    return null;
+  }
+
+  const candidate = error as {
+    data?: unknown;
+    error?: unknown;
+    info?: { error?: { data?: unknown } };
+  };
+
+  if (typeof candidate.data === 'string') {
+    return candidate.data;
+  }
+
+  if (candidate.error && typeof candidate.error === 'object' && 'data' in candidate.error) {
+    const nestedData = (candidate.error as { data?: unknown }).data;
+    if (typeof nestedData === 'string') {
+      return nestedData;
+    }
+  }
+
+  if (typeof candidate.info?.error?.data === 'string') {
+    return candidate.info.error.data;
+  }
+
+  return null;
+}
+
+function formatAcceptOwnershipError(
+  contractAddress: string,
+  pendingOwner: string,
+  signerAddress: string,
+  error: unknown
+) {
+  const errorData = getErrorData(error);
+
+  if (errorData) {
+    try {
+      const parsed = LSP14_ERRORS_INTERFACE.parseError(errorData);
+      if (parsed?.name === 'LSP14CallerNotPendingOwner') {
+        const caller = String(parsed.args.caller);
+        return `Automatic acceptOwnership failed for ${contractAddress}: wallet/provider sent the transaction as ${caller}, but the pending owner is ${pendingOwner}. Reconnect the wallet/profile that deployed the vault and retry.`;
+      }
+      if (parsed?.name === 'LSP14MustAcceptOwnershipInSeparateTransaction') {
+        return `Automatic acceptOwnership failed for ${contractAddress}: the owner must accept ownership in a separate transaction. Retry once the deployment transaction is fully settled.`;
+      }
+    } catch {
+      // Fall back to the generic error message below.
+    }
+  }
+
+  const reason = error instanceof Error ? error.message : String(error);
+  return `Automatic acceptOwnership failed for ${contractAddress}: signer ${signerAddress}, pending owner ${pendingOwner}. ${reason}`;
+}
+
+async function tryAcceptOwnershipViaPendingOwnerProfile(
+  contractAddress: string,
+  pendingOwner: string,
+  signer: ethers.Signer,
+  signerAddress: string
+): Promise<string | null | undefined> {
+  const provider = signer.provider;
+  if (!provider) {
+    return 'Signer provider unavailable for Universal Profile ownership finalization.';
+  }
+
+  const pendingOwnerCode = await provider.getCode(pendingOwner);
+  if (pendingOwnerCode === '0x') {
+    return undefined;
+  }
+
+  if (signerAddress.toLowerCase() !== pendingOwner.toLowerCase()) {
+    return `Automatic ownership finalization requires executing acceptOwnership through the pending owner profile ${pendingOwner}. Reconnect that profile and retry.`;
+  }
+
+  try {
+    const pendingOwnerProfile = new ethers.Contract(
+      pendingOwner,
+      ['function execute(uint256 operation,address to,uint256 value,bytes data) external payable returns (bytes memory)'],
+      signer
+    );
+    const acceptOwnershipPayload = ACCEPT_OWNERSHIP_INTERFACE.encodeFunctionData('acceptOwnership');
+    const tx = await pendingOwnerProfile.execute(
+      0,
+      contractAddress,
+      0,
+      acceptOwnershipPayload
+    );
+    await tx.wait();
+    return null;
+  } catch (error: unknown) {
+    return `Universal Profile ownership finalization failed for ${contractAddress} via profile ${pendingOwner}: ${error instanceof Error ? error.message : String(error)}`;
+  }
+}
+
 async function acceptOwnershipIfPending(contractAddress: string, ownerAddress: string, signer: ethers.Signer) {
   const contract = getOwnable2StepContract(contractAddress, signer);
   const currentOwner = await contract.owner();
   if (currentOwner.toLowerCase() === ownerAddress.toLowerCase()) {
-    return;
+    return null;
   }
 
   const pendingOwner = await contract.pendingOwner();
   if (pendingOwner.toLowerCase() !== ownerAddress.toLowerCase()) {
-    throw new Error(`Ownership for ${contractAddress} is pending for ${pendingOwner}, not ${ownerAddress}.`);
+    return `Ownership for ${contractAddress} is pending for ${pendingOwner}, not ${ownerAddress}.`;
   }
 
-  const tx = await contract.acceptOwnership();
-  await tx.wait();
+  const signerAddress = await signer.getAddress();
+  const profileFinalizationResult = await tryAcceptOwnershipViaPendingOwnerProfile(
+    contractAddress,
+    pendingOwner,
+    signer,
+    signerAddress
+  );
+  if (profileFinalizationResult === null) {
+    return null;
+  }
+  if (typeof profileFinalizationResult === 'string') {
+    return profileFinalizationResult;
+  }
+
+  if (signerAddress.toLowerCase() !== pendingOwner.toLowerCase()) {
+    return `Automatic acceptOwnership skipped for ${contractAddress}: connected signer ${signerAddress} is not the pending owner ${pendingOwner}. Reconnect the wallet/profile that deployed the vault and retry.`;
+  }
+
+  try {
+    const tx = await contract.acceptOwnership();
+    await tx.wait();
+    return null;
+  } catch (error: unknown) {
+    return formatAcceptOwnershipError(contractAddress, pendingOwner, signerAddress, error);
+  }
 }
 
 async function finalizeVaultOwnership(
@@ -350,18 +492,24 @@ async function finalizeVaultOwnership(
   deployed: { safe: string; keyManager: string; policyEngine: string; label: string } | null,
   owner?: string
 ) {
+  const warnings: string[] = [];
+
   if (!deployed || !owner) {
-    return;
+    return warnings;
   }
 
   const runner = registry.runner;
   if (!runner || !("getAddress" in runner)) {
-    throw new Error('Registry signer unavailable for ownership finalization.');
+    warnings.push('Registry signer unavailable for ownership finalization.');
+    return warnings;
   }
 
   const signer = runner as ethers.Signer;
 
-  await acceptOwnershipIfPending(deployed.safe, owner, signer);
+  const safeWarning = await acceptOwnershipIfPending(deployed.safe, owner, signer);
+  if (safeWarning) {
+    warnings.push(safeWarning);
+  }
 
   const policyEngine = getPolicyEngineContract(deployed.policyEngine, signer) as ReturnType<typeof getPolicyEngineContract> & {
     owner(): Promise<string>;
@@ -369,19 +517,27 @@ async function finalizeVaultOwnership(
     acceptOwnership(): Promise<ContractTransactionResponse>;
   };
 
-  await acceptOwnershipIfPending(deployed.policyEngine, owner, signer);
-
-  const policies = await policyEngine.getPolicies();
-  for (const policyAddress of policies) {
-    await acceptOwnershipIfPending(policyAddress, owner, signer);
+  const engineWarning = await acceptOwnershipIfPending(deployed.policyEngine, owner, signer);
+  if (engineWarning) {
+    warnings.push(engineWarning);
   }
+
+  try {
+    const policies = await policyEngine.getPolicies();
+    for (const policyAddress of policies) {
+      const policyWarning = await acceptOwnershipIfPending(policyAddress, owner, signer);
+      if (policyWarning) {
+        warnings.push(policyWarning);
+      }
+    }
+  } catch (error: unknown) {
+    warnings.push(`Could not enumerate policies for ownership finalization: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  return warnings;
 }
 
-export async function deployRegistryVault(options: DeployRegistryVaultOptions): Promise<{
-  tx: ContractTransactionResponse;
-  receipt: ContractTransactionReceipt;
-  deployed: { safe: string; keyManager: string; policyEngine: string; label: string } | null;
-}> {
+export async function deployRegistryVault(options: DeployRegistryVaultOptions): Promise<RegistryVaultDeploymentResult> {
   const tx = await options.registry.deployVault(options.params);
   const receipt = await tx.wait();
   if (!receipt) {
@@ -401,7 +557,7 @@ export async function deployRegistryVault(options: DeployRegistryVaultOptions): 
       null;
   }
 
-  await finalizeVaultOwnership(options.registry, deployed, options.owner);
+  const ownershipWarnings = await finalizeVaultOwnership(options.registry, deployed, options.owner);
 
-  return { tx, receipt, deployed };
+  return { tx, receipt, deployed, ownershipWarnings };
 }

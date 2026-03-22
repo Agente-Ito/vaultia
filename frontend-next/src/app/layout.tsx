@@ -20,12 +20,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Vaultia — Smart Money Spaces',
-  description: 'Automate payments with clear rules and full control.',
+  title: 'Vaultia — Automated budgets and payments',
+  description: 'Composable on-chain accounting protocol for AI agents.',
   icons: [
     { rel: 'icon', url: '/favicon-light.svg', media: '(prefers-color-scheme: light)', type: 'image/svg+xml' },
     { rel: 'icon', url: '/favicon-dark.svg',  media: '(prefers-color-scheme: dark)',  type: 'image/svg+xml' },
-    { rel: 'icon', url: '/favicon.ico' },
+    { rel: 'icon', url: '/favicon.png', type: 'image/png' },
+    { rel: 'apple-touch-icon', url: '/favicon.png' },
   ],
 };
 

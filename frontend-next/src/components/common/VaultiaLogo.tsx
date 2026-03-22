@@ -1,4 +1,10 @@
+'use client';
+
 import React from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useTheme } from '@/context/ThemeContext';
+import { useWeb3 } from '@/context/Web3Context';
 
 /**
  * VaultiaLogo
@@ -160,3 +166,27 @@ export function VaultiaIcon({
 }
 
 export default VaultiaLogo;
+
+// ─── Image-based logo link (uses PNG assets) ──────────────────────────────────
+
+/**
+ * VaultiaLogoLink — renders the actual brand PNG (dark/light aware) wrapped in
+ * a smart link: /dashboard when a wallet is connected, / otherwise.
+ */
+export function VaultiaLogoLink({ height = 22 }: { height?: number }) {
+  const { isDark } = useTheme();
+  const { account } = useWeb3();
+
+  return (
+    <Link href={account ? '/dashboard' : '/'} className="flex-shrink-0 flex items-center" aria-label="Vaultia">
+      <Image
+        src={isDark ? '/logo-white.png' : '/logo-black.png'}
+        alt="Vaultia"
+        width={300}
+        height={80}
+        style={{ height, width: 'auto' }}
+        priority
+      />
+    </Link>
+  );
+}

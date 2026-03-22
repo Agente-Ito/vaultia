@@ -17,8 +17,8 @@ import { useI18n } from '@/context/I18nContext';
 import { AddAgentModal, VaultRef } from '@/components/agents/AddAgentModal';
 import { AddressDisplay } from '@/components/common/AddressDisplay';
 import { useManageVaultPolicy } from '@/hooks/useManageVaultPolicy';
-import { useDemoToken } from '@/hooks/useDemoToken';
-import { ethers, parseUnits } from 'ethers';
+import { VaultFundingActions } from '@/components/vaults/VaultFundingActions';
+import { ethers } from 'ethers';
 
 // ─── Animated counter ─────────────────────────────────────────────────────────
 
@@ -80,13 +80,6 @@ function VaultCard({
   const { detail, loading } = useVault(expanded ? vault.safe : null);
   const { t } = useI18n();
   const { updating, error: policyError, updateBudget, addMerchants, removeMerchant, updateExpiration } = useManageVaultPolicy();
-  const { minting, success: mintSuccess, error: mintError, demoTokenAddress, mintToVault } = useDemoToken();
-
-  const isDemoToken = !!(
-    demoTokenAddress &&
-    detail?.policySummary.budgetToken &&
-    detail.policySummary.budgetToken.toLowerCase() === demoTokenAddress.toLowerCase()
-  );
 
   const [newBudget, setNewBudget] = useState('');
   const [newMerchant, setNewMerchant] = useState('');
@@ -186,6 +179,14 @@ function VaultCard({
               )}
             </div>
             {detail.policySummary.budget && <SpendBar spent={spent} total={budget} />}
+            {(parseFloat(detail.balance) === 0 || Boolean(detail.policySummary.budgetToken)) && (
+              <VaultFundingActions
+                vaultAddress={vault.safe}
+                budgetToken={detail.policySummary.budgetToken}
+                signer={signer}
+                compact
+              />
+            )}
           </>
         )}
 
@@ -219,21 +220,6 @@ function VaultCard({
               <Alert variant="warning" className="mt-sm font-sans">
                 <AlertDescription>{detail.policySummary.warnings.join(' ')}</AlertDescription>
               </Alert>
-            )}
-            {signer && isDemoToken && (
-              <div className="font-sans pt-xs">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={minting || mintSuccess}
-                  onClick={() => mintToVault(vault.safe, parseUnits('1000', 18), signer)}
-                >
-                  {minting ? '…' : mintSuccess ? t('vaults.card.demo_tokens_success') : t('vaults.card.get_demo_tokens')}
-                </Button>
-                {mintError && (
-                  <p className="text-xs mt-1" style={{ color: 'var(--blocked)' }}>{mintError}</p>
-                )}
-              </div>
             )}
             {signer && (
               <>
@@ -367,7 +353,7 @@ function VaultCard({
 
                 {/* Feedback */}
                 {policySuccess && (
-                  <p className="text-xs" style={{ color: 'var(--success)' }}>{policySuccess} ✓</p>
+                  <p className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--success)' }}><span className="h-2 w-2 rounded-full" style={{ background: 'var(--success)' }} />{policySuccess}</p>
                 )}
                 {policyError && (
                   <p className="text-xs" style={{ color: 'var(--blocked)' }}>{policyError}</p>

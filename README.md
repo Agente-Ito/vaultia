@@ -133,9 +133,9 @@ POLICY_ENGINE_ADDRESS=0x...
 AGENT_PRIVATE_KEY=0x...
 ```
 
-Save to `.env` for `agentDemo` and `frontend-next`.
+Save to `.env` for `agentDemo` and `frontend-next` if you want the same testnet addresses available in the UI.
 
-### 3. Run Agent Demo (Bot Payment)
+### 3. Run Agent Payment Example (Backend Script)
 
 Create `.env`:
 ```env
@@ -151,6 +151,8 @@ npx hardhat run scripts/agentDemo.ts --network hardhat
 ```
 
 Expected: Agent pays merchant, BudgetPolicy validates spend, event emitted.
+
+This is a backend CLI example script. It is not related to the removed frontend demo mode.
 
 ---
 
@@ -474,7 +476,7 @@ test/
 
 scripts/
 ├── deploy.ts                      (Local + testnet)
-└── agentDemo.ts                   (Agent payment demo)
+└── agentDemo.ts                   (Agent payment example script)
 
 frontend-next/                     (Next.js 15)
 ```
@@ -499,7 +501,7 @@ frontend-next/                     (Next.js 15)
 ### For End Users
 
 - ⚠️ NEVER put real private keys in frontend `.env.local`
-- ⚠️ `agentDemo` is backend-only (not wallet app)
+- ⚠️ `agentDemo` is a backend-only example script, not the wallet app and not a frontend demo mode
 - ⚠️ Use LUKSO wallet or Metamask to interact with UI
 - ⚠️ LSP14 two-step ownership: must `acceptOwnership()` after deploy
 
@@ -545,7 +547,7 @@ npm test -- --grep "Agent"   # Run specific tests
 npx hardhat node                                    # Local node
 npx hardhat run scripts/deploy.ts --network hardhat # Deploy locally
 npx hardhat run scripts/deploy.ts --network luksoTestnet # Testnet (requires .env PRIVATE_KEY)
-npx hardhat run scripts/agentDemo.ts --network hardhat   # Run agent payment demo
+npx hardhat run scripts/agentDemo.ts --network hardhat   # Run backend agent payment example
 
 # Frontend
 cd frontend-next && npm run dev  # Next.js 15

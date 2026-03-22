@@ -5,7 +5,6 @@ import { WagmiProvider } from "wagmi";
 import { RainbowKitProvider, darkTheme, lightTheme } from "@rainbow-me/rainbowkit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { wagmiConfig } from "@/lib/web3/wagmiConfig";
-import { DemoProvider } from "@/context/DemoContext";
 import { useTheme } from "@/context/ThemeContext";
 
 function RainbowKitWithTheme({ children }: { children: React.ReactNode }) {
@@ -28,11 +27,9 @@ export function Web3Providers({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <DemoProvider>
-          <RainbowKitWithTheme>
-            {children}
-          </RainbowKitWithTheme>
-        </DemoProvider>
+        <RainbowKitWithTheme>
+          {children}
+        </RainbowKitWithTheme>
       </QueryClientProvider>
     </WagmiProvider>
   );

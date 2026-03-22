@@ -66,23 +66,20 @@ function AgentCatalog({
             key={ag.address}
             type="button"
             onClick={() => onSelect(ag.address)}
-            className="w-full flex items-center gap-3 rounded-lg border px-3 py-2 text-left text-xs transition-all"
+            className="w-full flex items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm transition-all"
             style={{
               borderColor: selected ? 'var(--accent)' : 'var(--border)',
-              background: selected ? 'rgba(34,255,178,0.07)' : 'var(--bg)',
+              background: selected ? 'rgba(34,255,178,0.07)' : 'var(--card)',
               color: 'var(--text)',
             }}
           >
             <span
-              className="w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center text-xs"
+              className="h-4 w-4 rounded-full flex-shrink-0 border"
               style={{
                 borderColor: selected ? 'var(--accent)' : 'var(--border)',
                 background: selected ? 'var(--accent)' : 'transparent',
-                color: 'var(--bg)',
               }}
-            >
-              {selected && '✓'}
-            </span>
+            />
             <AddressDisplay address={ag.address} />
             {ag.roles.map((r) => (
               <span
@@ -174,12 +171,16 @@ export function AddAgentModal({ vault, open, onClose, onSuccess }: AddAgentModal
     <Sheet open={open} onOpenChange={(v) => !v && onClose()} direction="right">
       <SheetContent side="right">
         {/* Header */}
-        <SheetHeader className="px-6 pt-6 pb-4 border-b border-neutral-200 dark:border-neutral-700">
-          <SheetTitle>{t('add_agent.title')}</SheetTitle>
+        <SheetHeader className="px-6 pt-6 pb-4" style={{ borderBottom: '1px solid var(--border)' }}>
+          <div className="flex items-center gap-3">
+            <span className="h-2.5 w-2.5 rounded-full" style={{ background: 'var(--accent)' }} />
+            <SheetTitle>{t('add_agent.title')}</SheetTitle>
+          </div>
           <button
             onClick={onClose}
             className="rounded-sm opacity-70 hover:opacity-100 transition-opacity focus:outline-none"
             aria-label="Close"
+            style={{ color: 'var(--text-muted)' }}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -194,27 +195,33 @@ export function AddAgentModal({ vault, open, onClose, onSuccess }: AddAgentModal
           </p>
 
           {/* Vault info */}
-          <div className="rounded-xl px-4 py-3" style={{ background: 'var(--card-mid)', border: '1px solid var(--border)' }}>
-            <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-              {t('add_agent.vault_label')}
-            </p>
-            <p className="text-sm font-semibold mt-0.5" style={{ color: 'var(--text)' }}>
+          <div className="rounded-2xl px-4 py-3" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full" style={{ background: 'var(--accent)' }} />
+              <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+                {t('add_agent.vault_label')}
+              </p>
+            </div>
+            <p className="mt-2 text-sm font-semibold" style={{ color: 'var(--text)' }}>
               {vault.label || t('add_agent.unnamed_vault')}
             </p>
           </div>
 
           {/* Chain-specific note */}
           <div
-            className="rounded-xl px-4 py-3 space-y-1"
+            className="rounded-2xl px-4 py-3 space-y-2"
             style={{
               background: isLukso ? 'rgba(34,255,178,0.06)' : 'rgba(60,242,255,0.06)',
               border: `1px solid ${isLukso ? 'rgba(34,255,178,0.2)' : 'rgba(60,242,255,0.2)'}`,
             }}
           >
-            <p className="text-xs font-semibold" style={{ color: isLukso ? 'var(--success)' : 'var(--accent)' }}>
-              {isLukso ? t('add_agent.chain_note.lukso_title') : t('add_agent.chain_note.base_title')}
-            </p>
-            <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full" style={{ background: isLukso ? 'var(--success)' : 'var(--accent)' }} />
+              <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: isLukso ? 'var(--success)' : 'var(--accent)' }}>
+                {isLukso ? t('add_agent.chain_note.lukso_title') : t('add_agent.chain_note.base_title')}
+              </p>
+            </div>
+            <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
               {isLukso ? t('add_agent.chain_note.lukso_desc') : t('add_agent.chain_note.base_desc')}
             </p>
           </div>
@@ -228,7 +235,7 @@ export function AddAgentModal({ vault, open, onClose, onSuccess }: AddAgentModal
               selectedAddress={agentAddress}
               onSelect={setAgentAddress}
             />
-            <p className="text-xs" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+            <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
               {t('add_agent.catalog_future_note')}
             </p>
           </div>
@@ -243,8 +250,8 @@ export function AddAgentModal({ vault, open, onClose, onSuccess }: AddAgentModal
               value={agentAddress}
               onChange={(e) => setAgentAddress(e.target.value)}
               placeholder={t('add_agent.address_placeholder')}
-              className="w-full rounded-xl px-3 py-2 text-xs font-mono focus:outline-none"
-              style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
+              className="w-full rounded-2xl px-3 py-3 text-sm font-mono focus:outline-none"
+              style={{ background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--text)' }}
             />
           </div>
 
@@ -262,29 +269,41 @@ export function AddAgentModal({ vault, open, onClose, onSuccess }: AddAgentModal
                       key={m.key}
                       type="button"
                       onClick={() => setMode(m.key)}
-                      className="w-full rounded-xl px-4 py-3 text-left transition-all"
+                      className="w-full rounded-2xl px-4 py-3 text-left transition-all"
                       style={{
-                        background: selected ? 'var(--card-mid)' : 'var(--bg)',
+                        background: selected ? 'rgba(34,255,178,0.07)' : 'var(--card)',
                         border: `1px solid ${selected ? 'var(--accent)' : 'var(--border)'}`,
                       }}
                     >
-                      <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                        {t(m.labelKey as Parameters<typeof t>[0])}
-                      </p>
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                        {t(m.descKey as Parameters<typeof t>[0])}
-                      </p>
+                      <div className="flex items-start gap-3">
+                        <span
+                          className="mt-1 h-3 w-3 rounded-full flex-shrink-0 border"
+                          style={{
+                            borderColor: selected ? 'var(--accent)' : 'var(--border)',
+                            background: selected ? 'var(--accent)' : 'transparent',
+                          }}
+                        />
+                        <div>
+                          <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                            {t(m.labelKey as Parameters<typeof t>[0])}
+                          </p>
+                          <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                            {t(m.descKey as Parameters<typeof t>[0])}
+                          </p>
+                        </div>
+                      </div>
                     </button>
                   );
                 })}
 
                 {/* Coming-next mode card */}
                 <div
-                  className="w-full rounded-xl px-4 py-3 text-left opacity-60 cursor-not-allowed"
-                  style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
+                  className="w-full rounded-2xl px-4 py-3 text-left opacity-60 cursor-not-allowed"
+                  style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
                 >
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+                    <span className="h-3 w-3 rounded-full border" style={{ borderColor: 'var(--border)' }} />
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
                       {t('add_agent.mode.vault_manager')}
                     </p>
                     <span
@@ -294,7 +313,7 @@ export function AddAgentModal({ vault, open, onClose, onSuccess }: AddAgentModal
                       {t('add_agent.mode.vault_manager_badge')}
                     </span>
                   </div>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                  <p className="mt-1 pl-5 text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
                     {t('add_agent.mode.vault_manager_desc')}
                   </p>
                 </div>
@@ -327,8 +346,8 @@ export function AddAgentModal({ vault, open, onClose, onSuccess }: AddAgentModal
               value={removeAddress}
               onChange={(e) => setRemoveAddress(e.target.value)}
               placeholder={t('add_agent.remove_placeholder')}
-              className="w-full rounded-xl px-3 py-2 text-xs font-mono focus:outline-none"
-              style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
+              className="w-full rounded-2xl px-3 py-3 text-sm font-mono focus:outline-none"
+              style={{ background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--text)' }}
             />
             <Button
               variant="secondary"

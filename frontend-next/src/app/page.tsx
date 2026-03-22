@@ -10,6 +10,8 @@ import { useI18n } from '@/context/I18nContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useVaults } from '@/hooks/useVaults';
 import { cn } from '@/lib/utils/cn';
+import { SiteFooter, VAULTIA_SKILL_URL } from '@/components/layout/SiteFooter';
+import { VaultiaLogoLink } from '@/components/common/VaultiaLogo';
 
 // ─── Goal icons ──────────────────────────────────────────────────────────────
 
@@ -164,14 +166,7 @@ export default function LandingPage() {
         style={{ borderBottom: '1px solid var(--border)' }}
       >
         {/* Wordmark */}
-        <span
-          style={{
-            fontSize: 13, fontWeight: 300, letterSpacing: '0.22em',
-            textTransform: 'uppercase', color: 'var(--text)',
-          }}
-        >
-          VΛULTIΛ
-        </span>
+        <VaultiaLogoLink height={24} />
 
         <div className="flex items-center gap-2">
           {/* Mode pill group */}
@@ -238,6 +233,18 @@ export default function LandingPage() {
               </svg>
             )}
           </button>
+
+          <button
+            onClick={() => router.push('/settings')}
+            className="flex items-center justify-center p-1.5 rounded transition-opacity hover:opacity-50"
+            style={{ color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}
+            aria-label={t('nav.settings')}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.6">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+            </svg>
+          </button>
         </div>
       </header>
 
@@ -248,10 +255,12 @@ export default function LandingPage() {
           {Array.from({ length: 7 }).map((_, i) => (
             <span
               key={i}
+              className="animate-landing-dot"
               style={{
                 width: 7, height: 7, borderRadius: '50%',
-                background: i < 3 ? '#10B981' : '#EDEDED',
-                boxShadow: i < 3 ? '0 0 6px rgba(16,185,129,0.4)' : 'none',
+                background: 'transparent',
+                border: '1px solid var(--text-muted)',
+                animationDelay: `${i * 180}ms`,
               }}
             />
           ))}
@@ -328,122 +337,22 @@ export default function LandingPage() {
           </ConnectButton.Custom>
         </div>
 
-        {/* Trust message */}
-        <p className="mt-10 text-xs max-w-xs" style={{ color: 'var(--text-muted)', opacity: 0.5, fontWeight: 300, letterSpacing: '0.03em' }}>
+        <a
+          href={VAULTIA_SKILL_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-5 inline-flex items-center gap-2 rounded-md px-4 py-2 text-xs uppercase tracking-[0.14em] transition-opacity hover:opacity-85"
+          style={{ color: 'var(--text)', border: '1px solid var(--border)' }}
+        >
+          {t('landing.agent_cta')}
+        </a>
+
+        <p className="mt-10 text-xs max-w-xs" style={{ color: 'var(--text-muted)', opacity: 0.65, fontWeight: 300, letterSpacing: '0.03em' }}>
           {t('landing.trust_message')}
         </p>
-
-        <section className="mt-20 w-full max-w-5xl text-left">
-          <div className="mx-auto max-w-2xl text-center mb-8">
-            <p
-              className="text-xs uppercase tracking-[0.28em]"
-              style={{ color: 'var(--text-muted)', marginBottom: 10 }}
-            >
-              {t('landing.ai.eyebrow')}
-            </p>
-            <h2
-              style={{
-                fontSize: 'clamp(1.35rem, 3vw, 2rem)',
-                fontWeight: 300,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                color: 'var(--text)',
-                marginBottom: 14,
-              }}
-            >
-              {t('landing.ai.title')}
-            </h2>
-            <p
-              className="mx-auto max-w-xl"
-              style={{ color: 'var(--text-muted)', lineHeight: 1.7, fontWeight: 300 }}
-            >
-              {t('landing.ai.subtitle')}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[
-              {
-                step: '01',
-                title: t('landing.ai.card.runtime.title'),
-                desc: t('landing.ai.card.runtime.desc'),
-              },
-              {
-                step: '02',
-                title: t('landing.ai.card.guardrails.title'),
-                desc: t('landing.ai.card.guardrails.desc'),
-              },
-              {
-                step: '03',
-                title: t('landing.ai.card.automation.title'),
-                desc: t('landing.ai.card.automation.desc'),
-              },
-            ].map((card) => (
-              <article
-                key={card.step}
-                className="rounded-2xl p-5"
-                style={{
-                  background: 'linear-gradient(180deg, var(--card) 0%, color-mix(in srgb, var(--card) 76%, transparent) 100%)',
-                  border: '1px solid var(--border)',
-                  boxShadow: '0 12px 40px rgba(0,0,0,0.04)',
-                }}
-              >
-                <div
-                  className="inline-flex items-center justify-center rounded-full mb-4"
-                  style={{
-                    width: 34,
-                    height: 34,
-                    border: '1px solid rgba(16,185,129,0.25)',
-                    color: '#10B981',
-                    background: 'rgba(16,185,129,0.08)',
-                    fontSize: '0.72rem',
-                    letterSpacing: '0.14em',
-                  }}
-                >
-                  {card.step}
-                </div>
-                <h3
-                  className="text-sm uppercase"
-                  style={{ color: 'var(--text)', letterSpacing: '0.08em', marginBottom: 10, fontWeight: 400 }}
-                >
-                  {card.title}
-                </h3>
-                <p style={{ color: 'var(--text-muted)', lineHeight: 1.7, fontWeight: 300 }}>
-                  {card.desc}
-                </p>
-              </article>
-            ))}
-          </div>
-
-          <div
-            className="mt-4 rounded-2xl p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
-            style={{
-              border: '1px solid rgba(255,176,0,0.18)',
-              background: 'linear-gradient(135deg, rgba(255,176,0,0.08), rgba(16,185,129,0.05))',
-            }}
-          >
-            <p className="text-sm" style={{ color: 'var(--text)', lineHeight: 1.7, fontWeight: 300 }}>
-              {t('landing.ai.note')}
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => router.push('/agents')}
-                className="rounded-md px-4 py-2 text-xs uppercase tracking-[0.14em]"
-                style={{ background: 'var(--text)', color: 'var(--bg)', border: 'none', cursor: 'pointer' }}
-              >
-                {t('landing.ai.cta_agents')}
-              </button>
-              <button
-                onClick={() => router.push('/automation')}
-                className="rounded-md px-4 py-2 text-xs uppercase tracking-[0.14em]"
-                style={{ background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)', cursor: 'pointer' }}
-              >
-                {t('landing.ai.cta_automation')}
-              </button>
-            </div>
-          </div>
-        </section>
       </main>
+
+      <SiteFooter />
     </div>
   );
 }

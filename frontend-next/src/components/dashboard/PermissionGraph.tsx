@@ -144,7 +144,7 @@ function AgentNode({ node, hovered, onHover }: { node: GraphNode; hovered: boole
       <circle r={13} fill="var(--card)" stroke={color} strokeWidth={hovered ? 2 : 1}
               strokeDasharray={node.status === 'blocked' ? '4 3' : undefined}
               style={{ transition: 'all 0.2s' }} />
-      <text textAnchor="middle" dominantBaseline="middle" fontSize="8" fill="var(--accent)" dy="0">⚡</text>
+      <circle r={4} fill={color} opacity="0.95" />
     </g>
   );
 }
@@ -213,21 +213,13 @@ function Legend() {
   );
 }
 
-// ─── Default / demo data ──────────────────────────────────────────────────────
-
-const DEMO_SPACES: SpaceData[] = [
-  { label: 'Payments',     agentLabel: 'Vaultia',    recipients: ['Alice', 'Bob'],   status: 'active'  },
-  { label: 'Subscriptions', agentLabel: 'Auto',      recipients: ['Netflix'],        status: 'active'  },
-  { label: 'Savings',                                 recipients: ['Pool'],           status: 'pending' },
-];
-
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function PermissionGraph({ spaces, className = '' }: PermissionGraphProps) {
   const { t } = useI18n();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
-  const effectiveSpaces = (spaces && spaces.length > 0) ? spaces : DEMO_SPACES;
+  const effectiveSpaces = spaces ?? [];
   const isEmpty = !spaces || spaces.length === 0;
 
   const { nodes, edges } = buildGraph(effectiveSpaces);

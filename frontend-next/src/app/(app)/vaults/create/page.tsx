@@ -15,6 +15,7 @@ import { useWeb3 } from '@/context/Web3Context';
 import { useI18n } from '@/context/I18nContext';
 import { AddressDisplay } from '@/components/common/AddressDisplay';
 import { AddAgentModal, type VaultRef } from '@/components/agents/AddAgentModal';
+import { VaultDeployResultDialog } from '@/components/vaults/VaultDeployResultDialog';
 import { cn } from '@/lib/utils/cn';
 import { verifyPermissionsWrite } from '@/lib/verifyWrite';
 import {
@@ -81,7 +82,7 @@ const TEMPLATE_CONFIGS: TemplateConfig[] = [
 ];
 
 const TEMPLATE_ICON: Record<string, string> = {
-  allowance: '✦', defi: '◈', subscription: '⬡', custom: '⚙',
+  allowance: 'A', defi: 'D', subscription: 'S', custom: 'C',
 };
 
 // ─── Step indicator ───────────────────────────────────────────────────────────
@@ -93,32 +94,32 @@ function StepIndicator({ current, steps }: { current: number; steps: string[] })
         const num = i + 1;
         const active = num === current;
         const done = num < current;
-        return (
-          <div key={label} className="flex items-center gap-2">
-            <div
-              className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0"
-              style={{
-                background: done ? 'var(--success)' : active ? 'var(--primary)' : 'var(--card-mid)',
-                color: done || active ? '#fff' : 'var(--text-muted)',
-              }}
-            >
-              {done ? '✓' : num}
-            </div>
-            <span
-              className="text-xs font-medium"
-              style={{ color: active ? 'var(--text)' : 'var(--text-muted)' }}
-            >
-              {label}
-            </span>
-            {i < steps.length - 1 && (
-              <div className="w-6 h-px mx-1" style={{ background: 'var(--border)' }} />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+            return (
+              <div key={label} className="flex items-center gap-2">
+                <div
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0"
+                  style={{
+                    background: done ? 'var(--success)' : active ? 'var(--primary)' : 'var(--card-mid)',
+                    color: done || active ? '#fff' : 'var(--text-muted)',
+                  }}
+                >
+                  {done ? <span className="h-2.5 w-2.5 rounded-full bg-white" /> : num}
+                </div>
+                <span
+                  className="text-xs font-medium"
+                  style={{ color: active ? 'var(--text)' : 'var(--text-muted)' }}
+                >
+                  {label}
+                </span>
+                {i < steps.length - 1 && (
+                  <div className="w-6 h-px mx-1" style={{ background: 'var(--border)' }} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
 
 // ─── Vault preview ────────────────────────────────────────────────────────────
 
@@ -129,8 +130,8 @@ function PreviewRow({ icon, label, value, active }: { icon: string; label: strin
       style={{ borderBottom: '1px solid var(--border)' }}
     >
       <div className="flex items-center gap-2">
-        <span style={{ opacity: active ? 1 : 0.3 }}>{icon}</span>
-        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</span>
+            <span className="flex h-4 w-4 items-center justify-center rounded-full border text-[9px] font-semibold" style={{ opacity: active ? 1 : 0.4, borderColor: active ? 'var(--accent)' : 'var(--border)', color: active ? 'var(--accent)' : 'var(--text-muted)' }}>{icon}</span>
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</span>
       </div>
       <span
         className="text-xs font-medium"
@@ -176,22 +177,22 @@ function VaultPreview({
           className="w-10 h-10 rounded-xl flex items-center justify-center text-base font-bold flex-shrink-0"
           style={{ background: 'linear-gradient(135deg, var(--primary), var(--accent))', color: '#000' }}
         >
-          ✦
+              A
         </div>
         <div>
           <p className="text-base font-bold leading-tight" style={{ color: 'var(--text)' }}>
             {vaultLabel || t('create.preview.unnamed')}
           </p>
-          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>🌐 LUKSO</p>
+          <p className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}><span className="h-2 w-2 rounded-full" style={{ background: 'var(--accent)' }} />LUKSO</p>
         </div>
       </div>
       <div>
-        <PreviewRow icon="✦" label={t('create.preview.field.budget')}    value={budgetNum > 0 ? `${budget} ${tokenSymbol}` : '—'}                                           active={budgetNum > 0} />
-        <PreviewRow icon="◎" label={t('create.preview.field.period')}    value={PERIOD_DISPLAY[period] ?? '—'}                                                               active={true} />
-        <PreviewRow icon="⏱" label={t('create.preview.field.expires')}   value={hasExpiry && expiryDate ? new Date(expiryDate).toLocaleDateString() : t('create.preview.no_expiry')} active={hasExpiry && !!expiryDate} />
-        <PreviewRow icon="⬡" label={t('create.preview.field.security')}  value={`${securityLabel}${securityRisk === 'high' ? ' ⚠' : ''}`}                                  active={true} />
-        <PreviewRow icon="◍" label={t('create.preview.field.merchants')} value={merchantCount > 0 ? `${merchantCount} ${t('create.preview.addresses')}` : t('create.preview.any')} active={merchantCount > 0} />
-        <PreviewRow icon="◈" label={t('create.preview.field.agents')}    value={agentCount > 0 ? `${agentCount} ${t('create.preview.agents_unit')}` : t('create.preview.none')}     active={agentCount > 0} />
+        <PreviewRow icon="B" label={t('create.preview.field.budget')}    value={budgetNum > 0 ? `${budget} ${tokenSymbol}` : '—'}                                           active={budgetNum > 0} />
+        <PreviewRow icon="P" label={t('create.preview.field.period')}    value={PERIOD_DISPLAY[period] ?? '—'}                                                               active={true} />
+        <PreviewRow icon="E" label={t('create.preview.field.expires')}   value={hasExpiry && expiryDate ? new Date(expiryDate).toLocaleDateString() : t('create.preview.no_expiry')} active={hasExpiry && !!expiryDate} />
+        <PreviewRow icon="S" label={t('create.preview.field.security')}  value={`${securityLabel}${securityRisk === 'high' ? ' •' : ''}`}                                  active={true} />
+        <PreviewRow icon="M" label={t('create.preview.field.merchants')} value={merchantCount > 0 ? `${merchantCount} ${t('create.preview.addresses')}` : t('create.preview.any')} active={merchantCount > 0} />
+        <PreviewRow icon="A" label={t('create.preview.field.agents')}    value={agentCount > 0 ? `${agentCount} ${t('create.preview.agents_unit')}` : t('create.preview.none')}     active={agentCount > 0} />
       </div>
     </div>
   );
@@ -302,15 +303,12 @@ function CoordinatorAgentCatalog({
             >
               {/* Checkbox */}
               <span
-                className="w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center text-xs"
+                className="h-4 w-4 rounded-full border flex-shrink-0"
                 style={{
                   borderColor: selected ? 'var(--accent)' : 'var(--border)',
                   background: selected ? 'var(--accent)' : 'transparent',
-                  color: 'var(--bg)',
                 }}
-              >
-                {selected && '✓'}
-              </span>
+              />
 
               <AddressDisplay address={ag.address} className="text-xs" />
 
@@ -356,7 +354,11 @@ export default function CreateVaultPage() {
   const [merchants, setMerchants]                       = useState('');
   const [status, setStatus]                             = useState('');
   const [loading, setLoading]                           = useState(false);
-  const [deployed, setDeployed]                         = useState<{ safe: string; keyManager: string; policyEngine: string } | null>(null);
+  const [createdVault, setCreatedVault]                 = useState<{ safe: string; keyManager: string; policyEngine: string } | null>(null);
+  const [createTxHash, setCreateTxHash]                 = useState<string | null>(null);
+  const [createDialogOpen, setCreateDialogOpen]         = useState(false);
+  const [createError, setCreateError]                   = useState<string | null>(null);
+  const [createWarnings, setCreateWarnings]             = useState<string[]>([]);
   const [agentModalOpen, setAgentModalOpen]             = useState(false);
 
   const [step, setStep]                                 = useState(1);
@@ -411,20 +413,21 @@ export default function CreateVaultPage() {
     return parts.join(', ');
   };
 
-  const handleAgentsPicked    = (addresses: string[]) => { setAgents((prev) => mergeAddresses(prev, addresses)); setAgentBudgetMap({}); };
   const handleMerchantsPicked = (addresses: string[]) => setMerchants((prev) => mergeAddresses(prev, addresses));
 
   const handleStep1Next = () => { setStepTouched((p) => ({ ...p, 1: true })); if (step1Valid) setStep(2); };
   const handleStep2Next = () => { setStepTouched((p) => ({ ...p, 2: true })); if (step2Valid) setStep(3); };
   const handleStep3Next = () => setStep(4);
 
-  // ── LUKSO deploy ─────────────────────────────────────────────────────────────
-  const onSubmit = async (e: React.FormEvent) => {
+  // ── LUKSO create ─────────────────────────────────────────────────────────────
+  const handleCreateVault = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isRegistryConfigured) { setStatus('Error: Registry address not configured. Set NEXT_PUBLIC_REGISTRY_ADDRESS in .env.local.'); return; }
     if (!registry || !signer) { setStatus('Error: Connect your wallet first.'); return; }
     setLoading(true);
     setStatus('');
+    setCreateError(null);
+    setCreateWarnings([]);
     try {
       const owner = await signer.getAddress();
       const existingVaults = await registry.getVaults(owner);
@@ -451,80 +454,40 @@ export default function CreateVaultPage() {
           period: Number(r.period),
         }));
       setStatus(t('create.status.sending'));
-      const { receipt, deployed: deployedVault } = await deployRegistryVault({ registry, owner, existingSafeAddresses, params: buildRegistryDeployParams({ budget: ethers.parseEther(budget), period: Number(period), budgetToken, expiration: expirationUnix, agents: agentList, agentBudgets: agentBudgetsList, merchants: merchantList, recipientConfigs, label, agentMode, allowSuperPermissions, customAgentPermissions, allowedCallsByAgent }) });
+      const { receipt, deployed: deployedVault, ownershipWarnings } = await deployRegistryVault({ registry, owner, existingSafeAddresses, params: buildRegistryDeployParams({ budget: ethers.parseEther(budget), period: Number(period), budgetToken, expiration: expirationUnix, agents: agentList, agentBudgets: agentBudgetsList, merchants: merchantList, recipientConfigs, label, agentMode, allowSuperPermissions, customAgentPermissions, allowedCallsByAgent }) });
       const safeAddr = deployedVault?.safe ?? '';
       const kmAddr   = deployedVault?.keyManager ?? '';
       const peAddr   = deployedVault?.policyEngine ?? '';
       if (!safeAddr) {
-        setStatus(`Vault deployed (tx: ${receipt.hash}), but deployed addresses could not be recovered. Check the explorer or refresh your vault list.`);
+        throw new Error(`Vault created (tx: ${receipt.hash}), but the created addresses could not be recovered. Check the explorer or refresh your vault list.`);
       } else {
         try {
           const ethereumProvider = (window as unknown as { ethereum?: Eip1193ProviderLike }).ethereum;
-          if (!ethereumProvider) throw new Error('Wallet provider is unavailable for post-deploy verification.');
+          if (!ethereumProvider) throw new Error('Wallet provider is unavailable for post-creation verification.');
           const client = createPublicClient({ transport: custom(ethereumProvider) });
           const expectedPermissions = permissionHexForMode(agentMode);
           const verifyRows = await verifyPermissionsWrite(client, safeAddr as `0x${string}`, agentList.map((address) => ({ address, mode: agentMode, expectedPermissions, expectedAllowedCalls: shouldWriteAllowedCalls ? encodedAllowedCalls : '0x' })));
           const failed = verifyRows.filter((r) => !r.permissionsMatch || !r.allowedCallsMatch);
-          if (failed.length > 0) throw new Error('On-chain permission verification failed after deployment.');
+          if (failed.length > 0) throw new Error('On-chain permission verification failed after creation.');
         } catch (verifyErr: unknown) {
           setStatus('Error: ' + getErrorMessage(verifyErr));
           return;
         }
-        setDeployed({ safe: safeAddr, keyManager: kmAddr, policyEngine: peAddr });
+        setCreatedVault({ safe: safeAddr, keyManager: kmAddr, policyEngine: peAddr });
+        setCreateTxHash(receipt.hash);
+        setCreateWarnings(ownershipWarnings);
+        setCreateDialogOpen(true);
         setStatus(t('create.status.deployed'));
       }
     } catch (err: unknown) {
-      setStatus('Error: ' + getErrorMessage(err));
+      const message = getErrorMessage(err);
+      setCreateError(message);
+      setStatus('Error: ' + message);
+      setCreateDialogOpen(true);
     } finally {
       setLoading(false);
     }
   };
-
-  // ── Success ───────────────────────────────────────────────────────────────────
-  if (deployed) {
-    return (
-      <div className="space-y-6 max-w-2xl">
-        <div>
-          <h1 className="text-3xl font-bold" style={{ color: 'var(--text)' }}>{t('create.success.title')}</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>{t('create.success.subtitle')}</p>
-        </div>
-        <Alert variant="success">
-          <AlertTitle>{t('create.success.ownership.title')}</AlertTitle>
-          <AlertDescription>{t('create.success.ownership.desc')}</AlertDescription>
-        </Alert>
-        <div className="rounded-2xl p-5 space-y-4" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
-          {[{ label: t('create.success.contract.safe'), value: deployed.safe }, { label: t('create.success.contract.key_manager'), value: deployed.keyManager }, { label: t('create.success.contract.policy_engine'), value: deployed.policyEngine }].map(({ label: lbl, value }) => (
-            <div key={lbl}>
-              <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>{lbl}</p>
-              <p className="text-sm font-mono break-all" style={{ color: 'var(--text)' }}>{value || '—'}</p>
-            </div>
-          ))}
-        </div>
-        <div className="flex gap-3 flex-wrap">
-          <Button variant="primary" onClick={() => router.push('/vaults')}>{t('create.success.view_vaults')}</Button>
-          <Button variant="secondary" onClick={() => setAgentModalOpen(true)}>{t('create.success.add_agent_cta')}</Button>
-          <Button variant="ghost" onClick={() => { setDeployed(null); setStatus(''); setStep(1); }}>{t('create.success.create_another')}</Button>
-        </div>
-        {deployed && signer && (
-          <AddAgentModal
-            vault={{
-              chain: 'lukso',
-              vaultSafe: deployed.safe,
-              keyManager: deployed.keyManager,
-              label: label || 'New Vault',
-              signer,
-            } satisfies VaultRef}
-            open={agentModalOpen}
-            onClose={() => setAgentModalOpen(false)}
-            onSuccess={() => {
-              setAgentModalOpen(false);
-              router.push('/vaults');
-            }}
-          />
-        )}
-      </div>
-    );
-  }
 
   // ── Wizard ────────────────────────────────────────────────────────────────────
   return (
@@ -538,13 +501,22 @@ export default function CreateVaultPage() {
           <h1 className="text-3xl font-bold" style={{ color: 'var(--text)' }}>{t('create.title')}</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>{t('create.subtitle')}</p>
         </div>
-        <Link
-          href="/setup"
-          className="flex-shrink-0 text-xs font-medium mt-1 transition-opacity hover:opacity-80"
-          style={{ color: 'var(--accent)' }}
-        >
-          {t('create.back_to_simple')}
-        </Link>
+        <div className="flex flex-col items-end gap-2">
+          <Link
+            href="/"
+            className="flex-shrink-0 text-xs font-medium transition-opacity hover:opacity-80"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            {t('wizard.header.home_cta')}
+          </Link>
+          <Link
+            href="/setup"
+            className="flex-shrink-0 text-xs font-medium transition-opacity hover:opacity-80"
+            style={{ color: 'var(--accent)' }}
+          >
+            {t('create.back_to_simple')}
+          </Link>
+        </div>
       </div>
 
       {/* System alerts */}
@@ -578,9 +550,9 @@ export default function CreateVaultPage() {
                 boxShadow: '0 0 0 1px var(--accent)',
               }}
             >
-              <span>🌐</span>
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: 'var(--accent)' }} />
               <span>{t('create.chain.lukso')}</span>
-              <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(34,255,178,0.15)', color: 'var(--success)' }}>✓</span>
+              <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full" style={{ background: 'rgba(34,255,178,0.15)' }}><span className="h-2 w-2 rounded-full" style={{ background: 'var(--success)' }} /></span>
             </div>
             {/* Base — coming soon */}
             <div
@@ -624,8 +596,8 @@ export default function CreateVaultPage() {
                   }}
                 >
                   <span
-                    className="block text-xl mb-2 font-mono"
-                    style={{ color: 'var(--accent)' }}
+                    className="mb-2 flex h-8 w-8 items-center justify-center rounded-full border text-xs font-semibold"
+                    style={{ color: 'var(--accent)', borderColor: 'color-mix(in srgb, var(--accent) 45%, transparent)' }}
                   >
                     {TEMPLATE_ICON[cfg.id]}
                   </span>
@@ -676,6 +648,14 @@ export default function CreateVaultPage() {
                   <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
                     {t('create.field.lukso_token_hint')}
                   </p>
+                  {process.env.NEXT_PUBLIC_LUKSO_DEMO_TOKEN_ADDRESS && luksoToken.trim().toLowerCase() === process.env.NEXT_PUBLIC_LUKSO_DEMO_TOKEN_ADDRESS.toLowerCase() && (
+                    <div
+                      className="mt-2 rounded-xl px-3 py-2 text-xs"
+                      style={{ background: 'rgba(34,255,178,0.07)', border: '1px solid rgba(34,255,178,0.2)', color: 'var(--text-muted)' }}
+                    >
+                      {t('create.test_token_notice')}
+                    </div>
+                  )}
                 </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -832,7 +812,7 @@ export default function CreateVaultPage() {
                   + Add recipient limit
                 </button>
                 <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                  Amount 0 = whitelist-only (no cap). Deploys RecipientBudgetPolicy alongside MerchantPolicy whitelist.
+                  Amount 0 = whitelist-only (no cap). Creates RecipientBudgetPolicy alongside the MerchantPolicy whitelist.
                 </p>
               </div>
 
@@ -934,7 +914,7 @@ export default function CreateVaultPage() {
 
           {/* ── Step 4: Agents ──────────────────────────────────────────────── */}
           {step === 4 && (
-            <form onSubmit={onSubmit}>
+            <form onSubmit={handleCreateVault}>
               <StepCard>
                 <h3 className="text-base font-semibold" style={{ color: 'var(--text)' }}>{t('create.step3.title')}</h3>
 
@@ -959,17 +939,7 @@ export default function CreateVaultPage() {
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <FieldLabel>{t('create.field.agents')}</FieldLabel>
-                    <button
-                      type="button"
-                      onClick={() => setPickerOpen('agents')}
-                      className="text-xs font-medium"
-                      style={{ color: 'var(--accent)' }}
-                    >
-                      {t('picker.browse')}
-                    </button>
-                  </div>
+                  <FieldLabel>{t('create.field.agents')}</FieldLabel>
 
                   {/* ── Coordinator catalog (if configured) ───────────────── */}
                   <CoordinatorAgentCatalog
@@ -994,13 +964,25 @@ export default function CreateVaultPage() {
                     {t('add_agent.catalog_future_note')}
                   </p>
 
-                  <input
-                    className={inputClass}
-                    style={inputStyle}
-                    value={agents}
-                    onChange={(e) => { setAgents(e.target.value); setAgentBudgetMap({}); }}
-                    placeholder={t('create.field.agents_placeholder')}
-                  />
+                  <div className="mt-3 rounded-xl p-3" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                    {rawAgentList.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {rawAgentList.map((addr) => (
+                          <span
+                            key={addr}
+                            className="inline-flex items-center rounded-full px-3 py-1 text-xs"
+                            style={{ background: 'var(--card-mid)', color: 'var(--text)' }}
+                          >
+                            <AddressDisplay address={addr} />
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        {t('create.agents.curated_empty')}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 {rawAgentList.length > 0 && (
@@ -1118,19 +1100,46 @@ export default function CreateVaultPage() {
 
       {/* Profile picker modals */}
       <ProfilePicker
-        isOpen={pickerOpen === 'agents'}
-        onClose={() => setPickerOpen(null)}
-        onConfirm={handleAgentsPicked}
-        mode="agents"
-        preSelected={rawAgentList}
-      />
-      <ProfilePicker
         isOpen={pickerOpen === 'merchants'}
         onClose={() => setPickerOpen(null)}
         onConfirm={handleMerchantsPicked}
         mode="merchants"
         preSelected={merchants.split(',').map((m) => m.trim()).filter(Boolean)}
       />
+
+      <VaultDeployResultDialog
+        open={createDialogOpen}
+        mode={createdVault ? 'success' : 'error'}
+        onOpenChange={setCreateDialogOpen}
+        deployed={createdVault ? { ...createdVault, label } : null}
+        ownershipWarnings={createWarnings}
+        errorMessage={createError}
+        txHash={createTxHash}
+        budgetToken={luksoToken}
+        signer={signer}
+        secondaryLabel={createdVault ? t('create.success.add_agent_cta') : t('wizard.review.edit')}
+        onSecondaryAction={createdVault ? () => setAgentModalOpen(true) : () => setCreateDialogOpen(false)}
+        primaryLabel={createdVault ? t('create.success.view_vaults') : t('deploy_result.close')}
+        onPrimaryAction={createdVault ? () => router.push('/vaults') : () => setCreateDialogOpen(false)}
+      />
+
+      {createdVault && signer && (
+        <AddAgentModal
+          vault={{
+            chain: 'lukso',
+            vaultSafe: createdVault.safe,
+            keyManager: createdVault.keyManager,
+            label: label || 'New Vault',
+            signer,
+          } satisfies VaultRef}
+          open={agentModalOpen}
+          onClose={() => setAgentModalOpen(false)}
+          onSuccess={() => {
+            setAgentModalOpen(false);
+            router.push('/vaults');
+          }}
+        />
+      )}
     </div>
   );
 }

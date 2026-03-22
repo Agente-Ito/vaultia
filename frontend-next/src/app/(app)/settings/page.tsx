@@ -62,7 +62,9 @@ export default function SettingsPage() {
           {!account ? (
             /* Not connected */
             <div className="flex flex-col items-center gap-3 py-6 text-center">
-              <span className="text-4xl">🌐</span>
+              <span className="flex h-12 w-12 items-center justify-center rounded-full border" style={{ borderColor: 'var(--accent)' }}>
+                <span className="h-4 w-4 rounded-full" style={{ background: 'var(--accent)' }} />
+              </span>
               <p className="text-sm max-w-xs" style={{ color: 'var(--text-muted)' }}>
                 {t('up.profile.not_connected')}
               </p>
@@ -224,10 +226,10 @@ export default function SettingsPage() {
                 {t('settings.mode.simple.desc')}
               </p>
               <ul className="text-xs mt-sm space-y-xs" style={{ color: 'var(--text-muted)' }}>
-                <li>✓ {t('settings.mode.simple.f1')}</li>
-                <li>✓ {t('settings.mode.simple.f2')}</li>
-                <li>✓ {t('settings.mode.simple.f3')}</li>
-                <li>✓ {t('settings.mode.simple.f4')}</li>
+                <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ background: 'var(--success)' }} />{t('settings.mode.simple.f1')}</li>
+                <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ background: 'var(--success)' }} />{t('settings.mode.simple.f2')}</li>
+                <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ background: 'var(--success)' }} />{t('settings.mode.simple.f3')}</li>
+                <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ background: 'var(--success)' }} />{t('settings.mode.simple.f4')}</li>
               </ul>
               {mode === 'simple' ? (
                 <Button size="sm" variant="primary" className="mt-md w-full">
@@ -242,17 +244,15 @@ export default function SettingsPage() {
 
             {/* Advanced Mode */}
             <div style={modeCardStyle(mode === 'advanced')} onClick={() => setMode('advanced')}>
-              <h4 className="font-semibold" style={{ color: 'var(--text)' }}>
-                {t('settings.mode.advanced.title')} <Badge variant="primary">Pro</Badge>
-              </h4>
+              <h4 className="font-semibold" style={{ color: 'var(--text)' }}>{t('settings.mode.advanced.title')}</h4>
               <p className="text-sm mt-sm" style={{ color: 'var(--text-muted)' }}>
                 {t('settings.mode.advanced.desc')}
               </p>
               <ul className="text-xs mt-sm space-y-xs" style={{ color: 'var(--text-muted)' }}>
-                <li>✓ {t('settings.mode.advanced.f1')}</li>
-                <li>✓ {t('settings.mode.advanced.f2')}</li>
-                <li>✓ {t('settings.mode.advanced.f3')}</li>
-                <li>✓ {t('settings.mode.advanced.f4')}</li>
+                <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ background: 'var(--accent)' }} />{t('settings.mode.advanced.f1')}</li>
+                <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ background: 'var(--accent)' }} />{t('settings.mode.advanced.f2')}</li>
+                <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ background: 'var(--accent)' }} />{t('settings.mode.advanced.f3')}</li>
+                <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ background: 'var(--accent)' }} />{t('settings.mode.advanced.f4')}</li>
               </ul>
               {mode === 'advanced' ? (
                 <Button size="sm" variant="primary" className="mt-md w-full">

@@ -9,16 +9,14 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/common/Ca
 import { Button } from '@/components/common/Button';
 import { Skeleton } from '@/components/common/Skeleton';
 import { BudgetTreeView, type BudgetNode } from '@/components/dashboard/BudgetTreeView';
-import { AgentCardScroll } from '@/components/dashboard/AgentCardScroll';
-import { PaymentTimeline } from '@/components/dashboard/PaymentTimeline';
+import { AgentCardScroll, type AgentMiniRecord } from '@/components/dashboard/AgentCardScroll';
+import { PaymentTimeline, type PaymentEvent } from '@/components/dashboard/PaymentTimeline';
 import { PermissionGraph } from '@/components/dashboard/PermissionGraph';
 import { VerifiedRunsPanel } from '@/components/dashboard/VerifiedRunsPanel';
 import { useWeb3 } from '@/context/Web3Context';
 import { useVaults } from '@/hooks/useVaults';
 import { useOnboarding } from '@/context/OnboardingContext';
-import { useDemo } from '@/context/DemoContext';
 import { useMode } from '@/context/ModeContext';
-import { DemoWorkspace } from '@/components/demo/DemoWorkspace';
 import { getProvider } from '@/lib/web3/provider';
 import { useI18n } from '@/context/I18nContext';
 
@@ -35,7 +33,7 @@ function findNode(nodes: BudgetNode[], id: string): BudgetNode | null {
 
 // ─── Empty-state helpers ──────────────────────────────────────────────────────
 
-function EmptyAgents({ onEnable }: { onEnable: () => void }) {
+function EmptyAgents({ actionLabel, onAction }: { actionLabel: string; onAction: () => void }) {
   const { t } = useI18n();
   return (
     <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
@@ -43,14 +41,14 @@ function EmptyAgents({ onEnable }: { onEnable: () => void }) {
       <p className="text-sm max-w-xs" style={{ color: 'var(--text-muted)' }}>
         {t('dashboard.empty.agents')}
       </p>
-      <Button size="sm" variant="secondary" onClick={onEnable}>
-        {t('demo.try_demo')}
+      <Button size="sm" variant="secondary" onClick={onAction}>
+        {actionLabel}
       </Button>
     </div>
   );
 }
 
-function EmptyTimeline({ onEnable }: { onEnable: () => void }) {
+function EmptyTimeline({ actionLabel, onAction }: { actionLabel: string; onAction: () => void }) {
   const { t } = useI18n();
   return (
     <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
@@ -58,14 +56,14 @@ function EmptyTimeline({ onEnable }: { onEnable: () => void }) {
       <p className="text-sm max-w-xs" style={{ color: 'var(--text-muted)' }}>
         {t('dashboard.empty.timeline')}
       </p>
-      <Button size="sm" variant="secondary" onClick={onEnable}>
-        {t('demo.try_demo')}
+      <Button size="sm" variant="secondary" onClick={onAction}>
+        {actionLabel}
       </Button>
     </div>
   );
 }
 
-function EmptyBudgetTree({ onEnable }: { onEnable: () => void }) {
+function EmptyBudgetTree({ actionLabel, onAction }: { actionLabel: string; onAction: () => void }) {
   const { t } = useI18n();
   return (
     <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
@@ -73,8 +71,8 @@ function EmptyBudgetTree({ onEnable }: { onEnable: () => void }) {
       <p className="text-sm max-w-xs" style={{ color: 'var(--text-muted)' }}>
         {t('dashboard.empty.budget')}
       </p>
-      <Button size="sm" variant="secondary" onClick={onEnable}>
-        {t('demo.try_demo')}
+      <Button size="sm" variant="secondary" onClick={onAction}>
+        {actionLabel}
       </Button>
     </div>
   );
@@ -114,10 +112,10 @@ function AdvancedControlsTabs({ pathname, onNavigate }: { pathname: string; onNa
   const { t } = useI18n();
   const tabs = [
     { href: '/dashboard', label: t('nav.dashboard') },
-    { href: '/vaults', label: t('nav.spaces') },
-    { href: '/rules', label: t('nav.spending_rules') },
+    { href: '/vaults', label: t('nav.vaults') },
+    { href: '/rules', label: t('nav.rules') },
     { href: '/automation', label: t('nav.automation') },
-    { href: '/agents', label: t('nav.automations') },
+    { href: '/agents', label: t('nav.agents') },
     { href: '/budgets', label: t('nav.budgets') },
   ];
 
@@ -154,15 +152,19 @@ export default function DashboardPage() {
   const { registry, account, isConnected, connect } = useWeb3();
   const { vaults, loading: vaultsLoading } = useVaults(registry, account);
   const { completed: onboardingCompleted, setWizardMode } = useOnboarding();
-  const { isDemo, enableDemo, demoBudgetNodes, demoAgents, demoEvents } = useDemo();
 
   const [totalBalance, setTotalBalance] = useState<string | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string>('root');
 
-  // ── Demo mode: render the interactive sandbox ──────────────────────────────
-  // (hooks must all be called before any conditional return)
-  const shouldShowDemo = isDemo;
+  const emptyActionLabel = isConnected ? t('dashboard.new_vault') : t('dashboard.connect_wallet_btn');
+  const handleEmptyAction = () => {
+    if (isConnected) {
+      router.push('/vaults/create');
+      return;
+    }
+    connect();
+  };
 
   // ── Auto-open onboarding when connected with no vaults ─────────────────────
   const onboardingTriggered = useRef(false);
@@ -170,7 +172,6 @@ export default function DashboardPage() {
     if (
       isConnected &&
       !vaultsLoading &&
-      !isDemo &&
       vaults.length === 0 &&
       !onboardingCompleted &&
       !onboardingTriggered.current
@@ -186,11 +187,10 @@ export default function DashboardPage() {
     }
     // Reset so it can trigger again if user disconnects and reconnects
     if (!isConnected) onboardingTriggered.current = false;
-  }, [isConnected, vaultsLoading, vaults.length, isDemo, onboardingCompleted, isAdvanced, router, setWizardMode]);
+  }, [isConnected, vaultsLoading, vaults.length, onboardingCompleted, isAdvanced, router, setWizardMode]);
 
   // ── Load vault balances ────────────────────────────────────────────────────
   const loadBalances = useCallback(async () => {
-    if (isDemo) { setTotalBalance('13,247.00'); return; }
     if (!vaults.length) { setTotalBalance('0.0000'); return; }
     setBalanceLoading(true);
     try {
@@ -205,37 +205,26 @@ export default function DashboardPage() {
     } finally {
       setBalanceLoading(false);
     }
-  }, [vaults, isDemo]);
+  }, [vaults]);
 
   useEffect(() => { loadBalances(); }, [loadBalances]);
 
   const loading = vaultsLoading || balanceLoading;
 
-  if (shouldShowDemo) return <DemoWorkspace />;
-
   // ── Derive display data ────────────────────────────────────────────────────
-  const budgetNodes    = isDemo ? demoBudgetNodes    : [];
-  const agents         = isDemo ? demoAgents         : [];
-  const events         = isDemo ? demoEvents         : [];
-  const vaultCount     = isDemo ? 2 : vaults.length;
+  const budgetNodes: BudgetNode[] = [];
+  const agents: AgentMiniRecord[] = [];
+  const events: PaymentEvent[] = [];
+  const vaultCount = vaults.length;
   const selectedNode   = findNode(budgetNodes, selectedNodeId);
-  const graphSpaces = (isDemo
-    ? [
-        { label: 'Payments', status: 'active' as const, recipients: ['Alice', 'Bob'], agentLabel: 'Vaultia' },
-        { label: 'Subscriptions', status: 'active' as const, recipients: ['Services'], agentLabel: 'Scheduler' },
-        { label: 'Savings', status: 'pending' as const, recipients: ['Pool'] },
-      ]
-    : vaults.slice(0, 4).map((vault, index) => ({
-        label: vault.label || vault.safe.slice(0, 8),
+  const graphSpaces = vaults.slice(0, 4).map((vault, index) => ({
+    label: vault.label || vault.safe.slice(0, 8),
       status: index === 1 ? ('pending' as const) : ('active' as const),
-      }))
-  );
+    }));
 
-  const balanceDisplay = isDemo
-    ? '13,247.00 LYX'
-    : isConnected
-      ? `${totalBalance ?? '0.0000'} LYX`
-      : '—';
+  const balanceDisplay = isConnected
+    ? `${totalBalance ?? '0.0000'} LYX`
+    : '—';
 
   if (!isAdvanced) {
     return (
@@ -251,7 +240,7 @@ export default function DashboardPage() {
           <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
             <div className="space-y-2 max-w-2xl">
               <p className="text-xs uppercase tracking-[0.2em]" style={{ color: 'var(--text-muted)' }}>
-                Smart Money Space
+                Vault overview
               </p>
               <h1
                 style={{ fontSize: 'clamp(1.6rem, 3.5vw, 2.2rem)', fontWeight: 300, letterSpacing: '0.05em', color: 'var(--text)' }}
@@ -263,7 +252,7 @@ export default function DashboardPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
-              {isConnected || isDemo ? (
+              {isConnected ? (
                 <Link href="/vaults/create">
                   <Button size="sm">{t('dashboard.new_vault')}</Button>
                 </Link>
@@ -314,7 +303,7 @@ export default function DashboardPage() {
               <CardTitle>{t('dashboard.upcoming_payments')}</CardTitle>
             </CardHeader>
             <CardContent>
-              {events.length > 0 ? <PaymentTimeline events={events} /> : <EmptyTimeline onEnable={enableDemo} />}
+              {events.length > 0 ? <PaymentTimeline events={events} /> : <EmptyTimeline actionLabel={emptyActionLabel} onAction={handleEmptyAction} />}
             </CardContent>
           </Card>
 
@@ -331,7 +320,7 @@ export default function DashboardPage() {
                   onAddCategory={() => router.push('/budgets')}
                 />
               ) : (
-                <EmptyBudgetTree onEnable={enableDemo} />
+                <EmptyBudgetTree actionLabel={emptyActionLabel} onAction={handleEmptyAction} />
               )}
             </CardContent>
           </Card>
@@ -388,15 +377,7 @@ export default function DashboardPage() {
               <h1 className="text-4xl font-bold" style={{ color: 'var(--text)' }}>
                 {balanceDisplay}
               </h1>
-              {isDemo && (
-                <span
-                  className="text-sm font-medium px-2 py-0.5 rounded-full"
-                  style={{ color: 'var(--warning)', background: 'rgba(255,200,87,0.12)' }}
-                >
-                  {t('demo.label')}
-                </span>
-              )}
-              {!isDemo && isConnected && (
+              {isConnected && (
                 <span
                   className="text-sm font-medium px-2 py-0.5 rounded-full"
                   style={{ color: 'var(--success)', background: 'rgba(34,255,178,0.1)' }}
@@ -411,7 +392,7 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {isConnected || isDemo ? (
+        {isConnected ? (
           <Link href="/vaults/create">
             <Button size="sm">{t('dashboard.new_vault')}</Button>
           </Link>
@@ -458,7 +439,7 @@ export default function DashboardPage() {
                   onAddCategory={() => router.push('/budgets')}
                 />
               ) : (
-                <EmptyBudgetTree onEnable={enableDemo} />
+                <EmptyBudgetTree actionLabel={emptyActionLabel} onAction={handleEmptyAction} />
               )}
             </CardContent>
           </Card>
@@ -522,7 +503,7 @@ export default function DashboardPage() {
                 onAddAgent={() => router.push('/agents')}
               />
             ) : (
-              <EmptyAgents onEnable={enableDemo} />
+              <EmptyAgents actionLabel={emptyActionLabel} onAction={handleEmptyAction} />
             )}
           </CardContent>
         </Card>
@@ -540,7 +521,7 @@ export default function DashboardPage() {
             {events.length > 0 ? (
               <PaymentTimeline events={events} />
             ) : (
-              <EmptyTimeline onEnable={enableDemo} />
+              <EmptyTimeline actionLabel={emptyActionLabel} onAction={handleEmptyAction} />
             )}
           </CardContent>
         </Card>

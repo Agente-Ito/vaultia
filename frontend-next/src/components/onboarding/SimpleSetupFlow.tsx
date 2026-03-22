@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/components/common/Alert';
 import { GoalCard } from '@/components/wizard/GoalCard';
 import { RecipientField } from '@/components/wizard/RecipientField';
 import { AddressDisplay } from '@/components/common/AddressDisplay';
+import { VaultDeployResultDialog } from '@/components/vaults/VaultDeployResultDialog';
 import { SafetyLevelChips } from '@/components/wizard/SafetyLevelChips';
 import { WizardReviewSummary } from '@/components/wizard/WizardReviewSummary';
 import { useI18n } from '@/context/I18nContext';
@@ -15,6 +16,7 @@ import { useOnboarding } from '@/context/OnboardingContext';
 import type { FrequencyKey, ExecutorType, GoalKey } from '@/context/OnboardingContext';
 import { useWeb3 } from '@/context/Web3Context';
 import { ethers } from 'ethers';
+import type { DeployedVaultSummary } from '@/lib/web3/deployVault';
 import { buildSimpleWizardDeployParams, deployRegistryVault, validateSimpleWizardInput } from '@/lib/web3/deployVault';
 
 // ─── Step indices ─────────────────────────────────────────────────────────────
@@ -61,6 +63,51 @@ function getErrorMessage(error: unknown): string {
   return String(error);
 }
 
+function FrequencyOptionList({
+  value,
+  onChange,
+  compact = false,
+}: {
+  value: FrequencyKey;
+  onChange: (value: FrequencyKey) => void;
+  compact?: boolean;
+}) {
+  const { t } = useI18n();
+
+  return (
+    <div className="space-y-2">
+      {SIMPLE_FREQS.map((period) => {
+        const selected = value === period;
+
+        return (
+          <button
+            key={period}
+            type="button"
+            onClick={() => onChange(period)}
+            className={compact ? 'w-full rounded-xl px-3 py-2.5 text-left text-sm transition-all' : 'w-full rounded-xl px-4 py-3 text-left text-sm transition-all'}
+            style={{
+              background: selected ? 'var(--card-mid)' : 'var(--card)',
+              border: `1px solid ${selected ? 'var(--text)' : 'var(--border)'}`,
+              color: selected ? 'var(--text)' : 'var(--text-muted)',
+            }}
+          >
+            <span className="flex items-center gap-3">
+              <span
+                className="h-3 w-3 rounded-full flex-shrink-0"
+                style={{
+                  background: selected ? 'var(--text)' : 'transparent',
+                  border: '1.5px solid var(--text)',
+                }}
+              />
+              <span className="leading-tight">{t(FREQ_I18N[period] as Parameters<typeof t>[0])}</span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function SimpleSetupFlow() {
   const router = useRouter();
   const {
@@ -91,8 +138,12 @@ export function SimpleSetupFlow() {
 
   const [step, setStep] = useState(() => (goal ? 1 : 0));
   const [stepError, setStepError] = useState<string | null>(null);
-  const [deployError, setDeployError] = useState<string | null>(null);
-  const [deploying, setDeploying] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [createdVault, setCreatedVault] = useState<DeployedVaultSummary | null>(null);
+  const [createTxHash, setCreateTxHash] = useState<string | null>(null);
+  const [createWarnings, setCreateWarnings] = useState<string[]>([]);
   const myAgentAddress = '';
   const [goalsExpanded, setGoalsExpanded] = useState(false);
   const [customTokenOpen, setCustomTokenOpen] = useState(false);
@@ -111,8 +162,14 @@ export function SimpleSetupFlow() {
     setWizardMode('simple');
   }, [setWizardMode]);
 
+  useEffect(() => {
+    if (executor === 'my_agent') {
+      setExecutor('vaultia');
+    }
+  }, [executor, setExecutor]);
+
   const isLastStep = step === TOTAL_STEPS - 1;
-  const canDeploy = isConnected && isRegistryConfigured && !deploying;
+  const canCreate = isConnected && isRegistryConfigured && !creating;
 
   const placeholder = t('wizard.limits.recipients_placeholder_up');
 
@@ -154,7 +211,7 @@ export function SimpleSetupFlow() {
 
   const handleNext = () => {
     setStepError(null);
-    setDeployError(null);
+    setCreateError(null);
 
     if (step === 0 && !goal) {
       setStepError(translateSimpleError('missing_goal'));
@@ -182,7 +239,7 @@ export function SimpleSetupFlow() {
 
   const handleBack = () => {
     setStepError(null);
-    setDeployError(null);
+    setCreateError(null);
     if (step === 0) {
       handleExit();
       return;
@@ -195,33 +252,54 @@ export function SimpleSetupFlow() {
     router.push('/vaults/create');
   };
 
-  const handleDeploy = async () => {
+  const handleCreateAnother = () => {
+    finish();
+    setCreateDialogOpen(false);
+    setCreateError(null);
+    setCreatedVault(null);
+    setCreateTxHash(null);
+    setCreateWarnings([]);
+    setStep(0);
+  };
+
+  const handleViewVaults = () => {
+    finish();
+    router.push('/vaults');
+  };
+
+  const handleCreateVault = async () => {
     const validationErrors = validateSimple(true);
     if (validationErrors.length > 0) {
-      setDeployError(translateSimpleError(validationErrors[0]));
+      setCreateError(translateSimpleError(validationErrors[0]));
       return;
     }
 
     if (!isConnected) {
-      setDeployError(t('wizard.review.connect_wallet_required'));
+      setCreateError(t('wizard.review.connect_wallet_required'));
       return;
     }
 
     if (luksoToken.trim() && !ethers.isAddress(luksoToken.trim())) {
-      setDeployError(t('wizard.vault.lukso_token_invalid'));
+      setCreateError(t('wizard.vault.lukso_token_invalid'));
       return;
     }
 
-    setDeploying(true);
-    setDeployError(null);
+    setCreating(true);
+    setCreateError(null);
+    setCreateWarnings([]);
 
     try {
       if (!isRegistryConfigured || !registry || !signer) {
-        setDeployError(t('wizard.review.connect_wallet_required'));
+        setCreateError(t('wizard.review.connect_wallet_required'));
         return;
       }
-      await deployRegistryVault({
+      const owner = await signer.getAddress();
+      const existingVaults = await registry.getVaults(owner);
+      const existingSafeAddresses = new Set(existingVaults.map((vault) => vault.safe.toLowerCase()));
+      const { deployed, receipt, ownershipWarnings } = await deployRegistryVault({
         registry,
+        owner,
+        existingSafeAddresses,
         params: buildSimpleWizardDeployParams({
           vaultName: wizardVaultName,
           goal,
@@ -239,12 +317,18 @@ export function SimpleSetupFlow() {
           perRecipientLimits,
         }),
       });
-      finish();
-      router.push('/dashboard');
+      if (!deployed) {
+        throw new Error(t('deploy_result.error.no_vault_address'));
+      }
+      setCreatedVault(deployed);
+      setCreateTxHash(receipt.hash);
+      setCreateWarnings(ownershipWarnings);
+      setCreateDialogOpen(true);
     } catch (error: unknown) {
-      setDeployError(getErrorMessage(error));
+      setCreateError(getErrorMessage(error));
+      setCreateDialogOpen(true);
     } finally {
-      setDeploying(false);
+      setCreating(false);
     }
   };
 
@@ -301,6 +385,14 @@ export function SimpleSetupFlow() {
           <div className="flex flex-col items-end gap-2">
             <button
               type="button"
+              onClick={() => router.push('/')}
+              className="text-xs transition-opacity hover:opacity-80"
+              style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}
+            >
+              {t('wizard.header.home_cta')}
+            </button>
+            <button
+              type="button"
               onClick={handleContinueToExpert}
               className="text-xs transition-opacity hover:opacity-80"
               style={{ color: '#10B981', fontWeight: 300, letterSpacing: '0.06em' }}
@@ -335,8 +427,15 @@ export function SimpleSetupFlow() {
             })}
             <span
               style={{
-                marginLeft: 'auto', fontSize: '0.7rem', fontWeight: 300,
-                letterSpacing: '0.06em', color: 'var(--text-muted)',
+                marginLeft: 'auto',
+                fontSize: '0.9rem',
+                fontWeight: 500,
+                letterSpacing: '0.08em',
+                color: 'var(--text)',
+                padding: '0.3rem 0.6rem',
+                borderRadius: '999px',
+                border: '1px solid var(--border)',
+                background: 'var(--card-mid)',
               }}
             >
               {step + 1} / {TOTAL_STEPS}
@@ -352,7 +451,7 @@ export function SimpleSetupFlow() {
               const handlePillClick = () => {
                 if (isDone) {
                   setStepError(null);
-                  setDeployError(null);
+                  setCreateError(null);
                   setStep(idx);
                 } else if (isNext) {
                   handleNext();
@@ -379,7 +478,10 @@ export function SimpleSetupFlow() {
                     opacity: isNext ? 0.65 : 1,
                   }}
                 >
-                  {isDone ? '✓ ' : ''}{t(labelKey)}
+                  <span className="inline-flex items-center gap-2">
+                    {isDone ? <span className="h-2 w-2 rounded-full" style={{ background: '#10B981' }} /> : null}
+                    <span>{t(labelKey)}</span>
+                  </span>
                 </div>
               );
             })}
@@ -472,8 +574,9 @@ export function SimpleSetupFlow() {
                     >
                       <div className="flex items-center justify-between">
                         <span>{t('wizard.limits.network.up')}</span>
-                        <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(34,255,178,0.15)', color: 'var(--success)' }}>
-                          ✓ Active
+                        <span className="inline-flex items-center gap-1.5 text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(34,255,178,0.15)', color: 'var(--success)' }}>
+                          <span className="h-2 w-2 rounded-full" style={{ background: 'var(--success)' }} />
+                          Active
                         </span>
                       </div>
                     </div>
@@ -546,7 +649,7 @@ export function SimpleSetupFlow() {
                             className="text-xs px-3 py-1.5 rounded-lg transition-opacity hover:opacity-80"
                             style={{ background: 'var(--card-mid)', border: '1px solid var(--primary)', color: 'var(--primary)' }}
                           >
-                            AVT — Demo Token (testnet)
+                            AVT — Test Token (testnet)
                           </button>
                         )}
                         <input
@@ -684,23 +787,7 @@ export function SimpleSetupFlow() {
                       <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
                         {t('wizard.limits.frequency')}
                       </label>
-                      <div className="grid gap-2 grid-cols-2 sm:grid-cols-5">
-                        {SIMPLE_FREQS.map((period) => (
-                          <button
-                            key={period}
-                            type="button"
-                            onClick={() => setFrequency(period)}
-                            className="rounded-xl px-3 py-2.5 text-sm font-medium transition-all"
-                            style={{
-                              background: frequency === period ? 'var(--card-mid)' : 'var(--card)',
-                              border: `1px solid ${frequency === period ? 'var(--accent)' : 'var(--border)'}`,
-                              color: frequency === period ? 'var(--text)' : 'var(--text-muted)',
-                            }}
-                          >
-                            {t(FREQ_I18N[period] as Parameters<typeof t>[0])}
-                          </button>
-                        ))}
-                      </div>
+                      <FrequencyOptionList value={frequency} onChange={setFrequency} />
                     </div>
                   </div>
                 </div>
@@ -730,33 +817,26 @@ export function SimpleSetupFlow() {
                     <div className="rounded-xl p-4 space-y-3" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
                       {/* Capa 3 — global mode */}
                       {recipientLimitMode === 'global' && (
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                        <div className="space-y-3">
+                          <span className="text-sm block" style={{ color: 'var(--text-muted)' }}>
                             {t('wizard.limits.global_limit_label')}
                           </span>
-                          <select
-                            value={globalRecipientPeriod}
-                            onChange={(e) => setGlobalRecipientPeriod(e.target.value as FrequencyKey)}
-                            className="rounded-lg px-2 py-1.5 text-sm focus:outline-none"
-                            style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
-                          >
-                            {SIMPLE_FREQS.map((f) => (
-                              <option key={f} value={f}>{t(FREQ_I18N[f] as Parameters<typeof t>[0])}</option>
-                            ))}
-                          </select>
-                          <input
-                            type="number"
-                            value={globalRecipientAmount}
-                            onChange={(e) => setGlobalRecipientAmount(e.target.value)}
-                            placeholder="0.0"
-                            min="0"
-                            step="0.1"
-                            className="w-28 rounded-lg px-3 py-1.5 text-sm focus:outline-none"
-                            style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
-                          />
-                          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                            {luksoToken.trim() ? 'token' : 'LYX'}
-                          </span>
+                          <FrequencyOptionList value={globalRecipientPeriod} onChange={setGlobalRecipientPeriod} compact />
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              value={globalRecipientAmount}
+                              onChange={(e) => setGlobalRecipientAmount(e.target.value)}
+                              placeholder="0.0"
+                              min="0"
+                              step="0.1"
+                              className="w-28 rounded-lg px-3 py-2 text-sm focus:outline-none"
+                              style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                            />
+                            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                              {luksoToken.trim() ? 'token' : 'LYX'}
+                            </span>
+                          </div>
                         </div>
                       )}
 
@@ -767,40 +847,40 @@ export function SimpleSetupFlow() {
                             const addr = entry.address;
                             const current = perRecipientLimits[addr] ?? { amount: '', period: 'weekly' as FrequencyKey };
                             return (
-                              <div key={addr} className="flex flex-wrap items-center gap-2">
+                              <div key={addr} className="rounded-xl p-3 space-y-3" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
                                 <span
-                                  className="text-xs font-mono flex-1 min-w-0 truncate"
+                                  className="text-xs font-mono block min-w-0 truncate"
                                   style={{ color: 'var(--text-muted)' }}
                                   title={addr}
                                 >
                                   <AddressDisplay address={addr} />
                                 </span>
-                                <input
-                                  type="number"
-                                  value={current.amount}
-                                  onChange={(e) => setPerRecipientLimits((prev) => ({
-                                    ...prev,
-                                    [addr]: { ...current, amount: e.target.value },
-                                  }))}
-                                  placeholder={t('wizard.limits.per_recipient_amount')}
-                                  min="0"
-                                  step="0.1"
-                                  className="w-24 rounded-lg px-2 py-1.5 text-sm focus:outline-none"
-                                  style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
-                                />
-                                <select
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="number"
+                                    value={current.amount}
+                                    onChange={(e) => setPerRecipientLimits((prev) => ({
+                                      ...prev,
+                                      [addr]: { ...current, amount: e.target.value },
+                                    }))}
+                                    placeholder={t('wizard.limits.per_recipient_amount')}
+                                    min="0"
+                                    step="0.1"
+                                    className="w-28 rounded-lg px-3 py-2 text-sm focus:outline-none"
+                                    style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                                  />
+                                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                                    {luksoToken.trim() ? 'token' : 'LYX'}
+                                  </span>
+                                </div>
+                                <FrequencyOptionList
                                   value={current.period}
-                                  onChange={(e) => setPerRecipientLimits((prev) => ({
+                                  onChange={(value) => setPerRecipientLimits((prev) => ({
                                     ...prev,
-                                    [addr]: { ...current, period: e.target.value as FrequencyKey },
+                                    [addr]: { ...current, period: value },
                                   }))}
-                                  className="rounded-lg px-2 py-1.5 text-xs focus:outline-none"
-                                  style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
-                                >
-                                  {SIMPLE_FREQS.map((f) => (
-                                    <option key={f} value={f}>{t(FREQ_I18N[f] as Parameters<typeof t>[0])}</option>
-                                  ))}
-                                </select>
+                                  compact
+                                />
                               </div>
                             );
                           })}
@@ -874,11 +954,13 @@ export function SimpleSetupFlow() {
                             <button
                               key={option}
                               type="button"
-                              onClick={() => setExecutor(option)}
+                              onClick={() => option === 'vaultia' && setExecutor(option)}
                               className="w-full rounded-2xl px-4 py-4 text-left transition-all"
                               style={{
                                 background: isSelected ? 'var(--card-mid)' : 'var(--bg)',
                                 border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
+                                opacity: option === 'my_agent' ? 0.62 : 1,
+                                cursor: option === 'my_agent' ? 'not-allowed' : 'pointer',
                               }}
                             >
                               <div className="flex items-center justify-between">
@@ -897,13 +979,12 @@ export function SimpleSetupFlow() {
                               <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
                                 {option === 'vaultia'
                                   ? t('wizard.automation.executor.vaultia_desc')
-                                  : t('wizard.automation.executor.my_agent_desc')}
+                                  : t('wizard.automation.executor.my_agent_locked_desc')}
                               </p>
-                              {/* My Agent: gate with notice + redirect to advanced flow */}
-                              {option === 'my_agent' && isSelected && (
+                              {option === 'my_agent' && (
                                 <div className="mt-3 space-y-3" onClick={(e) => e.stopPropagation()}>
                                   <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                                    {t('wizard.automation.my_agent_expert_notice')}
+                                    {t('wizard.automation.my_agent_locked_notice')}
                                   </p>
                                   <button
                                     type="button"
@@ -993,7 +1074,10 @@ export function SimpleSetupFlow() {
                       className="rounded-2xl px-4 py-3 flex items-center gap-3"
                       style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
                     >
-                      <span className="text-lg">✦</span>
+                        <span
+                          className="h-3 w-3 rounded-full flex-shrink-0"
+                          style={{ background: 'var(--accent)' }}
+                        />
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
                           {t('wizard.vault.name_label')}
@@ -1039,9 +1123,9 @@ export function SimpleSetupFlow() {
                     </Alert>
                   )}
 
-                  {deployError && (
+                  {createError && (
                     <Alert variant="error">
-                      <AlertDescription>{deployError}</AlertDescription>
+                      <AlertDescription>{createError}</AlertDescription>
                     </Alert>
                   )}
                 </div>
@@ -1051,7 +1135,7 @@ export function SimpleSetupFlow() {
                     {t('wizard.review.activation_ready')}
                   </p>
                   <p className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-                    {t('wizard.automation.connect_later')}
+                    {t('wizard.review.tx_notice')}
                   </p>
                 </div>
               </div>
@@ -1067,7 +1151,7 @@ export function SimpleSetupFlow() {
               variant={step === 0 ? 'ghost' : 'secondary'}
               size="sm"
               onClick={handleBack}
-              disabled={deploying}
+              disabled={creating}
             >
               {step === 0 ? t('wizard.btn.exit') : t('wizard.btn.back')}
             </Button>
@@ -1077,13 +1161,29 @@ export function SimpleSetupFlow() {
                 {t('wizard.btn.next')}
               </Button>
             ) : (
-              <Button size="sm" variant="success" onClick={handleDeploy} disabled={!canDeploy}>
-                {deploying ? t('wizard.btn.deploying') : t('wizard.review.cta')}
+              <Button size="sm" variant="success" onClick={handleCreateVault} disabled={!canCreate}>
+                {creating ? t('wizard.btn.deploying') : t('wizard.review.cta')}
               </Button>
             )}
           </div>
         </div>
       </div>
+
+      <VaultDeployResultDialog
+        open={createDialogOpen}
+        mode={createdVault ? 'success' : 'error'}
+        onOpenChange={setCreateDialogOpen}
+        deployed={createdVault}
+        ownershipWarnings={createWarnings}
+        errorMessage={createError}
+        txHash={createTxHash}
+        budgetToken={luksoToken}
+        signer={signer}
+        secondaryLabel={createdVault ? t('create.success.create_another') : t('wizard.review.edit')}
+        onSecondaryAction={createdVault ? handleCreateAnother : () => setCreateDialogOpen(false)}
+        primaryLabel={createdVault ? t('create.success.view_vaults') : t('deploy_result.close')}
+        onPrimaryAction={createdVault ? handleViewVaults : () => setCreateDialogOpen(false)}
+      />
     </section>
   );
 }

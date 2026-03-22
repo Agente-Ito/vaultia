@@ -14,7 +14,7 @@ Next.js 15 frontend for the Agent Vault Protocol. Lets users create and manage p
 
 | Area | What it does |
 | --- | --- |
-| **Vaults** | Deploy policy vaults via `AgentVaultRegistry` with budget, period, merchant whitelist, and agent permissions |
+| **Vaults** | Create policy vaults via `AgentVaultRegistry` with budget, period, merchant whitelist, and agent permissions |
 | **Missions** | Create isolated LSP6 controller keypairs per spending objective, set on-chain permissions from preset templates |
 | **Run (manual)** | Browser-side transaction execution — unlock controller key with passphrase, simulate via PolicyEngine, send via KeyManager |
 | **Pause / Resume (controller)** | Zero-out or restore controller permissions on-chain via `km.execute()` |
@@ -34,8 +34,8 @@ Next.js 15 frontend for the Agent Vault Protocol. Lets users create and manage p
 Automation note:
 
 - Recurring execution is driven by the protocol's `TaskScheduler` plus an off-chain keeper.
-- New scheduler deployments start with keeper whitelist enforcement enabled by default.
-- The deployer is whitelisted automatically; additional keepers must be added explicitly on-chain.
+- New scheduler setups start with keeper whitelist enforcement enabled by default.
+- The initial scheduler operator is whitelisted automatically; additional keepers must be added explicitly on-chain.
 - This frontend does not currently manage keeper allowlists directly.
 - Live recurring-payment proof for the current testnet stack is recorded in [../deployments/live-automation-4201.json](../deployments/live-automation-4201.json).
 
@@ -107,7 +107,7 @@ Operational note:
 | Variable | Required | Description |
 | --- | --- | --- |
 | `NEXT_PUBLIC_RPC_URL` | Yes | LUKSO JSON-RPC endpoint |
-| `NEXT_PUBLIC_REGISTRY_ADDRESS` | Yes | Deployed `AgentVaultRegistry` contract address |
+| `NEXT_PUBLIC_REGISTRY_ADDRESS` | Yes | `AgentVaultRegistry` contract address |
 | `NEXT_PUBLIC_COORDINATOR_ADDRESS` | No | Enables the Agents view and live coordinator-backed features |
 | `NEXT_PUBLIC_TASK_SCHEDULER_ADDRESS` | No | Enables automation flows backed by the live `TaskScheduler` |
 | `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | No | Enables WalletConnect QR/mobile wallet support |

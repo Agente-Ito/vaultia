@@ -76,10 +76,10 @@ function ContactRow({
     >
       {/* Checkbox */}
       <div className={cn(
-        'w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center',
+        'w-4 h-4 rounded-full border flex-shrink-0 flex items-center justify-center',
       )}
       style={checked ? accentSolidStyle : { borderColor: 'var(--border)' }}>
-        {checked && <span className="text-white text-xs leading-none">✓</span>}
+        {checked && <span className="h-2 w-2 rounded-full bg-white" />}
       </div>
 
       {/* Avatar */}

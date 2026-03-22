@@ -20,10 +20,14 @@ function BellIcon({ className }: { className?: string }) {
 
 function getNotifMeta(type: UPNotification['type'], amount?: string) {
   switch (type) {
-    case 'lyx':   return { emoji: '⚡', titleKey: 'notifications.lyx_received'   as const, detail: amount ? `${parseFloat(amount).toFixed(4)} LYX` : '' };
-    case 'token': return { emoji: '🪙', titleKey: 'notifications.token_received' as const, detail: '' };
-    case 'nft':   return { emoji: '🖼️', titleKey: 'notifications.nft_received'   as const, detail: '' };
-    default:      return { emoji: '📡', titleKey: 'notifications.other'          as const, detail: '' };
+    case 'lyx':
+      return { titleKey: 'notifications.lyx_received' as const, detail: amount ? `${parseFloat(amount).toFixed(4)} LYX` : '', tone: 'var(--success)' };
+    case 'token':
+      return { titleKey: 'notifications.token_received' as const, detail: '', tone: 'var(--accent)' };
+    case 'nft':
+      return { titleKey: 'notifications.nft_received' as const, detail: '', tone: 'var(--warning)' };
+    default:
+      return { titleKey: 'notifications.other' as const, detail: '', tone: 'var(--text-muted)' };
   }
 }
 
@@ -39,7 +43,7 @@ function NotifRow({
   onRead: () => void;
 }) {
   const { t } = useI18n();
-  const { emoji, titleKey, detail } = getNotifMeta(notif.type, notif.amount);
+  const { titleKey, detail, tone } = getNotifMeta(notif.type, notif.amount);
 
   return (
     <button
@@ -50,9 +54,14 @@ function NotifRow({
         !isRead && 'bg-primary-50/60 dark:bg-primary-900/10'
       )}
     >
-      {/* Unread dot + emoji */}
+      {/* Status marker */}
       <div className="relative flex-shrink-0 mt-0.5">
-        <span className="text-lg leading-none">{emoji}</span>
+        <span
+          className="flex h-4 w-4 items-center justify-center rounded-full border"
+          style={{ borderColor: tone }}
+        >
+          <span className="h-2 w-2 rounded-full" style={{ background: tone }} />
+        </span>
         {!isRead && (
           <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary-500" />
         )}

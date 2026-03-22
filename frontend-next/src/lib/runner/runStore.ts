@@ -3,7 +3,7 @@
  * Imported by both the /run and /status API routes so they share the same Map.
  *
  * For production, replace with Redis or a persistent store.
- * Adequate for hackathon demo where a single server process is used.
+ * Adequate for single-process preview or development environments.
  */
 
 export interface RunState {

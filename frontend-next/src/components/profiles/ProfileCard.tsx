@@ -50,7 +50,7 @@ function CopyButton({ text }: { text: string }) {
       className="text-xs text-neutral-400 hover:text-primary-500 transition-colors"
       title="Copy address"
     >
-      {copied ? '✓' : '⎘'}
+      {copied ? 'Copied' : 'Copy'}
     </button>
   );
 }

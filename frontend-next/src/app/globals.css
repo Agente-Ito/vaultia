@@ -132,6 +132,21 @@
   50%       { opacity: 0.6; transform: scale(0.85); }
 }
 
+@keyframes landing-dot-loop {
+  0%, 18%, 100% {
+    background: transparent;
+    border-color: var(--text-muted);
+    box-shadow: none;
+    transform: scale(1);
+  }
+  7%, 12% {
+    background: var(--accent);
+    border-color: var(--accent);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 45%, transparent);
+    transform: scale(1.12);
+  }
+}
+
 /* ── UI motion — living interface ────────────────────────────────────────── */
 
 @keyframes bounceIn {
@@ -169,6 +184,7 @@
 .animate-breathe         { animation: breathe 3s ease-in-out infinite; }
 .animate-fade-up         { animation: fadeUp 0.3s ease-out both; }
 .animate-status-pulse    { animation: statusPulse 1.8s ease-in-out infinite; }
+.animate-landing-dot     { animation: landing-dot-loop 1.26s ease-in-out infinite; }
 
 /* Legacy compat */
 .animate-particle-orbit  { animation: spin-slow 8s linear infinite; }

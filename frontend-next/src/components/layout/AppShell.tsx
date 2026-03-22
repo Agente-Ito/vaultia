@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { SidebarClient } from './SidebarClient';
 import { TopBar } from './TopBar';
 import { CelestialFlash } from '@/components/common/CelestialFlash';
+import { SiteFooter } from './SiteFooter';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -34,10 +35,12 @@ export function AppShell({ children, account, chainId, onConnect }: AppShellProp
           onConnect={onConnect}
         />
 
-        {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-lg md:p-xl">
-          <div className="max-w-7xl mx-auto">
-            {children}
+        <main className="flex-1 overflow-y-auto">
+          <div className="mx-auto flex min-h-full max-w-7xl flex-col">
+            <div className="flex-1 p-lg md:p-xl">
+              {children}
+            </div>
+            <SiteFooter />
           </div>
         </main>
       </div>

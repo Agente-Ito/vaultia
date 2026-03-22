@@ -8,7 +8,7 @@ interface AddressDisplayProps {
   className?: string;
   /** Use font-mono for the display text (default: true) */
   mono?: boolean;
-  /** Show ◎ indicator when a name is resolved (default: true) */
+  /** Show a small resolved indicator when a name is resolved (default: true) */
   showResolvedIndicator?: boolean;
 }
 
@@ -32,7 +32,7 @@ export function AddressDisplay({
     >
       {name}
       {isResolved && showResolvedIndicator && (
-        <span className="ml-0.5 opacity-40 not-italic" aria-hidden="true">◎</span>
+        <span className="ml-1 inline-block h-1.5 w-1.5 rounded-full align-middle opacity-50" style={{ background: 'currentColor' }} aria-hidden="true" />
       )}
     </span>
   );

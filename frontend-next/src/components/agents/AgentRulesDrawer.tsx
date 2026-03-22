@@ -45,11 +45,15 @@ export function AgentRulesDrawer({ agent, open, onClose, isRoleAdmin }: AgentRul
     <Sheet open={open} onOpenChange={(v) => !v && onClose()} direction="right">
       <SheetContent side="right">
         <SheetHeader className="px-6 pt-6 pb-4" style={{ borderBottom: '1px solid var(--border)' }}>
-          <SheetTitle>{t('agents.drawer.title')}</SheetTitle>
+          <div className="flex items-center gap-3">
+            <span className="h-2.5 w-2.5 rounded-full" style={{ background: 'var(--accent)' }} />
+            <SheetTitle>{t('agents.drawer.title')}</SheetTitle>
+          </div>
           <button
             onClick={onClose}
             className="rounded-sm opacity-70 hover:opacity-100 transition-opacity focus:outline-none"
             aria-label={t('agents.drawer.close')}
+            style={{ color: 'var(--text-muted)' }}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -59,14 +63,17 @@ export function AgentRulesDrawer({ agent, open, onClose, isRoleAdmin }: AgentRul
 
         <SheetBody className="space-y-6">
           {/* Address */}
-          <div className="space-y-2">
-            <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>{t('agents.drawer.address')}</p>
-            <p className="text-xs font-mono break-all" style={{ color: 'var(--text-muted)' }}>{agent.address}</p>
+          <div className="rounded-2xl p-4 space-y-2" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full" style={{ background: 'var(--accent)' }} />
+              <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>{t('agents.drawer.address')}</p>
+            </div>
+            <p className="text-sm font-mono break-all" style={{ color: 'var(--text)' }}>{agent.address}</p>
           </div>
 
           {/* Roles */}
-          <div className="space-y-2">
-            <p className="text-sm font-medium flex items-center gap-1.5" style={{ color: 'var(--text)' }}>
+          <div className="rounded-2xl p-4 space-y-3" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+            <p className="text-xs font-semibold uppercase tracking-widest flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
               {t('agents.drawer.roles')}
               <InfoTooltip content={t('agents.tooltip.role')} />
             </p>
@@ -85,8 +92,8 @@ export function AgentRulesDrawer({ agent, open, onClose, isRoleAdmin }: AgentRul
 
           {/* Stats */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="rounded-lg p-3" style={{ border: '1px solid var(--border)' }}>
-              <p className="text-xs flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+            <div className="rounded-2xl p-4" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+              <p className="text-xs font-semibold uppercase tracking-widest flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                 {t('agents.drawer.automation')}
                 <InfoTooltip content={t('agents.tooltip.automation')} />
               </p>
@@ -94,8 +101,8 @@ export function AgentRulesDrawer({ agent, open, onClose, isRoleAdmin }: AgentRul
                 {agent.allowedAutomation ? t('agents.drawer.enabled') : t('agents.drawer.disabled')}
               </p>
             </div>
-            <div className="rounded-lg p-3" style={{ border: '1px solid var(--border)' }}>
-              <p className="text-xs flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+            <div className="rounded-2xl p-4" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+              <p className="text-xs font-semibold uppercase tracking-widest flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                 {t('agents.drawer.max_gas')}
                 <InfoTooltip content={t('agents.tooltip.max_gas')} />
               </p>
@@ -105,11 +112,14 @@ export function AgentRulesDrawer({ agent, open, onClose, isRoleAdmin }: AgentRul
 
           {/* Admin: Assign Role */}
           {isRoleAdmin && (
-            <div className="space-y-3 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
-              <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{t('agents.drawer.assign_role')}</p>
+            <div className="space-y-3 rounded-2xl p-4" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full" style={{ background: 'var(--accent)' }} />
+                <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>{t('agents.drawer.assign_role')}</p>
+              </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-medium flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                <label className="text-xs font-semibold uppercase tracking-widest flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                   {t('agents.drawer.role_name')}
                   <InfoTooltip content={t('agents.tooltip.role')} />
                 </label>
@@ -124,7 +134,7 @@ export function AgentRulesDrawer({ agent, open, onClose, isRoleAdmin }: AgentRul
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-medium flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                <label className="text-xs font-semibold uppercase tracking-widest flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                   {t('agents.drawer.capabilities_label')}
                   <InfoTooltip content={t('agents.tooltip.capabilities')} />
                   <span className="font-normal" style={{ color: 'var(--text-muted)' }}>({t('agents.drawer.capabilities_hint')})</span>

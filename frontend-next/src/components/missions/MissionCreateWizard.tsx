@@ -21,7 +21,7 @@ import { useVaults } from '@/hooks/useVaults';
 
 // ─── Step indicators ──────────────────────────────────────────────────────────
 
-const STEPS = ['Type', 'Config', 'Key', 'Deploy'];
+const STEPS = ['Type', 'Config', 'Key', 'Create'];
 
 function StepIndicator({ current }: { current: number }) {
   return (
@@ -38,7 +38,7 @@ function StepIndicator({ current }: { current: number }) {
                 : 'bg-neutral-200 dark:bg-neutral-700 text-neutral-500'
             )}
           >
-            {i < current ? '✓' : i + 1}
+            {i < current ? <span className="h-2.5 w-2.5 rounded-full bg-white" /> : i + 1}
           </div>
           <span
             className={cn(
@@ -132,7 +132,7 @@ function Step1TypeSelect({
               <ul className="space-y-1">
                 {preset.rulesPreview.map((r, i) => (
                   <li key={i} className="text-xs text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
-                    <span className="text-green-500">✓</span>
+                    <span className="h-2 w-2 rounded-full bg-green-500" />
                     {r}
                   </li>
                 ))}
@@ -539,7 +539,7 @@ export function MissionCreateWizard() {
               disabled={creating || !signer}
               onClick={handleDeploy}
             >
-              {creating ? 'Deploying…' : 'Create Mission'}
+              {creating ? 'Creating…' : 'Create Mission'}
             </Button>
           )}
         </div>
