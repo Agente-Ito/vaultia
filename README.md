@@ -646,9 +646,9 @@ cd frontend-next && npm run dev  # Next.js 15
 ## 📄 License
 
 MIT — see [`LICENSE`](./LICENSE).
-n## Demo Video
+## Demo Video
 
-- YouTube: https://youtu.be/GTkajTV2u-w
+- YouTube: https://youtu.be/Qiq8o98aRo8
 
 **Ito Avatar URL (set by default in .env.example):**
 - https://ipfs.io/ipfs/bafybeie7fj37puabmx3bzsnne2zw75qerfcrlzwtgv7l4bozsk5otz4bm4
@@ -657,10 +657,13 @@ Alternate gateways (if needed):
 - https://gateway.pinata.cloud/ipfs/bafybeie7fj37puabmx3bzsnne2zw75qerfcrlzwtgv7l4bozsk5otz4bm4
 - https://cloudflare-ipfs.com/ipfs/bafybeie7fj37puabmx3bzsnne2zw75qerfcrlzwtgv7l4bozsk5otz4bm4
 
-n## Assets (Ito Avatar)
+## Assets (Ito Avatar)
 
 - Optional avatar for Agent Ito in UI. Set an IPFS/http URL via env and the header will render it:
 
-\\n
+```env
+NEXT_PUBLIC_ITO_AVATAR_URL=https://ipfs.io/ipfs/bafybeie7fj37puabmx3bzsnne2zw75qerfcrlzwtgv7l4bozsk5otz4bm4
+```
+
 - Preferred: 512x512 PNG (transparent bg).
 

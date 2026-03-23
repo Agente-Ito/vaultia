@@ -8,7 +8,7 @@ export default function DemoPage() {
       <div className="aspect-video w-full rounded-xl overflow-hidden border" style={{borderColor:'var(--border)'}}>
         <iframe
           className="w-full h-full"
-          src="https://www.youtube.com/embed/GTkajTV2u-w"
+          src="https://www.youtube.com/embed/Qiq8o98aRo8"
           title="Vaultia Demo"
           frameBorder="0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
