@@ -53,10 +53,12 @@ function parseAddressList(value: string, fieldName: string) {
     });
 }
 
-function getErrorMessage(error: unknown) {
 interface Eip1193ProviderLike {
-    const message = getLocalizedErrorMessage(error, t);
   request: (args: { method: string; params?: unknown[] | object }) => Promise<unknown>;
+}
+
+function getErrorMessage(error: unknown, t: (key: string) => string) {
+  return getLocalizedErrorMessage(error, t);
 }
 
 // ─── Template data ─────────────────────────────────────────────────────────────
@@ -533,7 +535,7 @@ export default function CreateVaultPage() {
           const failed = verifyRows.filter((r) => !r.permissionsMatch || !r.allowedCallsMatch);
           if (failed.length > 0) throw new Error('On-chain permission verification failed after creation.');
         } catch (verifyErr: unknown) {
-          setStatus('Error: ' + getErrorMessage(verifyErr));
+          setStatus('Error: ' + getErrorMessage(verifyErr, t));
           return;
         }
         onProgress('done');
@@ -544,7 +546,7 @@ export default function CreateVaultPage() {
         setStatus(t('create.status.deployed'));
       }
     } catch (err: unknown) {
-      const message = getErrorMessage(err);
+      const message = getErrorMessage(err, t);
       setCreateError(message);
       setStatus('Error: ' + message);
       setCreateDialogOpen(true);

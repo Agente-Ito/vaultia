@@ -12,7 +12,7 @@ import { VaultDeployResultDialog } from '@/components/vaults/VaultDeployResultDi
 import { SafetyLevelChips } from '@/components/wizard/SafetyLevelChips';
 import { WizardReviewSummary } from '@/components/wizard/WizardReviewSummary';
 import { useI18n } from '@/context/I18nContext';
-import { getLocalizedErrorMessage, localizeErrorMessage } from '@/lib/errorMap';
+import { getLocalizedErrorMessage } from '@/lib/errorMap';
 import { useOnboarding } from '@/context/OnboardingContext';
 import type { FrequencyKey, ExecutorType, GoalKey } from '@/context/OnboardingContext';
 import { useWeb3 } from '@/context/Web3Context';
@@ -319,7 +319,7 @@ export function SimpleSetupFlow() {
       setCreateWarnings(ownershipWarnings);
       setCreateDialogOpen(true);
     } catch (error: unknown) {
-      setCreateError(getErrorMessage(error));
+      setCreateError(getLocalizedErrorMessage(error, t));
       setCreateDialogOpen(true);
     } finally {
       setCreating(false);

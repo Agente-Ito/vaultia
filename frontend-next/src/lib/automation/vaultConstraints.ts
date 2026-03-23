@@ -71,7 +71,11 @@ export async function loadVaultAutomationConstraints(vault: VaultRecord): Promis
         budgetPolicy.spent(),
         budgetPolicy.periodDuration(),
       ]);
-      globalRemainingWei = budget > spent ? budget - spent : BigInt(0);
+      const budgetWei = BigInt(budget);
+      const spentWei = BigInt(spent);
+      const remainingWei = budgetWei > spentWei ? budgetWei - spentWei : BigInt(0);
+
+      globalRemainingWei = minBigInt(globalRemainingWei, remainingWei);
       maxPeriodSeconds = minNumber(maxPeriodSeconds, Number(periodDuration));
       continue;
     } catch {
