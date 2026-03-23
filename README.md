@@ -650,6 +650,13 @@ n## Demo Video
 
 - YouTube: TBD (link will be added here)
 
+**Ito Avatar URL (set by default in .env.example):**
+- https://ipfs.io/ipfs/bafybeie7fj37puabmx3bzsnne2zw75qerfcrlzwtgv7l4bozsk5otz4bm4
+
+Alternate gateways (if needed):
+- https://gateway.pinata.cloud/ipfs/bafybeie7fj37puabmx3bzsnne2zw75qerfcrlzwtgv7l4bozsk5otz4bm4
+- https://cloudflare-ipfs.com/ipfs/bafybeie7fj37puabmx3bzsnne2zw75qerfcrlzwtgv7l4bozsk5otz4bm4
+
 n## Assets (Ito Avatar)
 
 - Optional avatar for Agent Ito in UI. Set an IPFS/http URL via env and the header will render it:
