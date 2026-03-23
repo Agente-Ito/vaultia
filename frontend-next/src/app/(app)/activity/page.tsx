@@ -2,27 +2,80 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { ethers } from 'ethers';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/common/Card';
+import { Button } from '@/components/common/Button';
 import { useWeb3 } from '@/context/Web3Context';
 import { useVaults } from '@/hooks/useVaults';
 import { SkeletonRow } from '@/components/common/Skeleton';
-import { getSafeContract } from '@/lib/web3/contracts';
-import { getProvider } from '@/lib/web3/provider';
+import { getPolicyEngineContract, getSafeContract } from '@/lib/web3/contracts';
+import { getReadOnlyProvider } from '@/lib/web3/provider';
 import { Alert, AlertDescription } from '@/components/common/Alert';
 import { useI18n } from '@/context/I18nContext';
 import { useContacts, CATEGORY_META } from '@/hooks/useContacts';
 import { AddressDisplay } from '@/components/common/AddressDisplay';
-import { VerifiedRunsPanel } from '@/components/dashboard/VerifiedRunsPanel';
+import { getLocalActivityLogs } from '@/lib/activityLocalLog';
 
-interface AgentEvent { type: 'LYX' | 'TOKEN'; to: string; token?: string; amount: string; txHash: string; blockNumber: number; }
+interface AgentEvent {
+  status: 'approved' | 'blocked';
+  source?: 'onchain' | 'manual' | 'keeper';
+  type: 'LYX' | 'TOKEN';
+  to: string;
+  token?: string;
+  amount: string;
+  txHash?: string;
+  blockNumber: number;
+  reason?: string;
+  createdAt?: number;
+}
 interface SafePaymentLog {
   args?: { to?: string; token?: string; amount?: bigint; };
   transactionHash: string;
   blockNumber: number;
 }
+interface BlockedExecutionLog {
+  args?: { to?: string; token?: string; amount?: bigint; reason?: string; };
+  transactionHash: string;
+  blockNumber: number;
+}
+interface KeeperActivityApiEntry {
+  id: string;
+  status: 'approved' | 'blocked';
+  type: 'LYX' | 'TOKEN';
+  vaultSafe: string;
+  to: string;
+  amount: string;
+  token?: string;
+  txHash?: string;
+  blockNumber?: number;
+  reason: string;
+  createdAt: number;
+}
 
 const short = (addr: string) => addr ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : '';
+const ZERO_ADDRESS = ethers.ZeroAddress;
+const ACTIVITY_LOOKBACK_BLOCKS = 50_000;
+
+function sortActivity(a: AgentEvent, b: AgentEvent) {
+  const localTimeDiff = (b.createdAt ?? 0) - (a.createdAt ?? 0);
+  if (localTimeDiff !== 0) return localTimeDiff;
+  return b.blockNumber - a.blockNumber;
+}
+
+function getStatusLabel(event: AgentEvent, t: (key: string) => string) {
+  if (event.status === 'blocked' && event.source === 'keeper') {
+    return t('activity.status.blocked_keeper');
+  }
+
+  return event.status === 'blocked' ? t('activity.status.blocked') : t('activity.status.approved');
+}
+
+function getSourceLabel(event: AgentEvent, t: (key: string) => string) {
+  if (event.source === 'keeper') return t('activity.source.keeper');
+  if (event.source === 'manual') return t('activity.source.manual');
+  return null;
+}
 
 
 export default function ActivityPage() {
@@ -38,37 +91,139 @@ export default function ActivityPage() {
     if (!vaults.length) { setEvents([]); setWarning(null); return; }
     let cancelled = false;
     setLoading(true); setError(null); setWarning(null);
-    const provider = getProvider();
+    const provider = getReadOnlyProvider();
 
-    Promise.all(
-      vaults.map(async (vault) => {
-        try {
-          const safe = getSafeContract(vault.safe, provider);
-          const [lyxLogs, tokenLogs] = await Promise.all([
-            safe.queryFilter(safe.filters.AgentPaymentExecuted()),
-            safe.queryFilter(safe.filters.AgentTokenPaymentExecuted()),
-          ]);
-          const lyxEvents: (AgentEvent & { vaultLabel: string })[] = lyxLogs.map((raw) => {
-            const event = raw as SafePaymentLog;
-            return { type: 'LYX' as const, to: event.args?.to ?? '', amount: ethers.formatEther(event.args?.amount ?? BigInt(0)), txHash: event.transactionHash, blockNumber: event.blockNumber, vaultLabel: vault.label || short(vault.safe) };
-          });
-          const tokenEvents: (AgentEvent & { vaultLabel: string })[] = tokenLogs.map((raw) => {
-            const event = raw as SafePaymentLog;
-            return { type: 'TOKEN' as const, to: event.args?.to ?? '', token: event.args?.token ?? '', amount: ethers.formatEther(event.args?.amount ?? BigInt(0)), txHash: event.transactionHash, blockNumber: event.blockNumber, vaultLabel: vault.label || short(vault.safe) };
-          });
-          return { events: [...lyxEvents, ...tokenEvents], failed: false };
-        } catch {
-          return { events: [] as (AgentEvent & { vaultLabel: string })[], failed: true };
-        }
+    provider.getBlockNumber()
+      .then((latestBlock) => {
+        const fromBlock = Math.max(0, latestBlock - ACTIVITY_LOOKBACK_BLOCKS);
+        const keeperUrl = `/api/keeper-activity?${vaults.map((vault) => `vault=${encodeURIComponent(vault.safe)}`).join('&')}`;
+        return Promise.all([
+          Promise.all(
+            vaults.map(async (vault) => {
+              try {
+                const safe = getSafeContract(vault.safe, provider);
+                const policyEngine = getPolicyEngineContract(vault.policyEngine, provider);
+                const [lyxLogs, tokenLogs, blockedLogs] = await Promise.all([
+                  safe.queryFilter(safe.filters.AgentPaymentExecuted(), fromBlock),
+                  safe.queryFilter(safe.filters.AgentTokenPaymentExecuted(), fromBlock),
+                  policyEngine.queryFilter(policyEngine.filters.ExecutionBlocked(), fromBlock),
+                ]);
+
+                const lyxEvents: (AgentEvent & { vaultLabel: string })[] = lyxLogs.map((raw) => {
+                  const event = raw as SafePaymentLog;
+                  return {
+                    status: 'approved' as const,
+                    source: 'onchain' as const,
+                    type: 'LYX' as const,
+                    to: event.args?.to ?? '',
+                    amount: ethers.formatEther(event.args?.amount ?? BigInt(0)),
+                    txHash: event.transactionHash,
+                    blockNumber: event.blockNumber,
+                    vaultLabel: vault.label || short(vault.safe),
+                  };
+                });
+
+                const tokenEvents: (AgentEvent & { vaultLabel: string })[] = tokenLogs.map((raw) => {
+                  const event = raw as SafePaymentLog;
+                  return {
+                    status: 'approved' as const,
+                    source: 'onchain' as const,
+                    type: 'TOKEN' as const,
+                    to: event.args?.to ?? '',
+                    token: event.args?.token ?? '',
+                    amount: ethers.formatEther(event.args?.amount ?? BigInt(0)),
+                    txHash: event.transactionHash,
+                    blockNumber: event.blockNumber,
+                    vaultLabel: vault.label || short(vault.safe),
+                  };
+                });
+
+                const blockedEvents: (AgentEvent & { vaultLabel: string })[] = blockedLogs.map((raw) => {
+                  const event = raw as BlockedExecutionLog;
+                  const token = event.args?.token ?? ZERO_ADDRESS;
+                  return {
+                    status: 'blocked' as const,
+                    source: 'onchain' as const,
+                    type: token === ZERO_ADDRESS ? 'LYX' as const : 'TOKEN' as const,
+                    to: event.args?.to ?? '',
+                    token: token === ZERO_ADDRESS ? undefined : token,
+                    amount: ethers.formatEther(event.args?.amount ?? BigInt(0)),
+                    txHash: event.transactionHash,
+                    blockNumber: event.blockNumber,
+                    reason: event.args?.reason ?? '',
+                    vaultLabel: vault.label || short(vault.safe),
+                  };
+                });
+
+                return { events: [...blockedEvents, ...lyxEvents, ...tokenEvents], failed: false };
+              } catch {
+                return { events: [] as (AgentEvent & { vaultLabel: string })[], failed: true };
+              }
+            })
+          ),
+          fetch(keeperUrl, { cache: 'no-store' })
+            .then(async (response) => {
+              if (!response.ok) {
+                throw new Error(`keeper activity request failed with ${response.status}`);
+              }
+
+              const payload = await response.json() as { activity?: KeeperActivityApiEntry[] };
+              return payload.activity ?? [];
+            })
+            .catch(() => [] as KeeperActivityApiEntry[]),
+        ]);
       })
-    )
-      .then((perVault) => {
+      .then(([perVault, keeperActivity]) => {
         if (cancelled) return;
-        const allEvents = perVault.flatMap((r) => r.events).sort((a, b) => b.blockNumber - a.blockNumber).slice(0, 100);
+        const localEvents = getLocalActivityLogs(vaults.map((vault) => vault.safe)).map((entry) => ({
+          status: entry.status,
+          source: 'manual' as const,
+          type: entry.type,
+          to: entry.to,
+          token: entry.token,
+          amount: entry.amount,
+          txHash: entry.id,
+          blockNumber: 0,
+          reason: entry.reason,
+          createdAt: entry.createdAt,
+          vaultLabel: entry.vaultLabel || short(entry.vaultSafe),
+        }));
+        const keeperSuccessTxHashes = new Set(
+          keeperActivity
+            .filter((entry) => entry.status === 'approved' && !!entry.txHash)
+            .map((entry) => entry.txHash!.toLowerCase())
+        );
+
+        const keeperEvents = keeperActivity
+          .filter((entry) => entry.status === 'blocked')
+          .map((entry) => {
+          const vault = vaults.find((item) => item.safe.toLowerCase() === entry.vaultSafe.toLowerCase());
+          return {
+            status: entry.status,
+            source: 'keeper' as const,
+            type: entry.type,
+            to: entry.to,
+            token: entry.token,
+            amount: entry.amount,
+            txHash: entry.txHash ?? entry.id,
+            blockNumber: entry.blockNumber ?? 0,
+            reason: entry.reason,
+            createdAt: entry.createdAt,
+            vaultLabel: vault?.label || short(entry.vaultSafe),
+          };
+        });
+        const onChainEvents = perVault.flatMap((r) => r.events).map((event) => {
+          if (event.status === 'approved' && event.txHash && keeperSuccessTxHashes.has(event.txHash.toLowerCase())) {
+            return { ...event, source: 'keeper' as const };
+          }
+
+          return event;
+        });
+        const allEvents = [...keeperEvents, ...localEvents, ...onChainEvents].sort(sortActivity).slice(0, 100);
         const anyFailed = perVault.some((r) => r.failed);
         const failedCount = perVault.filter((r) => r.failed).length;
         if (anyFailed && allEvents.length === 0) {
-          setError('Failed to load transaction history. Check your RPC connection.');
+          setError('Failed to load activity from chain logs. Check your RPC connection.');
         } else if (failedCount > 0) {
           setWarning(`Loaded activity from ${vaults.length - failedCount} of ${vaults.length} vaults. Some RPC queries failed.`);
         }
@@ -103,13 +258,15 @@ export default function ActivityPage() {
             <div className="space-y-sm"><SkeletonRow /><SkeletonRow /><SkeletonRow /></div>
           )}
           {isConnected && error && (
-            <p className="text-sm" style={{ color: 'var(--blocked)' }}>Error: {error}</p>
+            <Alert variant="error" className="mb-md">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
           {isConnected && !error && warning && (
             <Alert variant="warning" className="mb-md"><AlertDescription>{warning}</AlertDescription></Alert>
           )}
-          {isConnected && !isAnyLoading && events.length === 0 && (
-            <p style={{ color: 'var(--text-muted)' }}>{t('activity.empty')}</p>
+          {isConnected && !isAnyLoading && !error && events.length === 0 && (
+            <ActivityEmptyCTA t={t} />
           )}
 
           {events.length > 0 && (
@@ -117,7 +274,7 @@ export default function ActivityPage() {
               {events.map((ev, i) => {
                 const toContact = findContact(ev.to);
                 return (
-                  <div key={`${ev.txHash}-${i}`} className="flex items-start gap-3">
+                  <div key={`${ev.txHash ?? 'event'}-${i}`} className="flex items-start gap-3">
                     <div className="flex flex-col items-center flex-shrink-0">
                       <div
                         className="flex h-8 w-8 items-center justify-center rounded-full"
@@ -125,7 +282,13 @@ export default function ActivityPage() {
                       >
                         <span
                           className="h-3 w-3 rounded-full"
-                          style={{ background: ev.type === 'LYX' ? 'var(--success)' : 'var(--accent)' }}
+                          style={{
+                            background: ev.status === 'blocked'
+                              ? 'var(--blocked)'
+                              : ev.type === 'LYX'
+                                ? 'var(--success)'
+                                : 'var(--accent)',
+                          }}
                         />
                       </div>
                       {i < events.length - 1 && (
@@ -146,29 +309,48 @@ export default function ActivityPage() {
                           </span>
                           <span className="text-xs ml-1.5" style={{ color: 'var(--text-muted)' }}>• {ev.vaultLabel}</span>
                         </div>
-                        <a
-                          href={`https://explorer.execution.${chainId === 42 ? 'mainnet' : 'testnet'}.lukso.network/tx/${ev.txHash}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs hover:underline flex-shrink-0"
-                          style={{ color: 'var(--primary)' }}
-                        >
-                          {t('activity.view')}
-                        </a>
+                        {ev.txHash && ev.txHash.startsWith('0x') ? (
+                          <a
+                            href={`https://explorer.execution.${chainId === 42 ? 'mainnet' : 'testnet'}.lukso.network/tx/${ev.txHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs hover:underline flex-shrink-0"
+                            style={{ color: 'var(--primary)' }}
+                          >
+                            {t('activity.view')}
+                          </a>
+                        ) : null}
                       </div>
                       <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Block {ev.blockNumber}</span>
+                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                          {ev.blockNumber > 0 ? `Block ${ev.blockNumber}` : 'Local attempt'}
+                        </span>
                         <span
                           className="text-xs px-1.5 py-0.5 rounded-full"
-                          style={{ background: 'rgba(34,255,178,0.1)', color: 'var(--success)' }}
+                          style={ev.status === 'blocked'
+                            ? { background: 'rgba(255,77,109,0.1)', color: 'var(--blocked)' }
+                            : { background: 'rgba(34,255,178,0.1)', color: 'var(--success)' }}
                         >
-                          {t('timeline.status.completed')}
+                          {getStatusLabel(ev, t)}
                         </span>
+                        {getSourceLabel(ev, t) && (
+                          <span
+                            className="text-xs px-1.5 py-0.5 rounded-full"
+                            style={{ background: 'var(--card-mid)', color: 'var(--text-muted)' }}
+                          >
+                            {getSourceLabel(ev, t)}
+                          </span>
+                        )}
                         {toContact && (
                           <span className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>{short(ev.to)}</span>
                         )}
                         {ev.type === 'TOKEN' && ev.token && (
                           <span className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>{short(ev.token)}</span>
+                        )}
+                        {ev.status === 'blocked' && ev.reason && (
+                          <span className="text-xs break-words leading-relaxed" style={{ color: 'var(--blocked)' }}>
+                            {ev.reason}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -179,8 +361,44 @@ export default function ActivityPage() {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
 
-      <VerifiedRunsPanel />
+function ActivityEmptyCTA({ t }: { t: (key: string) => string }) {
+  return (
+    <div className="flex flex-col items-center gap-6 py-12 text-center">
+      {/* 7-dot row — same mark as the landing, stays empty to signal no activity */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        {Array.from({ length: 7 }).map((_, i) => (
+          <span
+            key={i}
+            className="animate-landing-dot"
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: '50%',
+              background: 'transparent',
+              border: '1px solid var(--border)',
+              animationDelay: `${i * 180}ms`,
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="space-y-1.5">
+        <p className="text-base font-semibold" style={{ color: 'var(--text)' }}>{t('activity.empty_cta.title')}</p>
+        <p className="text-sm max-w-sm" style={{ color: 'var(--text-muted)' }}>{t('activity.empty_cta.desc')}</p>
+      </div>
+
+      <div className="flex flex-wrap justify-center gap-3">
+        <Link href="/automation">
+          <Button variant="primary" size="sm">{t('activity.empty_cta.automate')}</Button>
+        </Link>
+        <Link href="/vaults">
+          <Button variant="secondary" size="sm">{t('activity.empty_cta.send')}</Button>
+        </Link>
+      </div>
     </div>
   );
 }

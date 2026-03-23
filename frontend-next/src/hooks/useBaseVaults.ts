@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { decodeRevertReason } from '@/lib/errorMap';
 import {
   getBaseReadProvider,
   getBaseVaultFactoryContract,
@@ -50,7 +51,7 @@ export function useBaseVaults(account: string | null) {
         })
       );
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(decodeRevertReason(e));
     } finally {
       setLoading(false);
     }

@@ -13,6 +13,7 @@ import { ProfilePicker } from '@/components/profiles/ProfilePicker';
 import { useAgents } from '@/hooks/useAgents';
 import { useWeb3 } from '@/context/Web3Context';
 import { useI18n } from '@/context/I18nContext';
+import { getLocalizedErrorMessage } from '@/lib/errorMap';
 import { AddressDisplay } from '@/components/common/AddressDisplay';
 import { AddAgentModal, type VaultRef } from '@/components/agents/AddAgentModal';
 import { VaultDeployResultDialog } from '@/components/vaults/VaultDeployResultDialog';
@@ -27,6 +28,8 @@ import {
   permissionHexForMode,
   PERM_POWER_USER,
   type RecipientConfig,
+  type VaultDeployPhase,
+  type VaultProgressCallback,
 } from '@/lib/web3/deployVault';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -51,15 +54,8 @@ function parseAddressList(value: string, fieldName: string) {
 }
 
 function getErrorMessage(error: unknown) {
-  if (typeof error === 'object' && error !== null) {
-    const e = error as { reason?: unknown; message?: unknown };
-    if (typeof e.reason === 'string' && e.reason) return e.reason;
-    if (typeof e.message === 'string' && e.message) return e.message;
-  }
-  return String(error);
-}
-
 interface Eip1193ProviderLike {
+    const message = getLocalizedErrorMessage(error, t);
   request: (args: { method: string; params?: unknown[] | object }) => Promise<unknown>;
 }
 
@@ -336,6 +332,66 @@ function CoordinatorAgentCatalog({
   );
 }
 
+// ─── Deploy progress stepper ──────────────────────────────────────────────────
+
+const PHASE_ORDER: VaultDeployPhase[] = [
+  'tx_pending',
+  'tx_confirming',
+  'ownership_batch',
+  'ownership_fallback',
+  'verifying',
+  'done',
+];
+
+function DeployProgressStepper({
+  phases,
+  t,
+}: {
+  phases: { phase: VaultDeployPhase; detail?: string }[];
+  t: (key: string) => string;
+}) {
+  const rows: { phase: VaultDeployPhase; done: boolean }[] = [];
+  for (let i = 0; i < phases.length; i++) {
+    const { phase } = phases[i];
+    const isLast = i === phases.length - 1;
+    rows.push({ phase, done: !isLast });
+  }
+
+  return (
+    <div
+      className="mt-3 rounded-xl p-4 space-y-2.5"
+      style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+    >
+      <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>
+        {t('create.progress.title')}
+      </p>
+      {rows.map(({ phase, done }, idx) => (
+        <div key={`${phase}-${idx}`} className="flex items-center gap-3">
+          <span className="flex-shrink-0 flex items-center justify-center w-5 h-5">
+            {done ? (
+              <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="9" fill="none" stroke="var(--success)" strokeWidth="1.5" />
+                <path d="M6 10l3 3 5-5" stroke="var(--success)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5 animate-spin" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="8" stroke="var(--border)" strokeWidth="2" />
+                <path d="M10 2a8 8 0 0 1 8 8" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            )}
+          </span>
+          <span
+            className="text-sm"
+            style={{ color: done ? 'var(--text-muted)' : 'var(--text)' }}
+          >
+            {t(`create.progress.${phase}`)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CreateVaultPage() {
@@ -355,6 +411,7 @@ export default function CreateVaultPage() {
   const [merchants, setMerchants]                       = useState('');
   const [status, setStatus]                             = useState('');
   const [loading, setLoading]                           = useState(false);
+  const [deployPhases, setDeployPhases]                 = useState<{ phase: VaultDeployPhase; detail?: string }[]>([]);
   const [createdVault, setCreatedVault]                 = useState<{ safe: string; keyManager: string; policyEngine: string } | null>(null);
   const [createTxHash, setCreateTxHash]                 = useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen]         = useState(false);
@@ -429,6 +486,10 @@ export default function CreateVaultPage() {
     setStatus('');
     setCreateError(null);
     setCreateWarnings([]);
+    setDeployPhases([]);
+    const onProgress: VaultProgressCallback = (phase, detail) => {
+      setDeployPhases((prev) => [...prev, { phase, detail }]);
+    };
     try {
       const owner = await signer.getAddress();
       const existingVaults = await registry.getVaults(owner);
@@ -455,7 +516,7 @@ export default function CreateVaultPage() {
           period: Number(r.period),
         }));
       setStatus(t('create.status.sending'));
-      const { receipt, deployed: deployedVault, ownershipWarnings } = await deployRegistryVault({ registry, owner, existingSafeAddresses, params: buildRegistryDeployParams({ budget: ethers.parseEther(budget), period: Number(period), budgetToken, expiration: expirationUnix, agents: agentList, agentBudgets: agentBudgetsList, merchants: merchantList, recipientConfigs, label, agentMode, allowSuperPermissions, customAgentPermissions, allowedCallsByAgent }) });
+      const { receipt, deployed: deployedVault, ownershipWarnings } = await deployRegistryVault({ registry, owner, existingSafeAddresses, onProgress, params: buildRegistryDeployParams({ budget: ethers.parseEther(budget), period: Number(period), budgetToken, expiration: expirationUnix, agents: agentList, agentBudgets: agentBudgetsList, merchants: merchantList, recipientConfigs, label, agentMode, allowSuperPermissions, customAgentPermissions, allowedCallsByAgent }) });
       const safeAddr = deployedVault?.safe ?? '';
       const kmAddr   = deployedVault?.keyManager ?? '';
       const peAddr   = deployedVault?.policyEngine ?? '';
@@ -463,6 +524,7 @@ export default function CreateVaultPage() {
         throw new Error(`Vault created (tx: ${receipt.hash}), but the created addresses could not be recovered. Check the explorer or refresh your vault list.`);
       } else {
         try {
+          onProgress('verifying');
           const ethereumProvider = (window as unknown as { ethereum?: Eip1193ProviderLike }).ethereum;
           if (!ethereumProvider) throw new Error('Wallet provider is unavailable for post-creation verification.');
           const client = createPublicClient({ transport: custom(ethereumProvider) });
@@ -474,6 +536,7 @@ export default function CreateVaultPage() {
           setStatus('Error: ' + getErrorMessage(verifyErr));
           return;
         }
+        onProgress('done');
         setCreatedVault({ safe: safeAddr, keyManager: kmAddr, policyEngine: peAddr });
         setCreateTxHash(receipt.hash);
         setCreateWarnings(ownershipWarnings);
@@ -1058,6 +1121,23 @@ export default function CreateVaultPage() {
                   </div>
                 )}
 
+                <div
+                  className="rounded-xl px-4 py-4 space-y-3"
+                  style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
+                >
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+                      {t('wizard.review.activation_ready')}
+                    </p>
+                    <p className="mt-2 text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                      {t('wizard.review.tx_notice')}
+                    </p>
+                  </div>
+                  {(loading || deployPhases.length > 0) && (
+                    <DeployProgressStepper phases={deployPhases} t={t} />
+                  )}
+                </div>
+
                 <div className="flex justify-between pt-2">
                   <Button type="button" variant="secondary" onClick={() => setStep(3)}>{t('create.btn.back')}</Button>
                   <div className="flex gap-2">
@@ -1072,7 +1152,7 @@ export default function CreateVaultPage() {
                   </div>
                 </div>
 
-                {status && (
+                {status && !loading && (
                   <Alert variant={status.startsWith('Error') ? 'error' : 'info'}>
                     <AlertDescription>{status}</AlertDescription>
                   </Alert>

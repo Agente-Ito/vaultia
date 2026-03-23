@@ -5,6 +5,7 @@ import { ethers } from 'ethers';
 import { compileMission } from '@/lib/missions/permissionCompiler';
 import { buildSetDataPayload } from '@/lib/missions/permissionCompiler';
 import type { MissionType } from '@/lib/missions/missionTypes';
+import { decodeRevertReason } from '@/lib/errorMap';
 import { getBaseAgentVaultContract, getBaseSigner } from '@/lib/web3/baseContracts';
 
 // ─── Minimal ABIs ─────────────────────────────────────────────────────────────
@@ -111,8 +112,7 @@ export function useAddAgentToVault() {
       setState({ adding: false, success: true, error: null });
       return true;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setState({ adding: false, success: false, error: msg });
+      setState({ adding: false, success: false, error: decodeRevertReason(err) });
       return false;
     }
   }, []);

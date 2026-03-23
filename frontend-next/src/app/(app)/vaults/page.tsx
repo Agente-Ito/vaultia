@@ -18,6 +18,10 @@ import { AddAgentModal, VaultRef } from '@/components/agents/AddAgentModal';
 import { AddressDisplay } from '@/components/common/AddressDisplay';
 import { useManageVaultPolicy } from '@/hooks/useManageVaultPolicy';
 import { VaultFundingActions } from '@/components/vaults/VaultFundingActions';
+import { SendPaymentModal } from '@/components/vaults/SendPaymentModal';
+import { LuksoIcon } from '@/components/common/LuksoIcon';
+import { checkVaultOwnership, claimVaultOwnership } from '@/lib/web3/deployVault';
+import { decodeRevertReason, localizeErrorMessage } from '@/lib/errorMap';
 import { ethers } from 'ethers';
 
 // ─── Animated counter ─────────────────────────────────────────────────────────
@@ -80,20 +84,56 @@ function VaultCard({
   const { detail, loading } = useVault(expanded ? vault.safe : null);
   const { t } = useI18n();
   const { updating, error: policyError, updateBudget, addMerchants, removeMerchant, updateExpiration } = useManageVaultPolicy();
+  const { account } = useWeb3();
+
+  // ── Ownership status ──────────────────────────────────────────────────────
+  const [ownershipStatus, setOwnershipStatus] = useState<'owner' | 'pending' | 'none' | null>(null);
+  const [claiming, setClaiming] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
+  const [claimSuccess, setClaimSuccess] = useState(false);
+
+  useEffect(() => {
+    if (!expanded || !signer || !account) return;
+    setOwnershipStatus(null);
+    const provider = signer.provider;
+    if (!provider) return;
+    checkVaultOwnership(vault.safe, account, provider).then(setOwnershipStatus).catch(() => setOwnershipStatus(null));
+  }, [expanded, signer, account, vault.safe]);
+
+  const handleClaimOwnership = async () => {
+    if (!signer) return;
+    setClaiming(true);
+    setClaimError(null);
+    try {
+      const { claimed, warnings } = await claimVaultOwnership(vault.safe, signer);
+      if (claimed > 0) {
+        setOwnershipStatus('owner');
+        setClaimSuccess(true);
+      }
+      if (warnings.length) setClaimError(warnings.join(' | '));
+    } catch (e: unknown) {
+      setClaimError(decodeRevertReason(e));
+    } finally {
+      setClaiming(false);
+    }
+  };
 
   const [newBudget, setNewBudget] = useState('');
   const [newMerchant, setNewMerchant] = useState('');
   const [newExpiration, setNewExpiration] = useState('');
   const [policySuccess, setPolicySuccess] = useState<string | null>(null);
+  const [sendPaymentOpen, setSendPaymentOpen] = useState(false);
 
   const short = (addr: string) => `${addr.slice(0, 8)}…${addr.slice(-6)}`;
   const spent  = detail ? parseFloat(detail.policySummary.spent ?? '0') : 0;
   const budget = detail?.policySummary.budget ? parseFloat(detail.policySummary.budget) : 0;
   const balanceNum = detail ? parseFloat(detail.balance) : 0;
   const animatedBalance = useCountUp(balanceNum);
+  const parsedNewBudget = Number(newBudget);
+  const budgetInputValid = newBudget.trim() !== '' && Number.isFinite(parsedNewBudget) && parsedNewBudget > 0;
 
   const handleUpdateBudget = async () => {
-    if (!signer || !detail?.policySummary.budgetPolicyAddress || !newBudget) return;
+    if (!signer || !detail?.policySummary.budgetPolicyAddress || !budgetInputValid) return;
     const ok = await updateBudget(detail.policySummary.budgetPolicyAddress, ethers.parseEther(newBudget), signer);
     if (ok) { setPolicySuccess('Budget updated.'); setNewBudget(''); }
   };
@@ -223,30 +263,72 @@ function VaultCard({
             )}
             {signer && (
               <>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="mt-sm font-sans"
-                  onClick={() =>
-                    onAddAgent({
-                      chain: 'lukso',
-                      vaultSafe: vault.safe,
-                      keyManager: vault.keyManager,
-                      label: vault.label,
-                      signer,
-                    })
-                  }
-                >
-                  {t('vaults.card.manage_agents')}
-                </Button>
+                <div className="flex gap-2 mt-sm flex-wrap">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="font-sans"
+                    onClick={() => setSendPaymentOpen(true)}
+                  >
+                    Send Payment
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="font-sans"
+                    onClick={() =>
+                      onAddAgent({
+                        chain: 'lukso',
+                        vaultSafe: vault.safe,
+                        keyManager: vault.keyManager,
+                        label: vault.label,
+                        signer,
+                      })
+                    }
+                  >
+                    {t('vaults.card.manage_agents')}
+                  </Button>
+                </div>
                 <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
                   {t('vaults.agent_delegation.coming_soon_note')}
                 </p>
+                <SendPaymentModal
+                  open={sendPaymentOpen}
+                  onClose={() => setSendPaymentOpen(false)}
+                  signer={signer}
+                  vaultSafe={vault.safe}
+                  vaultLabel={vault.label}
+                />
               </>
             )}
 
-            {/* ── Policy management (owner only) ──────────────────────────── */}
-            {signer && (
+            {/* ── Ownership claim banner ───────────────────────────────────── */}
+            {signer && ownershipStatus === 'pending' && !claimSuccess && (
+              <div className="rounded-lg px-3 py-2.5 space-y-2 font-sans text-xs" style={{ background: 'color-mix(in srgb, var(--warning) 12%, transparent)', border: '1px solid color-mix(in srgb, var(--warning) 40%, transparent)' }}>
+                <p className="font-medium" style={{ color: 'var(--warning)' }}>
+                  Ownership not yet accepted
+                </p>
+                <p style={{ color: 'var(--text-muted)' }}>
+                  This vault was deployed for your account but you haven&apos;t accepted ownership yet. You must claim it before managing policies or sending payments.
+                </p>
+                <Button variant="primary" size="sm" onClick={handleClaimOwnership} disabled={claiming}>
+                  {claiming ? 'Claiming…' : 'Claim Ownership'}
+                </Button>
+                {claimError && (
+                  <p className="break-words leading-relaxed" style={{ color: 'var(--blocked)' }}>
+                    {localizeErrorMessage(claimError, t)}
+                  </p>
+                )}
+              </div>
+            )}
+            {signer && claimSuccess && (
+              <div className="rounded-lg px-3 py-2 text-xs font-sans" style={{ background: 'color-mix(in srgb, var(--success) 12%, transparent)', border: '1px solid color-mix(in srgb, var(--success) 40%, transparent)', color: 'var(--success)' }}>
+                ✓ Ownership claimed — you can now manage this vault.
+              </div>
+            )}
+
+            {/* ── Policy management (owner only) ───────────────────────────── */}
+            {signer && (ownershipStatus === 'owner' || ownershipStatus === null) && (
               <div className="space-y-sm font-sans pt-xs" style={{ borderTop: '1px solid var(--border)' }}>
                 {/* Budget */}
                 {detail.policySummary.budgetPolicyAddress && (
@@ -260,13 +342,24 @@ function VaultCard({
                         value={newBudget}
                         onChange={(e) => setNewBudget(e.target.value)}
                         placeholder={t('vaults.manage.new_budget_placeholder')}
+                        min="0.000000000000000001"
+                        step="any"
                         className="flex-1 rounded-lg px-2 py-1 text-xs font-mono focus:outline-none"
-                        style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                        style={{
+                          background: 'var(--card-mid)',
+                          border: `1px solid ${newBudget && !budgetInputValid ? 'var(--blocked)' : 'var(--border)'}`,
+                          color: 'var(--text)',
+                        }}
                       />
-                      <Button variant="secondary" size="sm" onClick={handleUpdateBudget} disabled={updating || !newBudget}>
+                      <Button variant="secondary" size="sm" onClick={handleUpdateBudget} disabled={updating || !budgetInputValid}>
                         {updating ? '…' : t('vaults.manage.update_btn')}
                       </Button>
                     </div>
+                    {newBudget && !budgetInputValid && (
+                      <p className="text-xs" style={{ color: 'var(--blocked)' }}>
+                        Budget must be greater than 0.
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -356,7 +449,7 @@ function VaultCard({
                   <p className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--success)' }}><span className="h-2 w-2 rounded-full" style={{ background: 'var(--success)' }} />{policySuccess}</p>
                 )}
                 {policyError && (
-                  <p className="text-xs" style={{ color: 'var(--blocked)' }}>{policyError}</p>
+                  <p className="text-xs break-words leading-relaxed" style={{ color: 'var(--blocked)' }}>{localizeErrorMessage(policyError, t)}</p>
                 )}
               </div>
             )}
@@ -468,23 +561,65 @@ export default function VaultsPage() {
 
       {isConnected && !loading && vaults.length > 0 && (
         <div className="grid grid-cols-3 gap-md">
-          {[
-            { emoji: '🏦', label: t('vaults.stats.total'),   value: String(vaults.length) },
-            { emoji: '✅', label: t('vaults.stats.active'),  value: String(vaults.length) },
-            { emoji: '🤖', label: t('vaults.stats.network'), value: 'LUKSO' },
-          ].map((s) => (
-            <div
-              key={s.label}
-              className="rounded-xl p-4 flex items-center gap-3"
-              style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+          <div
+            className="rounded-xl p-4"
+            style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+          >
+            <p className="text-[11px] uppercase tracking-[0.14em]" style={{ color: 'var(--text-muted)' }}>
+              {t('vaults.stats.total')}
+            </p>
+            <p
+              className="mt-2"
+              style={{
+                color: 'var(--text)',
+                fontSize: 'clamp(2rem, 3.2vw, 2.8rem)',
+                fontWeight: 500,
+                letterSpacing: '-0.03em',
+                lineHeight: 1,
+              }}
             >
-              <span className="text-2xl">{s.emoji}</span>
+              {vaults.length}
+            </p>
+          </div>
+
+          <div
+            className="rounded-xl p-4"
+            style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+          >
+            <p className="text-[11px] uppercase tracking-[0.14em]" style={{ color: 'var(--text-muted)' }}>
+              {t('vaults.stats.active')}
+            </p>
+            <div className="mt-2 flex items-center gap-3">
+              <span
+                className="animate-active-status-dot inline-flex h-3 w-3 rounded-full"
+                style={{ background: 'var(--success)' }}
+                aria-hidden="true"
+              />
               <div>
-                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{s.label}</p>
-                <p className="text-xl font-bold" style={{ color: 'var(--text)' }}>{s.value}</p>
+                <p className="text-base font-medium" style={{ color: 'var(--text)' }}>
+                  {t('common.active')}
+                </p>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  Live
+                </p>
               </div>
             </div>
-          ))}
+          </div>
+
+          <div
+            className="rounded-xl p-4"
+            style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+          >
+            <p className="text-[11px] uppercase tracking-[0.14em]" style={{ color: 'var(--text-muted)' }}>
+              {t('vaults.stats.network')}
+            </p>
+            <div className="mt-2 flex items-center gap-3">
+              <LuksoIcon size={22} />
+              <p className="text-lg font-medium" style={{ color: 'var(--text)', letterSpacing: '-0.02em' }}>
+                LUKSO
+              </p>
+            </div>
+          </div>
         </div>
       )}
 

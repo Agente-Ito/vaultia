@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ethers } from 'ethers';
 import { useWeb3 } from '@/context/Web3Context';
+import { decodeRevertReason } from '@/lib/errorMap';
 import { getProvider } from '@/lib/web3/provider';
 import { getSharedBudgetPoolContract, getVaultDirectoryContract } from '@/lib/web3/contracts';
 import type { BudgetNode } from '@/components/dashboard/BudgetTreeView';
@@ -74,7 +75,7 @@ export function useSubVaults(parentVaultAddress?: string) {
           setBudgetNodes(buildTree(infos));
         }
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+        if (!cancelled) setError(decodeRevertReason(err));
       } finally {
         if (!cancelled) setLoading(false);
       }

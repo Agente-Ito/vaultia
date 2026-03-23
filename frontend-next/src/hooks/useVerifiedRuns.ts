@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { decodeRevertReason } from '@/lib/errorMap';
 import type { VerifiedRun } from '@/lib/verified-runs/types';
 
 export function useVerifiedRuns() {
@@ -27,7 +28,7 @@ export function useVerifiedRuns() {
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Unable to load verified runs');
+          setError(decodeRevertReason(err));
           setRuns([]);
         }
       } finally {

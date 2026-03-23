@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ethers } from 'ethers';
 import { useWeb3 } from '@/context/Web3Context';
+import { decodeRevertReason } from '@/lib/errorMap';
 import { getProvider } from '@/lib/web3/provider';
 import { getSafeContract, getPolicyEngineContract, getBudgetPolicyContract, getMerchantPolicyContract, getExpirationPolicyContract, getAgentBudgetPolicyContract, getRecipientBudgetPolicyContract, getLSP7DemoTokenContract } from '@/lib/web3/contracts';
 
@@ -43,14 +44,6 @@ export interface VaultDetail {
 
 function shortAddress(address: string) {
   return `${address.slice(0, 8)}...${address.slice(-6)}`;
-}
-
-function getErrorMessage(error: unknown) {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return String(error);
 }
 
 export function useVault(safeAddress: string | null) {
@@ -205,7 +198,7 @@ export function useVault(safeAddress: string | null) {
           setDetail({ safe: safeAddress, policyEngine, keyManager, balance: ethers.formatEther(balance), policySummary: summary });
         }
       } catch (err: unknown) {
-        if (!cancelled) setError(getErrorMessage(err));
+        if (!cancelled) setError(decodeRevertReason(err));
       } finally {
         if (!cancelled) setLoading(false);
       }

@@ -21,6 +21,39 @@ Ito (AI Agent) · Antonio Arroyo · Ile Designia
 
 ---
 
+## Hackathon Positioning
+
+Vaultia is positioned as a single product that can compete across multiple tracks with one coherent demo narrative:
+
+- A companion agent receives a user request.
+- The vault owner grants the minimum viable delegation through Universal Profile, KeyManager, and scoped vault permissions.
+- The agent executes a payment or trusted action inside hard policy boundaries.
+- Automation can continue execution autonomously through the scheduler + keeper path.
+- The system emits a verifiable execution trail through on-chain events, recorded automation runs, and UI-visible activity receipts.
+
+Current strongest tracks:
+
+- Open Track
+- Best Use of Delegations
+- Let the Agent Cook
+- Agents with Receipt
+
+Strong secondary positioning:
+
+- Agents that Pay
+- Private Agents / Trusted Actions
+
+Track-by-track evidence, demo script, and honest gaps are documented in separate files:
+
+- [docs/Open Track.md](docs/Open%20Track.md)
+- [docs/Agents that Pay.md](docs/Agents%20that%20Pay.md)
+- [docs/Private Agents - Trusted Actions.md](docs/Private%20Agents%20-%20Trusted%20Actions.md)
+- [docs/Best Use of Delegations.md](docs/Best%20Use%20of%20Delegations.md)
+- [docs/Agents with Receipt.md](docs/Agents%20with%20Receipt.md)
+- [docs/Let the Agent Cook.md](docs/Let%20the%20Agent%20Cook.md)
+
+---
+
 ## 🏗️ Core Architecture
 
 - AgentSafe (LSP9 vault execution layer)
@@ -199,6 +232,14 @@ Recurring automation proof highlights:
 Detailed write-up:
 
 - [STRESS_TEST_REPORT.md](STRESS_TEST_REPORT.md)
+
+For hackathon reviewers, the most relevant proof points are:
+
+- live vault deployment on LUKSO testnet
+- successful recurring automation executions through `TaskScheduler` + keeper
+- agent-constrained payments enforced by `PolicyEngine`
+- recipient and budget failures proven through static checks and activity surfaces
+- frontend UX showing vault creation, constrained payments, automation creation, ownership finalization, and verifiable activity
 
 ---
 

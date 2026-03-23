@@ -5,6 +5,7 @@ import { ethers } from 'ethers';
 import { getAllMissions, MissionRecord, updateMissionStatus } from '@/lib/missions/missionStore';
 import { apPermissionsKey } from '@/lib/missions/permissionCompiler';
 import { useWeb3 } from '@/context/Web3Context';
+import { decodeRevertReason } from '@/lib/errorMap';
 
 const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL ?? '';
 
@@ -83,7 +84,7 @@ export function useMissions(account: string | null): UseMissionsResult {
 
         if (!cancelled) setMissions(reconciled);
       } catch (err: unknown) {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+        if (!cancelled) setError(decodeRevertReason(err));
       } finally {
         if (!cancelled) setLoading(false);
       }

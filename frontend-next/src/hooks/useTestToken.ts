@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Signer } from 'ethers';
+import { decodeRevertReason } from '@/lib/errorMap';
 import { getLSP7DemoTokenContract } from '@/lib/web3/contracts';
 
 const TEST_TOKEN_ADDRESS = process.env.NEXT_PUBLIC_LUKSO_DEMO_TOKEN_ADDRESS ?? '';
@@ -36,7 +37,7 @@ export function useTestToken(): UseTestTokenResult {
       await tx.wait();
       setSuccess(true);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(decodeRevertReason(err));
     } finally {
       setMinting(false);
     }

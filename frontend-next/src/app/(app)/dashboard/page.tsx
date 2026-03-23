@@ -1,34 +1,51 @@
 'use client';
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ethers } from 'ethers';
+import { Interface, ethers } from 'ethers';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
 import { Skeleton } from '@/components/common/Skeleton';
-import { BudgetTreeView, type BudgetNode } from '@/components/dashboard/BudgetTreeView';
 import { AgentCardScroll, type AgentMiniRecord } from '@/components/dashboard/AgentCardScroll';
 import { PaymentTimeline, type PaymentEvent } from '@/components/dashboard/PaymentTimeline';
 import { PermissionGraph } from '@/components/dashboard/PermissionGraph';
 import { VerifiedRunsPanel } from '@/components/dashboard/VerifiedRunsPanel';
+import { SendPaymentModal } from '@/components/vaults/SendPaymentModal';
 import { useWeb3 } from '@/context/Web3Context';
 import { useVaults } from '@/hooks/useVaults';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { useMode } from '@/context/ModeContext';
-import { getProvider } from '@/lib/web3/provider';
+import { getProvider, getReadOnlyProvider } from '@/lib/web3/provider';
+import { getSchedulerContract } from '@/lib/web3/contracts';
 import { useI18n } from '@/context/I18nContext';
 
-function findNode(nodes: BudgetNode[], id: string): BudgetNode | null {
-  for (const n of nodes) {
-    if (n.id === id) return n;
-    if (n.children) {
-      const found = findNode(n.children, id);
-      if (found) return found;
-    }
-  }
-  return null;
+// ─── Scheduler helpers ────────────────────────────────────────────────────────
+
+const SCHEDULER_ADDRESS = process.env.NEXT_PUBLIC_TASK_SCHEDULER_ADDRESS ?? '';
+const _kmIface = new Interface(['function execute(bytes _data)']);
+const _safeIface = new Interface(['function execute(uint256 operation, address to, uint256 value, bytes data)']);
+
+function taskToPaymentEvent(
+  taskId: string,
+  task: [string, string, string, number, bigint, bigint, boolean, bigint],
+): PaymentEvent {
+  const [vault, , executeCalldata, triggerTypeValue, nextExecution, interval, enabled] = task;
+  const isTimestamp = triggerTypeValue !== 1;
+  let label = `${vault.slice(0, 6)}…${vault.slice(-4)}`;
+  let amount = 0;
+  try {
+    const km = _kmIface.decodeFunctionData('execute', executeCalldata);
+    const safe = _safeIface.decodeFunctionData('execute', km[0] as string);
+    const recipient = safe[1] as string;
+    label = `${recipient.slice(0, 6)}…${recipient.slice(-4)}`;
+    amount = parseFloat(ethers.formatEther(safe[2] as bigint));
+  } catch { /* keep defaults */ }
+  const date = isTimestamp
+    ? new Date(Number(nextExecution) * 1000)
+    : new Date(Date.now() + Number(interval) * 12 * 1000);
+  return { id: taskId, date, label, amount, currency: '', botName: 'TaskScheduler', botEmoji: '💸', status: enabled ? 'scheduled' : 'completed' };
 }
 
 // ─── Empty-state helpers ──────────────────────────────────────────────────────
@@ -55,21 +72,6 @@ function EmptyTimeline({ actionLabel, onAction }: { actionLabel: string; onActio
       <span className="text-4xl">📅</span>
       <p className="text-sm max-w-xs" style={{ color: 'var(--text-muted)' }}>
         {t('dashboard.empty.timeline')}
-      </p>
-      <Button size="sm" variant="secondary" onClick={onAction}>
-        {actionLabel}
-      </Button>
-    </div>
-  );
-}
-
-function EmptyBudgetTree({ actionLabel, onAction }: { actionLabel: string; onAction: () => void }) {
-  const { t } = useI18n();
-  return (
-    <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
-      <span className="text-4xl">💰</span>
-      <p className="text-sm max-w-xs" style={{ color: 'var(--text-muted)' }}>
-        {t('dashboard.empty.budget')}
       </p>
       <Button size="sm" variant="secondary" onClick={onAction}>
         {actionLabel}
@@ -149,13 +151,14 @@ export default function DashboardPage() {
   const pathname = usePathname();
   const { t } = useI18n();
   const { isAdvanced } = useMode();
-  const { registry, account, isConnected, connect } = useWeb3();
+  const { registry, account, isConnected, connect, signer } = useWeb3();
   const { vaults, loading: vaultsLoading } = useVaults(registry, account);
   const { completed: onboardingCompleted, setWizardMode } = useOnboarding();
 
   const [totalBalance, setTotalBalance] = useState<string | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
-  const [selectedNodeId, setSelectedNodeId] = useState<string>('root');
+  const [events, setEvents] = useState<PaymentEvent[]>([]);
+  const [sendPaymentOpen, setSendPaymentOpen] = useState(false);
 
   const createHref = isAdvanced ? '/vaults/create' : '/setup';
   const emptyActionLabel = isConnected ? t('dashboard.new_vault') : t('dashboard.connect_wallet_btn');
@@ -210,14 +213,35 @@ export default function DashboardPage() {
 
   useEffect(() => { loadBalances(); }, [loadBalances]);
 
+  // ── Scheduler: load upcoming payments ────────────────────────────────────
+  const scheduler = useMemo(() => {
+    if (!SCHEDULER_ADDRESS) return null;
+    return getSchedulerContract(SCHEDULER_ADDRESS, signer ?? getReadOnlyProvider());
+  }, [signer]);
+
+  const loadScheduledPayments = useCallback(async () => {
+    if (!scheduler || !account || vaults.length === 0) { setEvents([]); return; }
+    try {
+      const taskIdGroups = await Promise.all(vaults.map((v) => scheduler.getTasksForVault(v.safe)));
+      const uniqueIds = [...new Set(taskIdGroups.flat())];
+      if (uniqueIds.length === 0) { setEvents([]); return; }
+      const records = await Promise.all(uniqueIds.map(async (id) => {
+        const task = await scheduler.getTask(id);
+        return taskToPaymentEvent(id, task);
+      }));
+      setEvents(records.sort((a, b) => a.date.getTime() - b.date.getTime()));
+    } catch {
+      setEvents([]);
+    }
+  }, [scheduler, account, vaults]);
+
+  useEffect(() => { void loadScheduledPayments(); }, [loadScheduledPayments]);
+
   const loading = vaultsLoading || balanceLoading;
 
   // ── Derive display data ────────────────────────────────────────────────────
-  const budgetNodes: BudgetNode[] = [];
   const agents: AgentMiniRecord[] = [];
-  const events: PaymentEvent[] = [];
   const vaultCount = vaults.length;
-  const selectedNode   = findNode(budgetNodes, selectedNodeId);
   const graphSpaces = vaults.slice(0, 4).map((vault, index) => ({
     label: vault.label || vault.safe.slice(0, 8),
       status: index === 1 ? ('pending' as const) : ('active' as const),
@@ -288,41 +312,29 @@ export default function DashboardPage() {
               <QuickActionButton label={t('dashboard.quick.pause')} onClick={() => router.push('/automation')} />
               <QuickActionButton label={t('dashboard.quick.add_recipient')} onClick={() => router.push('/rules')} />
               <QuickActionButton label={t('dashboard.quick.update_limit')} onClick={() => router.push('/budgets')} />
-              <QuickActionButton label={t('dashboard.quick.run_now')} onClick={() => router.push('/missions/create')} />
+              <QuickActionButton label={t('dashboard.quick.run_now')} onClick={() => router.push('/automation')} />
+              {isConnected && vaults.length > 0 && (
+                <QuickActionButton label="Send payment now" onClick={() => setSendPaymentOpen(true)} />
+              )}
             </CardContent>
           </Card>
         </div>
 
         <VerifiedRunsPanel />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <Card>
+        <Card>
             <CardHeader>
-              <CardTitle>{t('dashboard.upcoming_payments')}</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle>{t('dashboard.upcoming_payments')}</CardTitle>
+                <Link href="/automation">
+                  <span className="text-xs hover:underline cursor-pointer" style={{ color: 'var(--accent)' }}>{t('common.view_all')}</span>
+                </Link>
+              </div>
             </CardHeader>
             <CardContent>
-              {events.length > 0 ? <PaymentTimeline events={events} /> : <EmptyTimeline actionLabel={emptyActionLabel} onAction={handleEmptyAction} />}
+              {events.length > 0 ? <PaymentTimeline events={events} /> : <EmptyTimeline actionLabel={t('dashboard.quick.run_now')} onAction={() => router.push('/automation')} />}
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('dashboard.budget_tree')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {budgetNodes.length > 0 ? (
-                <BudgetTreeView
-                  nodes={budgetNodes}
-                  selectedId={selectedNodeId}
-                  onSelect={(node) => setSelectedNodeId(node.id)}
-                  onAddCategory={() => router.push('/budgets')}
-                />
-              ) : (
-                <EmptyBudgetTree actionLabel={emptyActionLabel} onAction={handleEmptyAction} />
-              )}
-            </CardContent>
-          </Card>
-        </div>
 
         {/* ─── Expert Mode entry point ───────────────────────────────────── */}
         <div
@@ -416,82 +428,8 @@ export default function DashboardPage() {
 
       <VerifiedRunsPanel />
 
-      {/* ─── Main: Budget tree + detail panel ─── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>{t('dashboard.budget_tree')}</CardTitle>
-                <Link href="/budgets">
-                  <span className="text-xs text-primary-500 hover:underline cursor-pointer">{t('common.view_all')}</span>
-                </Link>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {budgetNodes.length > 0 ? (
-                <BudgetTreeView
-                  nodes={budgetNodes}
-                  selectedId={selectedNodeId}
-                  onSelect={(node) => setSelectedNodeId(node.id)}
-                  onAddCategory={() => router.push('/budgets')}
-                />
-              ) : (
-                <EmptyBudgetTree actionLabel={emptyActionLabel} onAction={handleEmptyAction} />
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Detail panel */}
-        <div>
-          {selectedNode ? (
-            <Card className="sticky top-4">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <span>{selectedNode.emoji}</span>
-                  <span>{selectedNode.label}</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-1">
-                  <div className="flex justify-between text-sm">
-                    <span style={{ color: 'var(--text-muted)' }}>{t('dashboard.detail.spent')}</span>
-                    <span className="font-semibold" style={{ color: 'var(--text)' }}>${selectedNode.spent.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span style={{ color: 'var(--text-muted)' }}>{t('dashboard.detail.limit')}</span>
-                    <span className="font-semibold" style={{ color: 'var(--text)' }}>${selectedNode.total.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span style={{ color: 'var(--text-muted)' }}>{t('dashboard.detail.available')}</span>
-                    <span
-                      className="font-semibold"
-                      style={{ color: selectedNode.total - selectedNode.spent >= 0 ? 'var(--success)' : 'var(--blocked)' }}
-                    >
-                      ${Math.max(0, selectedNode.total - selectedNode.spent).toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-                <Link href="/budgets">
-                  <Button variant="secondary" size="sm" fullWidth>
-                    {t('dashboard.manage_budget')}
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardContent className="text-center py-8 text-sm" style={{ color: 'var(--text-muted)' }}>
-                {budgetNodes.length > 0 ? t('dashboard.click_category') : t('dashboard.empty.no_selection')}
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </div>
-
       {/* ─── Bottom: Agents scroll + Payment timeline ─── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <Card>
           <CardContent className="pt-4">
             {agents.length > 0 ? (
@@ -506,12 +444,12 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="lg:col-span-2">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-base">{t('dashboard.upcoming_payments')}</CardTitle>
               <Link href="/automation">
-                <span className="text-xs text-primary-500 hover:underline cursor-pointer">{t('common.view_all')}</span>
+                <span className="text-xs hover:underline cursor-pointer" style={{ color: 'var(--accent)' }}>{t('common.view_all')}</span>
               </Link>
             </div>
           </CardHeader>
@@ -519,12 +457,18 @@ export default function DashboardPage() {
             {events.length > 0 ? (
               <PaymentTimeline events={events} />
             ) : (
-              <EmptyTimeline actionLabel={emptyActionLabel} onAction={handleEmptyAction} />
+              <EmptyTimeline actionLabel={t('dashboard.quick.run_now')} onAction={() => router.push('/automation')} />
             )}
           </CardContent>
         </Card>
       </div>
 
+      <SendPaymentModal
+        open={sendPaymentOpen}
+        onClose={() => setSendPaymentOpen(false)}
+        signer={signer}
+        vaults={vaults.map((v) => ({ safe: v.safe, label: v.label }))}
+      />
     </div>
   );
 }

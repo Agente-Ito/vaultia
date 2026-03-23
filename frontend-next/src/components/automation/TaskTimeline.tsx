@@ -8,7 +8,6 @@ export interface TaskRecord {
   id: string;
   label: string;
   description: string;
-  botEmoji: string;
   botName: string;
   vaultLabel: string;
   nextExecution: Date;
@@ -18,6 +17,7 @@ export interface TaskRecord {
   amountLabel?: string;
   amount?: number;
   currency?: string;
+  limitActive?: boolean;
 }
 
 function groupByDate(tasks: TaskRecord[], locale: string): { dateLabel: string; items: TaskRecord[] }[] {
@@ -48,7 +48,18 @@ export function TaskTimeline({ tasks, onToggle, toggleDisabled = false }: TaskTi
   if (tasks.length === 0) {
     return (
       <div className="text-center py-12 space-y-2">
-        <p className="text-3xl">⏰</p>
+        <div className="flex items-center justify-center gap-2">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <span
+              key={index}
+              className="h-2.5 w-2.5 rounded-full"
+              style={{
+                background: index === 2 ? 'var(--accent)' : 'var(--border)',
+                opacity: index === 2 ? 1 : 0.7,
+              }}
+            />
+          ))}
+        </div>
         <p className="text-sm text-neutral-500">{t('automation.empty')}</p>
       </div>
     );
@@ -80,9 +91,12 @@ export function TaskTimeline({ tasks, onToggle, toggleDisabled = false }: TaskTi
                     : 'border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 opacity-60'
                 )}
               >
-                {/* Icon */}
-                <div className="w-10 h-10 rounded-full bg-neutral-100 dark:bg-neutral-700 flex items-center justify-center text-xl flex-shrink-0">
-                  {task.botEmoji}
+                {/* Dot marker */}
+                <div className="w-10 h-10 rounded-full bg-neutral-100 dark:bg-neutral-700 flex items-center justify-center flex-shrink-0">
+                  <span
+                    className="h-3 w-3 rounded-full"
+                    style={{ background: task.enabled ? 'var(--success)' : 'var(--border)' }}
+                  />
                 </div>
 
                 {/* Info */}
@@ -113,6 +127,11 @@ export function TaskTimeline({ tasks, onToggle, toggleDisabled = false }: TaskTi
                         {t('automation.task.on_chain')}
                       </span>
                     )}
+                    {task.limitActive && (
+                      <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(255,200,87,0.12)', color: 'var(--warning)' }}>
+                        {t('automation.task.vault_limited')}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -138,7 +157,16 @@ export function TaskTimeline({ tasks, onToggle, toggleDisabled = false }: TaskTi
                   )}
                   aria-label={task.enabled ? t('automation.task.disable') : t('automation.task.enable')}
                 >
-                  {task.enabled ? '⏸' : '▶'}
+                  {task.enabled ? (
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <rect x="6" y="5" width="4" height="14" rx="1" />
+                      <rect x="14" y="5" width="4" height="14" rx="1" />
+                    </svg>
+                  ) : (
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path d="M8 6.5v11l9-5.5-9-5.5Z" />
+                    </svg>
+                  )}
                 </button>
               </div>
             ))}

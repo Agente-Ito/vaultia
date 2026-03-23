@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Contract } from 'ethers';
+import { decodeRevertReason } from '@/lib/errorMap';
 
 export interface VaultRecord {
   safe: string;
@@ -29,14 +30,6 @@ function normalizeVaultRecord(value: unknown): VaultRecord | null {
     policyEngine: record.policyEngine,
     label: record.label,
   };
-}
-
-function getErrorMessage(error: unknown) {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return String(error);
 }
 
 export function useVaults(registry: Contract | null, account: string | null) {
@@ -77,7 +70,7 @@ export function useVaults(registry: Contract | null, account: string | null) {
           setVaults(normalizedVaults);
         }
       } catch (err: unknown) {
-        if (!cancelled) setError(getErrorMessage(err));
+        if (!cancelled) setError(decodeRevertReason(err));
       } finally {
         if (!cancelled) setLoading(false);
       }

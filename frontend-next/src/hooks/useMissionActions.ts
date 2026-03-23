@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { ethers } from 'ethers';
+import { decodeRevertReason } from '@/lib/errorMap';
 import { MissionType } from '@/lib/missions/missionTypes';
 import {
   compileMission,
@@ -181,8 +182,7 @@ export function useMissionActions(): UseMissionActionsResult {
         setState((s) => ({ ...s, creating: false, revoking: false, error: null }));
         return record;
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        setState((s) => ({ ...s, creating: false, revoking: false, error: msg }));
+        setState((s) => ({ ...s, creating: false, revoking: false, error: decodeRevertReason(err) }));
         return null;
       }
     },
@@ -208,8 +208,7 @@ export function useMissionActions(): UseMissionActionsResult {
         setState((s) => ({ ...s, revoking: false }));
         return true;
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        setState((s) => ({ ...s, revoking: false, error: msg }));
+        setState((s) => ({ ...s, revoking: false, error: decodeRevertReason(err) }));
         return false;
       }
     },
@@ -247,8 +246,7 @@ export function useMissionActions(): UseMissionActionsResult {
         setState((s) => ({ ...s, pausing: false }));
         return true;
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        setState((s) => ({ ...s, pausing: false, error: msg }));
+        setState((s) => ({ ...s, pausing: false, error: decodeRevertReason(err) }));
         return false;
       }
     },

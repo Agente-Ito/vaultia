@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
 import type { ContractTransactionReceipt, ContractTransactionResponse } from 'ethers';
-import { getOwnable2StepContract, getPolicyEngineContract, type RegistryContract } from '@/lib/web3/contracts';
+import { getOwnable2StepContract, getPolicyEngineContract, getSafeContract, type RegistryContract } from '@/lib/web3/contracts';
 import type { RecipientEntry } from '@/context/OnboardingContext';
 
 export const AgentMode = {
@@ -66,11 +66,22 @@ export interface RegistryDeployParams {
   allowedCallsByAgent: Array<{ agent: string; allowedCalls: string }>;
 }
 
+export type VaultDeployPhase =
+  | 'tx_pending'
+  | 'tx_confirming'
+  | 'ownership_batch'
+  | 'ownership_fallback'
+  | 'verifying'
+  | 'done';
+
+export type VaultProgressCallback = (phase: VaultDeployPhase, detail?: string) => void;
+
 export interface DeployRegistryVaultOptions {
   registry: RegistryContract;
   params: RegistryDeployParams;
   owner?: string;
   existingSafeAddresses?: Set<string>;
+  onProgress?: VaultProgressCallback;
 }
 
 export interface DeployedVaultSummary {
@@ -408,95 +419,36 @@ function formatAcceptOwnershipError(
   return `Automatic acceptOwnership failed for ${contractAddress}: signer ${signerAddress}, pending owner ${pendingOwner}. ${reason}`;
 }
 
-async function tryAcceptOwnershipViaPendingOwnerProfile(
+/**
+ * Checks whether a contract address still needs acceptOwnership from `ownerAddress`.
+ * Returns the contract address if pending, null otherwise.
+ */
+async function getPendingOwnershipAddress(
   contractAddress: string,
-  pendingOwner: string,
-  signer: ethers.Signer,
-  signerAddress: string
-): Promise<string | null | undefined> {
-  const provider = signer.provider;
-  if (!provider) {
-    return 'Signer provider unavailable for Universal Profile ownership finalization.';
-  }
-
-  const pendingOwnerCode = await provider.getCode(pendingOwner);
-  if (pendingOwnerCode === '0x') {
-    return undefined;
-  }
-
-  if (signerAddress.toLowerCase() !== pendingOwner.toLowerCase()) {
-    return `Automatic ownership finalization requires executing acceptOwnership through the pending owner profile ${pendingOwner}. Reconnect that profile and retry.`;
-  }
-
-  try {
-    const pendingOwnerProfile = new ethers.Contract(
-      pendingOwner,
-      ['function execute(uint256 operation,address to,uint256 value,bytes data) external payable returns (bytes memory)'],
-      signer
-    );
-    const acceptOwnershipPayload = ACCEPT_OWNERSHIP_INTERFACE.encodeFunctionData('acceptOwnership');
-    const tx = await pendingOwnerProfile.execute(
-      0,
-      contractAddress,
-      0,
-      acceptOwnershipPayload
-    );
-    await tx.wait();
-    return null;
-  } catch (error: unknown) {
-    return `Universal Profile ownership finalization failed for ${contractAddress} via profile ${pendingOwner}: ${error instanceof Error ? error.message : String(error)}`;
-  }
-}
-
-async function acceptOwnershipIfPending(contractAddress: string, ownerAddress: string, signer: ethers.Signer) {
+  ownerAddress: string,
+  signer: ethers.Signer
+): Promise<string | null> {
   const contract = getOwnable2StepContract(contractAddress, signer);
-  const currentOwner = await contract.owner();
-  if (currentOwner.toLowerCase() === ownerAddress.toLowerCase()) {
-    return null;
-  }
-
-  const pendingOwner = await contract.pendingOwner();
-  if (pendingOwner.toLowerCase() !== ownerAddress.toLowerCase()) {
-    return `Ownership for ${contractAddress} is pending for ${pendingOwner}, not ${ownerAddress}.`;
-  }
-
-  const signerAddress = await signer.getAddress();
-  const profileFinalizationResult = await tryAcceptOwnershipViaPendingOwnerProfile(
-    contractAddress,
-    pendingOwner,
-    signer,
-    signerAddress
-  );
-  if (profileFinalizationResult === null) {
-    return null;
-  }
-  if (typeof profileFinalizationResult === 'string') {
-    return profileFinalizationResult;
-  }
-
-  if (signerAddress.toLowerCase() !== pendingOwner.toLowerCase()) {
-    return `Automatic acceptOwnership skipped for ${contractAddress}: connected signer ${signerAddress} is not the pending owner ${pendingOwner}. Reconnect the wallet/profile that deployed the vault and retry.`;
-  }
-
   try {
-    const tx = await contract.acceptOwnership();
-    await tx.wait();
+    const currentOwner = await contract.owner();
+    if (currentOwner.toLowerCase() === ownerAddress.toLowerCase()) return null;
+    const pendingOwner = await contract.pendingOwner();
+    if (pendingOwner.toLowerCase() !== ownerAddress.toLowerCase()) return null;
+    return contractAddress;
+  } catch {
     return null;
-  } catch (error: unknown) {
-    return formatAcceptOwnershipError(contractAddress, pendingOwner, signerAddress, error);
   }
 }
 
 async function finalizeVaultOwnership(
   registry: RegistryContract,
   deployed: { safe: string; keyManager: string; policyEngine: string; label: string } | null,
-  owner?: string
+  owner?: string,
+  onProgress?: VaultProgressCallback
 ) {
   const warnings: string[] = [];
 
-  if (!deployed || !owner) {
-    return warnings;
-  }
+  if (!deployed || !owner) return warnings;
 
   const runner = registry.runner;
   if (!runner || !("getAddress" in runner)) {
@@ -505,40 +457,88 @@ async function finalizeVaultOwnership(
   }
 
   const signer = runner as ethers.Signer;
+  const signerAddress = await signer.getAddress();
 
-  const safeWarning = await acceptOwnershipIfPending(deployed.safe, owner, signer);
-  if (safeWarning) {
-    warnings.push(safeWarning);
-  }
-
+  // Collect all contracts that need acceptOwnership (in parallel)
   const policyEngine = getPolicyEngineContract(deployed.policyEngine, signer) as ReturnType<typeof getPolicyEngineContract> & {
-    owner(): Promise<string>;
-    pendingOwner(): Promise<string>;
-    acceptOwnership(): Promise<ContractTransactionResponse>;
+    getPolicies(): Promise<string[]>;
   };
 
-  const engineWarning = await acceptOwnershipIfPending(deployed.policyEngine, owner, signer);
-  if (engineWarning) {
-    warnings.push(engineWarning);
-  }
-
+  let policyAddresses: string[] = [];
   try {
-    const policies = await policyEngine.getPolicies();
-    for (const policyAddress of policies) {
-      const policyWarning = await acceptOwnershipIfPending(policyAddress, owner, signer);
-      if (policyWarning) {
-        warnings.push(policyWarning);
-      }
-    }
+    policyAddresses = await policyEngine.getPolicies();
   } catch (error: unknown) {
     warnings.push(`Could not enumerate policies for ownership finalization: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  const allContracts = [deployed.safe, deployed.policyEngine, ...policyAddresses];
+
+  const pendingResults = await Promise.all(
+    allContracts.map((addr) => getPendingOwnershipAddress(addr, owner, signer))
+  );
+  const pendingContracts = pendingResults.filter((addr): addr is string => addr !== null);
+
+  if (pendingContracts.length === 0) return warnings;
+
+  // Determine whether owner is a UP (contract) or EOA
+  const provider = signer.provider;
+  const ownerCode = provider ? await provider.getCode(owner) : '0x';
+  const ownerIsProfile = ownerCode !== '0x';
+
+  const acceptPayload = ACCEPT_OWNERSHIP_INTERFACE.encodeFunctionData('acceptOwnership');
+
+  if (ownerIsProfile && signerAddress.toLowerCase() === owner.toLowerCase()) {
+    // ── Batch path: single executeBatch through the Universal Profile ──────────
+    onProgress?.('ownership_batch');
+    try {
+      const profile = new ethers.Contract(
+        owner,
+        [
+          'function executeBatch(uint256[] operationsType, address[] targets, uint256[] values, bytes[] datas) external payable returns (bytes[] memory)',
+        ],
+        signer
+      );
+      const n = pendingContracts.length;
+      const tx = await profile.executeBatch(
+        Array(n).fill(0),
+        pendingContracts,
+        Array(n).fill(0),
+        Array(n).fill(acceptPayload)
+      );
+      await tx.wait();
+    } catch (error: unknown) {
+      warnings.push(`Batched ownership acceptance failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  } else {
+    // ── Fallback: individual acceptOwnership per contract ─────────────────────
+    onProgress?.('ownership_fallback');
+    for (const contractAddress of pendingContracts) {
+      try {
+        if (ownerIsProfile) {
+          // Signer is not the UP itself — can't batch or proxy
+          warnings.push(`Ownership for ${contractAddress} pending on profile ${owner}. Reconnect that profile and retry.`);
+          continue;
+        }
+        if (signerAddress.toLowerCase() !== owner.toLowerCase()) {
+          warnings.push(`Automatic acceptOwnership skipped for ${contractAddress}: connected signer ${signerAddress} is not the pending owner ${owner}.`);
+          continue;
+        }
+        const contract = getOwnable2StepContract(contractAddress, signer);
+        const tx = await contract.acceptOwnership();
+        await tx.wait();
+      } catch (error: unknown) {
+        warnings.push(formatAcceptOwnershipError(contractAddress, owner, signerAddress, error));
+      }
+    }
   }
 
   return warnings;
 }
 
 export async function deployRegistryVault(options: DeployRegistryVaultOptions): Promise<RegistryVaultDeploymentResult> {
+  options.onProgress?.('tx_pending');
   const tx = await options.registry.deployVault(options.params);
+  options.onProgress?.('tx_confirming');
   const receipt = await tx.wait();
   if (!receipt) {
     throw new Error('Transaction receipt not available');
@@ -557,7 +557,81 @@ export async function deployRegistryVault(options: DeployRegistryVaultOptions): 
       null;
   }
 
-  const ownershipWarnings = await finalizeVaultOwnership(options.registry, deployed, options.owner);
+  const ownershipWarnings = await finalizeVaultOwnership(options.registry, deployed, options.owner, options.onProgress);
 
   return { tx, receipt, deployed, ownershipWarnings };
+}
+
+// ─── Standalone ownership utilities (for recovery / UI) ───────────────────────
+
+/**
+ * Returns whether the user is the current owner, pending owner, or unrelated to a vault's safe.
+ * Uses the safe address to represent the vault (all vault contracts share the same owner chain).
+ */
+export async function checkVaultOwnership(
+  safeAddress: string,
+  userAddress: string,
+  provider: ethers.Provider
+): Promise<'owner' | 'pending' | 'none'> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const c = getOwnable2StepContract(safeAddress, provider) as any;
+    const owner: string = await c.owner();
+    if (owner.toLowerCase() === userAddress.toLowerCase()) return 'owner';
+    const pending: string = await c.pendingOwner();
+    if (pending.toLowerCase() === userAddress.toLowerCase()) return 'pending';
+  } catch {
+    // contract may not support pendingOwner (non-LSP14) — treat as not related
+  }
+  return 'none';
+}
+
+/**
+ * Accepts pending ownership for all contracts in a vault (safe, policyEngine, policies).
+ * Sends individual acceptOwnership() transactions so the UP extension wraps each call correctly.
+ * Returns the number of contracts claimed and any per-contract warnings.
+ */
+export async function claimVaultOwnership(
+  safeAddress: string,
+  signer: ethers.Signer
+): Promise<{ claimed: number; warnings: string[] }> {
+  const warnings: string[] = [];
+  const signerAddress = await signer.getAddress();
+
+  // Enumerate all vault contracts
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const safeC = getSafeContract(safeAddress, signer) as any;
+  let policyEngineAddr = '';
+  try { policyEngineAddr = await safeC.policyEngine(); } catch { /* best-effort */ }
+
+  let policyAddresses: string[] = [];
+  if (policyEngineAddr) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pe = getPolicyEngineContract(policyEngineAddr, signer) as any;
+      policyAddresses = await pe.getPolicies();
+    } catch { /* best-effort */ }
+  }
+
+  const allContracts = [
+    safeAddress,
+    ...(policyEngineAddr ? [policyEngineAddr] : []),
+    ...policyAddresses,
+  ];
+
+  let claimed = 0;
+  for (const addr of allContracts) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const c = getOwnable2StepContract(addr, signer) as any;
+      const pending: string = await c.pendingOwner();
+      if (pending.toLowerCase() !== signerAddress.toLowerCase()) continue;
+      const tx = await c.acceptOwnership();
+      await tx.wait();
+      claimed++;
+    } catch (e: unknown) {
+      warnings.push(`${addr.slice(0, 10)}…: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  return { claimed, warnings };
 }

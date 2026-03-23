@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { ethers } from 'ethers';
+import { decodeRevertReason } from '@/lib/errorMap';
 import {
   getBudgetPolicyContract,
   getMerchantPolicyContract,
@@ -19,7 +20,7 @@ export function useManageVaultPolicy() {
       await fn();
       return true;
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(decodeRevertReason(err));
       return false;
     } finally {
       setUpdating(false);

@@ -4,6 +4,7 @@ import React from 'react';
 import { useI18n } from '@/context/I18nContext';
 import { AddressDisplay } from '@/components/common/AddressDisplay';
 import type { GoalKey, ExecutorType, SafetyLevel, FrequencyKey, RecipientEntry } from '@/context/OnboardingContext';
+import { getWizardFrequencyLabel } from '@/lib/utils/frequencyLabels';
 
 interface WizardReviewSummaryProps {
   goal: GoalKey | null;
@@ -32,7 +33,7 @@ export function WizardReviewSummary({
   const count  = recipients.length;
   const isManual = !agentEnabled;
 
-  const freqLabel = t(`wizard.limits.freq.${frequency}` as Parameters<typeof t>[0]).toLowerCase();
+  const freqLabel = getWizardFrequencyLabel(frequency, t).toLowerCase();
   const executorLabel = isManual
     ? t('wizard.automation.executor.manual_state')
     : executor === 'vaultia'

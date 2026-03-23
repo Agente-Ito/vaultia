@@ -12,11 +12,13 @@ import { VaultDeployResultDialog } from '@/components/vaults/VaultDeployResultDi
 import { SafetyLevelChips } from '@/components/wizard/SafetyLevelChips';
 import { WizardReviewSummary } from '@/components/wizard/WizardReviewSummary';
 import { useI18n } from '@/context/I18nContext';
+import { getLocalizedErrorMessage, localizeErrorMessage } from '@/lib/errorMap';
 import { useOnboarding } from '@/context/OnboardingContext';
 import type { FrequencyKey, ExecutorType, GoalKey } from '@/context/OnboardingContext';
 import { useWeb3 } from '@/context/Web3Context';
+import { WIZARD_FREQUENCY_KEYS } from '@/lib/utils/frequencyLabels';
 import { ethers } from 'ethers';
-import type { DeployedVaultSummary } from '@/lib/web3/deployVault';
+import type { DeployedVaultSummary, VaultDeployPhase, VaultProgressCallback } from '@/lib/web3/deployVault';
 import { buildSimpleWizardDeployParams, deployRegistryVault, validateSimpleWizardInput } from '@/lib/web3/deployVault';
 import { LuksoIcon } from '@/components/common/LuksoIcon';
 
@@ -31,13 +33,7 @@ const TOTAL_STEPS = 5;
 
 const SIMPLE_FREQS: FrequencyKey[] = ['daily', 'weekly', 'monthly', 'hourly', 'five-minutes'];
 
-const FREQ_I18N: Record<FrequencyKey, string> = {
-  daily: 'wizard.limits.freq.daily',
-  weekly: 'wizard.limits.freq.weekly',
-  monthly: 'wizard.limits.freq.monthly',
-  hourly: 'wizard.limits.freq.hourly',
-  'five-minutes': 'wizard.limits.freq.five_minutes',
-};
+const FREQ_I18N: Record<FrequencyKey, string> = WIZARD_FREQUENCY_KEYS;
 const SIMPLE_EXECUTORS: ExecutorType[] = ['vaultia', 'my_agent'];
 
 // Primary preset goals always visible
@@ -54,15 +50,6 @@ const STEP_LABEL_KEYS = [
   'wizard.step_label.automation',
   'wizard.step_label.review',
 ] as const;
-
-function getErrorMessage(error: unknown): string {
-  if (typeof error === 'object' && error !== null) {
-    const candidate = error as { reason?: unknown; message?: unknown };
-    if (typeof candidate.reason === 'string' && candidate.reason) return candidate.reason;
-    if (typeof candidate.message === 'string' && candidate.message) return candidate.message;
-  }
-  return String(error);
-}
 
 function FrequencyOptionList({
   value,
@@ -141,6 +128,7 @@ export function SimpleSetupFlow() {
   const [stepError, setStepError] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [deployPhases, setDeployPhases] = useState<{ phase: VaultDeployPhase; detail?: string }[]>([]);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createdVault, setCreatedVault] = useState<DeployedVaultSummary | null>(null);
   const [createTxHash, setCreateTxHash] = useState<string | null>(null);
@@ -286,8 +274,12 @@ export function SimpleSetupFlow() {
     }
 
     setCreating(true);
+    setDeployPhases([]);
     setCreateError(null);
     setCreateWarnings([]);
+    const onProgress: VaultProgressCallback = (phase, detail) => {
+      setDeployPhases((prev) => [...prev, { phase, detail }]);
+    };
 
     try {
       if (!isRegistryConfigured || !registry || !signer) {
@@ -301,6 +293,7 @@ export function SimpleSetupFlow() {
         registry,
         owner,
         existingSafeAddresses,
+        onProgress,
         params: buildSimpleWizardDeployParams({
           vaultName: wizardVaultName,
           goal,
@@ -1136,6 +1129,9 @@ export function SimpleSetupFlow() {
                   <p className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
                     {t('wizard.review.tx_notice')}
                   </p>
+                  {(creating || deployPhases.length > 0) && (
+                    <SimpleDeployProgressStepper phases={deployPhases} t={t} />
+                  )}
                 </div>
               </div>
             )}
@@ -1165,6 +1161,7 @@ export function SimpleSetupFlow() {
               </Button>
             )}
           </div>
+
         </div>
       </div>
 
@@ -1184,5 +1181,53 @@ export function SimpleSetupFlow() {
         onPrimaryAction={createdVault ? handleViewVaults : () => setCreateDialogOpen(false)}
       />
     </section>
+  );
+}
+
+// ─── Deploy progress stepper ──────────────────────────────────────────────────
+
+function SimpleDeployProgressStepper({
+  phases,
+  t,
+}: {
+  phases: { phase: VaultDeployPhase; detail?: string }[];
+  t: (key: string) => string;
+}) {
+  const rows: { phase: VaultDeployPhase; done: boolean }[] = [];
+  for (let i = 0; i < phases.length; i++) {
+    const { phase } = phases[i];
+    const isLast = i === phases.length - 1;
+    rows.push({ phase, done: !isLast });
+  }
+
+  return (
+    <div
+      className="mt-4 rounded-xl p-4 space-y-2.5"
+      style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+    >
+      <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>
+        {t('create.progress.title')}
+      </p>
+      {rows.map(({ phase, done }, idx) => (
+        <div key={`${phase}-${idx}`} className="flex items-center gap-3">
+          <span className="flex-shrink-0 flex items-center justify-center w-5 h-5">
+            {done ? (
+              <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="9" fill="none" stroke="var(--success)" strokeWidth="1.5" />
+                <path d="M6 10l3 3 5-5" stroke="var(--success)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5 animate-spin" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="8" stroke="var(--border)" strokeWidth="2" />
+                <path d="M10 2a8 8 0 0 1 8 8" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            )}
+          </span>
+          <span className="text-sm" style={{ color: done ? 'var(--text-muted)' : 'var(--text)' }}>
+            {t(`create.progress.${phase}`)}
+          </span>
+        </div>
+      ))}
+    </div>
   );
 }

@@ -22,7 +22,7 @@ const CORE_ITEMS: NavItem[] = [
   { href: '/dashboard', labelKey: 'nav.dashboard' },
   { href: '/vaults', labelKey: 'nav.vaults' },
   { href: '/agents', labelKey: 'nav.agents', hidden: !AGENTS_ENABLED },
-  { href: '/missions', labelKey: 'nav.active_automations' },
+  { href: '/automation', labelKey: 'nav.active_automations' },
   { href: '/rules', labelKey: 'nav.rules' },
   { href: '/activity', labelKey: 'nav.activity' },
   { href: '/profiles', labelKey: 'nav.profiles' },

@@ -11,6 +11,8 @@ import { useWeb3 } from '@/context/Web3Context';
 import { useVaults } from '@/hooks/useVaults';
 import { useMode } from '@/context/ModeContext';
 import { useI18n } from '@/context/I18nContext';
+import { getLocalizedErrorMessage, localizeErrorMessage } from '@/lib/errorMap';
+import { loadVaultAutomationConstraints, minBigInt, minNumber } from '@/lib/automation/vaultConstraints';
 import { getSchedulerContract } from '@/lib/web3/contracts';
 import { getReadOnlyProvider } from '@/lib/web3/provider';
 import { AP_ARRAY_KEY, apArrayElementKey, apPermissionsKey } from '@/lib/missions/permissionCompiler';
@@ -25,11 +27,7 @@ const safePermissionsInterface = new Interface([
 const PERM_POWER_USER = '0x0000000000000000000000000000000000000000000000000000000000000500';
 
 function getErrorMessage(error: unknown) {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return String(error);
+  return getLocalizedErrorMessage(error, t => t);
 }
 
 function shortenAddress(address: string) {
@@ -68,6 +66,7 @@ function buildTaskRecord(
   vaultLabel: string,
   locale: 'en' | 'es',
   t: (key: string) => string,
+  limitActive?: boolean,
 ): TaskRecord {
   const [vault, , executeCalldata, triggerTypeValue, nextExecution, interval, enabled] = task;
   const triggerType = triggerTypeValue === 1 ? 'block' : 'timestamp';
@@ -94,7 +93,6 @@ function buildTaskRecord(
     id: taskId,
     label: t('task_wizard.action.fixed_payment.title'),
     description: recipientLabel,
-    botEmoji: '💸',
     botName: 'TaskScheduler',
     vaultLabel,
     nextExecution: nextExecutionDate,
@@ -102,6 +100,7 @@ function buildTaskRecord(
     triggerType,
     enabled,
     amountLabel,
+    limitActive,
   };
 }
 
@@ -216,10 +215,48 @@ export default function AutomationPage() {
         return;
       }
 
+      const constraintsEntries = await Promise.all(vaults.map(async (vault) => {
+        try {
+          return [vault.safe.toLowerCase(), await loadVaultAutomationConstraints(vault)] as const;
+        } catch {
+          return [vault.safe.toLowerCase(), null] as const;
+        }
+      }));
+      const constraintsMap = Object.fromEntries(constraintsEntries);
+
       const records = await Promise.all(uniqueTaskIds.map(async (taskId) => {
         const task = await scheduler.getTask(taskId);
         const vault = vaults.find((entry) => entry.safe.toLowerCase() === task[0].toLowerCase());
-        return buildTaskRecord(taskId, task, vault?.label || shortenAddress(task[0]), locale, t);
+        let limitActive = false;
+
+        try {
+          const decodedKeyManager = keyManagerInterface.decodeFunctionData('execute', task[2]);
+          const vaultExecutePayload = decodedKeyManager[0] as string;
+          const decodedSafe = safeInterface.decodeFunctionData('execute', vaultExecutePayload);
+          const recipient = (decodedSafe[1] as string).toLowerCase();
+          const value = decodedSafe[2] as bigint;
+          const triggerType = task[3] === 1 ? 'block' : 'timestamp';
+          const intervalSeconds = triggerType === 'block' ? Number(task[5]) * 12 : Number(task[5]);
+          const constraints = constraintsMap[task[0].toLowerCase()];
+          if (constraints) {
+            const recipientOption = constraints.recipientOptions.find((option) => option.address.toLowerCase() === recipient) ?? null;
+            const effectiveRemaining = minBigInt(constraints.globalRemainingWei, recipientOption?.remainingWei ?? null);
+            const effectivePeriod = minNumber(constraints.maxPeriodSeconds, recipientOption?.periodSeconds ?? null);
+            limitActive = Boolean(
+              constraints.hasRecipientRestrictions ||
+              effectiveRemaining !== null ||
+              effectivePeriod !== null
+            ) && (
+              constraints.hasRecipientRestrictions ||
+              (effectiveRemaining !== null && value <= effectiveRemaining) ||
+              (effectivePeriod !== null && intervalSeconds <= effectivePeriod)
+            );
+          }
+        } catch {
+          // ignore decode issues; fallback to task without limit badge
+        }
+
+        return buildTaskRecord(taskId, task, vault?.label || shortenAddress(task[0]), locale, t, limitActive);
       }));
 
       setTasks(records.sort((left, right) => left.nextExecution.getTime() - right.nextExecution.getTime()));
@@ -358,22 +395,25 @@ export default function AutomationPage() {
           <p className="text-xs mt-2" style={{ color: 'var(--text)' }}>{txStatus}</p>
         )}
         {tasksError && (
-          <p className="text-xs mt-2 text-red-500">{tasksError}</p>
+          <p className="text-xs mt-2 text-red-500 break-words leading-relaxed">{localizeErrorMessage(tasksError, t)}</p>
         )}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         {[
-          { emoji: '✅', label: t('automation.summary.active'), value: enabledCount },
-          { emoji: '🕐', label: t('automation.summary.timestamp'), value: tasks.filter((task) => task.triggerType === 'timestamp').length },
-          { emoji: '⛓️', label: t('automation.summary.block'), value: tasks.filter((task) => task.triggerType === 'block').length },
+          { tone: 'var(--success)', label: t('automation.summary.active'), value: enabledCount },
+          { tone: 'var(--accent)', label: t('automation.summary.timestamp'), value: tasks.filter((task) => task.triggerType === 'timestamp').length },
+          { tone: 'var(--primary)', label: t('automation.summary.block'), value: tasks.filter((task) => task.triggerType === 'block').length },
         ].map((summary) => (
           <div
             key={summary.label}
             className="rounded-xl p-4 flex items-center gap-3"
             style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
           >
-            <span className="text-2xl">{summary.emoji}</span>
+            <span
+              className="h-3.5 w-3.5 rounded-full flex-shrink-0"
+              style={{ background: summary.tone }}
+            />
             <div>
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{summary.label}</p>
               <p className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{summary.value}</p>

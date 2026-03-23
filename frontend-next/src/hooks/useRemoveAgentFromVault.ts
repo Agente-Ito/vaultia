@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { apPermissionsKey, apAllowedCallsKey } from '@/lib/missions/permissionCompiler';
+import { decodeRevertReason } from '@/lib/errorMap';
 import { getBaseAgentVaultContract, getBaseSigner } from '@/lib/web3/baseContracts';
 
 // ─── Minimal ABIs ─────────────────────────────────────────────────────────────
@@ -78,8 +79,7 @@ export function useRemoveAgentFromVault() {
       setState({ removing: false, success: true, error: null });
       return true;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setState({ removing: false, success: false, error: msg });
+      setState({ removing: false, success: false, error: decodeRevertReason(err) });
       return false;
     }
   }, []);

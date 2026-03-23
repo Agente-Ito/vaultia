@@ -83,6 +83,8 @@ const PolicyEngineAbi = [
   'function pendingOwner() external view returns (address)',
   'function acceptOwnership() external',
   'function getPolicies() external view returns (address[])',
+  'event Validated(address indexed agent, address indexed token, address indexed to, uint256 amount)',
+  'event ExecutionBlocked(address indexed agent, address indexed policy, address indexed token, address to, uint256 amount, string reason)',
 ];
 
 const Ownable2StepAbi = [
@@ -95,6 +97,7 @@ const BudgetPolicyAbi = [
   'function budget() external view returns (uint256)',
   'function spent() external view returns (uint256)',
   'function periodStart() external view returns (uint256)',
+  'function periodDuration() external view returns (uint256)',
   'function budgetToken() external view returns (address)',
   'function ownerSetBudget(uint256 newBudget) external',
 ];

@@ -253,21 +253,36 @@ export default function LandingPage() {
           ))}
         </div>
 
-        {/* Headline — two sentences arrive sequentially */}
-        <div className="max-w-xl mx-auto mb-10">
-          <p style={{ fontSize: 'clamp(1.8rem, 3.6vw, 2.34rem)', fontWeight: 700, color: 'var(--text)', letterSpacing: '0.01em', lineHeight: 1.5 }}>
-            {t('landing.subtitle').split('. ').map((part, i, arr) => (
-              <span
-                key={i}
-                className="animate-tagline"
-                style={{
-                  display: 'block',
-                  '--tagline-delay': `${0.3 + i * 0.55}s`,
-                } as React.CSSProperties}
-              >
-                {i < arr.length - 1 ? part + '.' : part}
-              </span>
-            ))}
+        {/* Headline + subheadline */}
+        <div className="mx-auto mb-10 flex flex-col items-center gap-5 text-center">
+          <h1
+            className="animate-tagline"
+            style={{
+              maxWidth: 820,
+              fontSize: 'clamp(1rem, 2.7vw, 2rem)',
+              fontWeight: 300,
+              color: 'var(--text)',
+              letterSpacing: '-0.02em',
+              lineHeight: 1.12,
+              '--tagline-delay': '0.25s',
+            } as React.CSSProperties}
+          >
+            {t('landing.title')}
+          </h1>
+
+          <p
+            className="animate-tagline"
+            style={{
+              maxWidth: 680,
+              fontSize: 'clamp(0.75rem, 1.05vw, 0.95rem)',
+              fontWeight: 300,
+              color: 'var(--text-muted)',
+              letterSpacing: '0em',
+              lineHeight: 1.46,
+              '--tagline-delay': '0.5s',
+            } as React.CSSProperties}
+          >
+            {t('landing.subtitle')}
           </p>
         </div>
 
