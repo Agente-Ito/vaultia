@@ -483,6 +483,11 @@ export function TopBar({ account, chainId, onMenuClick, onConnect }: TopBarProps
             </svg>
           </Link>
 
+          {/* Quick link: Verify Receipt */}
+          <Link href="/verify" className="hidden sm:block text-xs text-blue-400 underline hover:opacity-80">
+            Verify Receipt
+          </Link>
+
           {/* Notification bell — only for UP users */}
           {isUniversalProfile && account && (
             <NotificationBell upAddress={account} chainId={chainId} />
