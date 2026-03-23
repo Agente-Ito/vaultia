@@ -56,6 +56,13 @@ interface KeeperActivityApiEntry {
 const short = (addr: string) => addr ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : '';
 const ZERO_ADDRESS = ethers.ZeroAddress;
 const ACTIVITY_LOOKBACK_BLOCKS = 50_000;
+const ACTIVITY_QUERY_CHUNK = 5_000;
+
+type ParsedContractLog<TArgs> = {
+  args: TArgs;
+  transactionHash: string;
+  blockNumber: number;
+};
 
 function sortActivity(a: AgentEvent, b: AgentEvent) {
   const localTimeDiff = (b.createdAt ?? 0) - (a.createdAt ?? 0);
@@ -77,9 +84,46 @@ function getSourceLabel(event: AgentEvent, t: (key: string) => string) {
   return null;
 }
 
+async function queryParsedLogs<TArgs>(
+  provider: ethers.Provider,
+  contract: ethers.Contract,
+  eventName: string,
+  fromBlock: number,
+  toBlock: number,
+  chunkSize = ACTIVITY_QUERY_CHUNK,
+): Promise<ParsedContractLog<TArgs>[]> {
+  const event = contract.interface.getEvent(eventName);
+  if (!event) return [];
+
+  const logs: ParsedContractLog<TArgs>[] = [];
+
+  for (let start = fromBlock; start <= toBlock; start += chunkSize) {
+    const end = Math.min(toBlock, start + chunkSize - 1);
+    const rawLogs = await provider.getLogs({
+      address: String(contract.target),
+      fromBlock: start,
+      toBlock: end,
+      topics: [event.topicHash],
+    });
+
+    for (const rawLog of rawLogs) {
+      const parsed = contract.interface.parseLog(rawLog);
+      if (!parsed || parsed.name !== eventName) continue;
+
+      logs.push({
+        args: parsed.args as unknown as TArgs,
+        transactionHash: rawLog.transactionHash,
+        blockNumber: rawLog.blockNumber,
+      });
+    }
+  }
+
+  return logs;
+}
+
 
 export default function ActivityPage() {
-  const { registry, account, isConnected, chainId } = useWeb3();
+  const { registry, account, isConnected, chainId, signer } = useWeb3();
   const { vaults, loading: vaultsLoading } = useVaults(registry, account);
   const [events, setEvents] = useState<(AgentEvent & { vaultLabel: string })[]>([]);
   const [loading, setLoading] = useState(false);
@@ -91,7 +135,7 @@ export default function ActivityPage() {
     if (!vaults.length) { setEvents([]); setWarning(null); return; }
     let cancelled = false;
     setLoading(true); setError(null); setWarning(null);
-    const provider = getReadOnlyProvider();
+    const provider = signer?.provider ?? getReadOnlyProvider();
 
     provider.getBlockNumber()
       .then((latestBlock) => {
@@ -103,11 +147,16 @@ export default function ActivityPage() {
               try {
                 const safe = getSafeContract(vault.safe, provider);
                 const policyEngine = getPolicyEngineContract(vault.policyEngine, provider);
-                const [lyxLogs, tokenLogs, blockedLogs] = await Promise.all([
-                  safe.queryFilter(safe.filters.AgentPaymentExecuted(), fromBlock),
-                  safe.queryFilter(safe.filters.AgentTokenPaymentExecuted(), fromBlock),
-                  policyEngine.queryFilter(policyEngine.filters.ExecutionBlocked(), fromBlock),
+                const [lyxResult, tokenResult, blockedResult] = await Promise.allSettled([
+                  queryParsedLogs<SafePaymentLog['args']>(provider, safe, 'AgentPaymentExecuted', fromBlock, latestBlock),
+                  queryParsedLogs<SafePaymentLog['args']>(provider, safe, 'AgentTokenPaymentExecuted', fromBlock, latestBlock),
+                  queryParsedLogs<BlockedExecutionLog['args']>(provider, policyEngine, 'ExecutionBlocked', fromBlock, latestBlock),
                 ]);
+
+                const lyxLogs = lyxResult.status === 'fulfilled' ? lyxResult.value : [];
+                const tokenLogs = tokenResult.status === 'fulfilled' ? tokenResult.value : [];
+                const blockedLogs = blockedResult.status === 'fulfilled' ? blockedResult.value : [];
+                const failed = [lyxResult, tokenResult, blockedResult].some((result) => result.status === 'rejected');
 
                 const lyxEvents: (AgentEvent & { vaultLabel: string })[] = lyxLogs.map((raw) => {
                   const event = raw as SafePaymentLog;
@@ -155,7 +204,7 @@ export default function ActivityPage() {
                   };
                 });
 
-                return { events: [...blockedEvents, ...lyxEvents, ...tokenEvents], failed: false };
+                return { events: [...blockedEvents, ...lyxEvents, ...tokenEvents], failed };
               } catch {
                 return { events: [] as (AgentEvent & { vaultLabel: string })[], failed: true };
               }
@@ -233,7 +282,7 @@ export default function ActivityPage() {
       .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [vaults]);
+  }, [signer, vaults]);
 
   const { findContact } = useContacts();
   const isAnyLoading = vaultsLoading || loading;
