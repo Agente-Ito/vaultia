@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Vaultia Receipt",
+  "type": "object",
+  "required": [
+    "receiptId", "actorUP", "action", "target", "amountWei",
+    "txHash", "timestamp", "policy", "actionHash", "signature"
+  ],
+  "properties": {
+    "receiptId": { "type": "string" },
+    "actorUP": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+    "action": { "type": "string" },
+    "target": { "type": "string" },
+    "amountWei": { "type": "string", "pattern": "^\\d+$" },
+    "txHash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+    "timestamp": { "type": "integer" },
+    "policy": {
+      "type": "object",
+      "required": ["maxAmountWei", "expirySec", "allowedTargets"],
+      "properties": {
+        "maxAmountWei": { "type": "string", "pattern": "^\\d+$" },
+        "expirySec": { "type": "integer", "minimum": 0 },
+        "allowedTargets": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "actionHash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+    "signature": { "type": "string" }
+  }
+}
