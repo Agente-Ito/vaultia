@@ -648,7 +648,7 @@ cd frontend-next && npm run dev  # Next.js 15
 MIT — see [`LICENSE`](./LICENSE).
 n## Demo Video
 
-- YouTube: TBD (link will be added here)
+- YouTube: https://youtu.be/GTkajTV2u-w
 
 **Ito Avatar URL (set by default in .env.example):**
 - https://ipfs.io/ipfs/bafybeie7fj37puabmx3bzsnne2zw75qerfcrlzwtgv7l4bozsk5otz4bm4
