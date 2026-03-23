@@ -646,3 +646,14 @@ cd frontend-next && npm run dev  # Next.js 15
 ## 📄 License
 
 MIT — see [`LICENSE`](./LICENSE).
+n## Demo Video
+
+- YouTube: TBD (link will be added here)
+
+n## Assets (Ito Avatar)
+
+- Optional avatar for Agent Ito in UI. Set an IPFS/http URL via env and the header will render it:
+
+\\n
+- Preferred: 512x512 PNG (transparent bg).
+
