@@ -451,6 +451,13 @@ export function TopBar({ account, chainId, onMenuClick, onConnect }: TopBarProps
             ))}
           </div>
 
+{/* Ito avatar (optional via NEXT_PUBLIC_ITO_AVATAR_URL) */}
+          {process.env.NEXT_PUBLIC_ITO_AVATAR_URL && (
+            <div className="hidden sm:flex items-center justify-center rounded-full overflow-hidden w-6 h-6" title="Agente Ito">
+              <Image src={process.env.NEXT_PUBLIC_ITO_AVATAR_URL as string} alt="Ito" width={24} height={24} unoptimized />
+            </div>
+          )}
+
           {/* Theme toggle */}
           <button
             onClick={toggleTheme}
