@@ -15,3 +15,6 @@ Optional on-chain signal
 
 Demo
 - Generate receipt after payment; verify live; show tamper-detection works.
+
+References
+- STRESS_TEST_REPORT.md (live testnet evidence)
