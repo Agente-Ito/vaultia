@@ -2,6 +2,8 @@
 
 A programmable financial vault system for AI agents built on LUKSO.
 
+Live app: https://www.vaultia.xyz/
+
 The protocol allows autonomous agents to execute payments while enforcing strict on-chain policy constraints such as spending limits, merchant whitelists, and expiration rules.
 
 ## 🏗️ Core Architecture
