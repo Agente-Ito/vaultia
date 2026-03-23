@@ -1,0 +1,19 @@
+{
+  "receiptId": "demo-0001",
+  "actorUP": "0x373569085e2FF22496126AAbcd2685F906F0e3FB",
+  "action": "transfer",
+  "target": "0x859722730e0FE001962202d53d5c7b11e8327421",
+  "amountWei": "5000000000000000",
+  "txHash": "0x9a43603ec0134cffec39ee87b721f73d7a0337af321ca9c1e49e1726f20f3052",
+  "timestamp": 1742617200,
+  "policy": {
+    "maxAmountWei": "10000000000000000",
+    "expirySec": 900,
+    "allowedTargets": [
+      "0x859722730e0FE001962202d53d5c7b11e8327421",
+      "0x1000000000000000000000000000000000000001"
+    ]
+  },
+  "actionHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "signature": "0x"
+}

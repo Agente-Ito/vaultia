@@ -5,5 +5,5 @@
 - Demo flow: request → policy check → UP.execute → tx → receipt → verify.
 
 Next steps
-- Add a /verify route that accepts a receipt JSON and shows verification result (hash + signature + tx link).
-- Link this page from the navbar as "Verify Receipt".
+- Now live: /verify route to upload a receipt JSON and see verification (hash + signature + tx link).
+- Optional: Link this page from the navbar as "Verify Receipt".
