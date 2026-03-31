@@ -1,7 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ethers } from 'ethers';
 import { useWeb3 } from '@/context/Web3Context';
@@ -27,7 +27,7 @@ function FilterPill({ active, onClick, children }: { active: boolean; onClick: (
   );
 }
 
-export default function ProfilesPage() {
+function ProfilesPageInner() {
   const { chainId } = useWeb3();
   const { contacts } = useContacts();
   const { t } = useI18n();
@@ -243,5 +243,13 @@ export default function ProfilesPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function ProfilesPage() {
+  return (
+    <Suspense>
+      <ProfilesPageInner />
+    </Suspense>
   );
 }
