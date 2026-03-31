@@ -21,10 +21,14 @@ import { ethers } from 'ethers';
 import type { DeployedVaultSummary, VaultDeployPhase, VaultProgressCallback } from '@/lib/web3/deployVault';
 import { buildSimpleWizardDeployParams, deployRegistryVault, validateSimpleWizardInput } from '@/lib/web3/deployVault';
 import { LuksoIcon } from '@/components/common/LuksoIcon';
+import MultisigConfigForm, {
+  parseSignerList,
+  type MultisigConfig,
+} from '@/components/wizard/MultisigConfigForm';
 
 // ─── Step indices ─────────────────────────────────────────────────────────────
-// 0: Vault name
-// 1: Goal
+// 0: Goal
+// 1: Network + Name + Controller
 // 2: Who + Limits
 // 3: Automation
 // 4: Review & Activate
@@ -143,6 +147,12 @@ export function SimpleSetupFlow() {
   const [globalRecipientPeriod, setGlobalRecipientPeriod] = useState<FrequencyKey>('weekly');
   const [perRecipientLimits, setPerRecipientLimits] = useState<Record<string, { amount: string; period: FrequencyKey }>>({});
 
+  // ── Controller step ────────────────────────────────────────────────────────
+  const [controllerMode, setControllerMode]         = useState<'single' | 'multisig'>('single');
+  const [multisigConfig, setMultisigConfig]         = useState<MultisigConfig>({ signers: [], threshold: 1, timelockHours: 0, executorMode: 'any_signer' });
+  const [rawMultisigSigners, setRawMultisigSigners] = useState('');
+  const [multisigErrors, setMultisigErrors]         = useState<{ signers?: string | null; threshold?: string | null }>({});
+
   // ── Sub-vaults (Track 7B) ─────────────────────────────────────────────────
   const [subVaultsOpen, setSubVaultsOpen] = useState(false);
   const [subVaults, setSubVaults] = useState<Array<{ label: string; budget: string; period: FrequencyKey }>>([]);
@@ -220,6 +230,19 @@ export function SimpleSetupFlow() {
     if (step === 3 && agentEnabled && executor === 'me') {
       setStepError(translateSimpleError('manual_executor_invalid'));
       return;
+    }
+
+    if (step === 1 && controllerMode === 'multisig') {
+      const { signers, error: signerError } = parseSignerList(rawMultisigSigners);
+      const thresholdError =
+        multisigConfig.threshold < 1 || multisigConfig.threshold > (signers.length || 1)
+          ? t('create.controller.multisig.error.threshold_invalid')
+          : null;
+      setMultisigErrors({ signers: signerError, threshold: thresholdError });
+      if (signerError || thresholdError || signers.length === 0) return;
+      setMultisigConfig((prev) => ({ ...prev, signers }));
+    } else if (step === 1) {
+      setMultisigErrors({});
     }
 
 
@@ -544,191 +567,256 @@ export function SimpleSetupFlow() {
               </div>
             )}
 
-            {/* ── Step 1: Network + Name ─────────────────────────────────────── */}
+            {/* ── Step 1: Network + Name + Controller ──────────────────────── */}
             {step === 1 && (
-              <div className="space-y-6 max-w-lg">
-                {/* Network selector */}
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
-                    {t('wizard.limits.network.label')}
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {/* LUKSO — active */}
-                    <div
-                      className="rounded-xl px-3 py-3 text-left text-sm font-medium"
-                      style={{
-                        background: 'var(--card-mid)',
-                        border: '1px solid var(--accent)',
-                        color: 'var(--text)',
-                      }}
-                    >
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <LuksoIcon size={14} />
-                        <span>{t('wizard.limits.network.up')}</span>
-                      </div>
-                      <span className="inline-flex items-center gap-1.5 text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(34,255,178,0.15)', color: 'var(--success)' }}>
-                        <span className="h-2 w-2 rounded-full" style={{ background: 'var(--success)' }} />
-                        Active
-                      </span>
-                    </div>
-                    {/* Base — coming soon */}
-                    <div
-                      className="rounded-xl px-3 py-3 text-left text-sm font-medium opacity-50 cursor-not-allowed"
-                      style={{
-                        background: 'var(--bg)',
-                        border: '1px solid var(--border)',
-                        color: 'var(--text-muted)',
-                      }}
-                    >
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="h-3.5 w-3.5 rounded-full flex-shrink-0" style={{ background: '#3B82F6' }} />
-                        <span>{t('wizard.limits.network.base')}</span>
-                      </div>
-                      <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'var(--card-mid)', color: 'var(--text-muted)' }}>
-                        {t('wizard.limits.network.coming_soon')}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    {t('wizard.limits.network.up_hint')}
-                  </p>
-                </div>
-
-                {/* Vault name */}
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
-                    {t('wizard.vault.name_label')}
-                  </label>
-                  <input
-                    type="text"
-                    value={wizardVaultName}
-                    onChange={(e) => setWizardVaultName(e.target.value)}
-                    placeholder={t('wizard.vault.name_placeholder')}
-                    maxLength={48}
-                    autoFocus
-                    className="w-full rounded-xl px-4 py-3 text-base focus:outline-none"
-                    style={{
-                      background: 'var(--card-mid)',
-                      border: `1px solid ${stepError ? 'var(--blocked)' : 'var(--border)'}`,
-                      color: 'var(--text)',
-                    }}
-                  />
-                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    {t('wizard.vault.name_hint')}
-                  </p>
-                </div>
-
-                {/* Custom token — hidden by default, discoverable */}
-                <div>
-                    <button
-                      type="button"
-                      onClick={() => setCustomTokenOpen((v) => !v)}
-                      className="flex items-center gap-1.5 text-xs transition-opacity hover:opacity-80"
-                      style={{ color: 'var(--text-muted)' }}
-                    >
-                      <span
-                        className="inline-block transition-transform duration-200"
-                        style={{ transform: customTokenOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
-                      >▶</span>
-                      {t('wizard.vault.custom_token_cta')}
-                    </button>
-                    {customTokenOpen && (
-                      <div className="mt-2 space-y-1">
-                        {process.env.NEXT_PUBLIC_LUKSO_DEMO_TOKEN_ADDRESS && (
-                          <button
-                            type="button"
-                            onClick={() => setLuksoToken(process.env.NEXT_PUBLIC_LUKSO_DEMO_TOKEN_ADDRESS!)}
-                            className="text-xs px-3 py-1.5 rounded-lg transition-opacity hover:opacity-80"
-                            style={{ background: 'var(--card-mid)', border: '1px solid var(--primary)', color: 'var(--primary)' }}
-                          >
-                            AVT — Test Token (testnet)
-                          </button>
-                        )}
-                        <input
-                          type="text"
-                          value={luksoToken}
-                          onChange={(e) => setLuksoToken(e.target.value)}
-                          placeholder={t('wizard.vault.lukso_token_placeholder')}
-                          className="w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none font-mono"
-                          style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
-                        />
-                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                          {t('wizard.vault.lukso_token_hint')}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                {/* ── Sub-vaults (Track 7B) ─────────────────────────────────── */}
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => setSubVaultsOpen((v) => !v)}
-                    className="flex items-center gap-1.5 text-xs font-medium transition-opacity hover:opacity-80"
-                    style={{ color: 'var(--text-muted)' }}
-                    title={t('wizard.subvaults.tooltip')}
-                  >
-                    <span
-                      className="inline-block transition-transform duration-200"
-                      style={{ transform: subVaultsOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
-                    >▶</span>
-                    {t('wizard.subvaults.add_cta')}
-                  </button>
-
-                  {subVaultsOpen && (
-                    <div className="mt-3 space-y-3">
-                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                        {t('wizard.subvaults.tooltip')}
-                      </p>
-                      {subVaults.map((sv, idx) => (
-                        <div key={idx} className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={sv.label}
-                            onChange={(e) => setSubVaults((prev) => prev.map((s, i) => i === idx ? { ...s, label: e.target.value } : s))}
-                            placeholder={t('wizard.subvaults.label_placeholder')}
-                            className="flex-1 rounded-xl px-3 py-2 text-sm focus:outline-none"
-                            style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
-                          />
-                          <input
-                            type="number"
-                            value={sv.budget}
-                            onChange={(e) => setSubVaults((prev) => prev.map((s, i) => i === idx ? { ...s, budget: e.target.value } : s))}
-                            placeholder={t('wizard.subvaults.budget_label')}
-                            min="0"
-                            className="w-24 rounded-xl px-3 py-2 text-sm focus:outline-none"
-                            style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
-                          />
-                          <select
-                            value={sv.period}
-                            onChange={(e) => setSubVaults((prev) => prev.map((s, i) => i === idx ? { ...s, period: e.target.value as FrequencyKey } : s))}
-                            className="rounded-xl px-2 py-2 text-xs focus:outline-none"
-                            style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
-                          >
-                            {SIMPLE_FREQS.map((f) => (
-                              <option key={f} value={f}>{t(FREQ_I18N[f] as Parameters<typeof t>[0])}</option>
-                            ))}
-                          </select>
-                          <button
-                            type="button"
-                            onClick={() => setSubVaults((prev) => prev.filter((_, i) => i !== idx))}
-                            className="text-xs px-2 py-1 rounded-lg"
-                            style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--blocked)' }}
-                          >
-                            ✕
-                          </button>
+              <div className="space-y-6">
+                <div className="grid gap-8 lg:grid-cols-2">
+                  {/* Left: Network + Name */}
+                  <div className="space-y-6">
+                    {/* Network selector */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+                        {t('wizard.limits.network.label')}
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {/* LUKSO — active */}
+                        <div
+                          className="rounded-xl px-3 py-3 text-left text-sm font-medium"
+                          style={{
+                            background: 'var(--card-mid)',
+                            border: '1px solid var(--accent)',
+                            color: 'var(--text)',
+                          }}
+                        >
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <LuksoIcon size={14} />
+                            <span>{t('wizard.limits.network.up')}</span>
+                          </div>
+                          <span className="inline-flex items-center gap-1.5 text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(34,255,178,0.15)', color: 'var(--success)' }}>
+                            <span className="h-2 w-2 rounded-full" style={{ background: 'var(--success)' }} />
+                            Active
+                          </span>
                         </div>
-                      ))}
+                        {/* Base — coming soon */}
+                        <div
+                          className="rounded-xl px-3 py-3 text-left text-sm font-medium opacity-50 cursor-not-allowed"
+                          style={{
+                            background: 'var(--bg)',
+                            border: '1px solid var(--border)',
+                            color: 'var(--text-muted)',
+                          }}
+                        >
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <span className="h-3.5 w-3.5 rounded-full flex-shrink-0" style={{ background: '#3B82F6' }} />
+                            <span>{t('wizard.limits.network.base')}</span>
+                          </div>
+                          <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'var(--card-mid)', color: 'var(--text-muted)' }}>
+                            {t('wizard.limits.network.coming_soon')}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        {t('wizard.limits.network.up_hint')}
+                      </p>
+                    </div>
+
+                    {/* Vault name */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+                        {t('wizard.vault.name_label')}
+                      </label>
+                      <input
+                        type="text"
+                        value={wizardVaultName}
+                        onChange={(e) => setWizardVaultName(e.target.value)}
+                        placeholder={t('wizard.vault.name_placeholder')}
+                        maxLength={48}
+                        autoFocus
+                        className="w-full rounded-xl px-4 py-3 text-base focus:outline-none"
+                        style={{
+                          background: 'var(--card-mid)',
+                          border: `1px solid ${stepError ? 'var(--blocked)' : 'var(--border)'}`,
+                          color: 'var(--text)',
+                        }}
+                      />
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        {t('wizard.vault.name_hint')}
+                      </p>
+                    </div>
+
+                    {/* Custom token — hidden by default, discoverable */}
+                    <div>
+                        <button
+                          type="button"
+                          onClick={() => setCustomTokenOpen((v) => !v)}
+                          className="flex items-center gap-1.5 text-xs transition-opacity hover:opacity-80"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          <span
+                            className="inline-block transition-transform duration-200"
+                            style={{ transform: customTokenOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+                          >▶</span>
+                          {t('wizard.vault.custom_token_cta')}
+                        </button>
+                        {customTokenOpen && (
+                          <div className="mt-2 space-y-1">
+                            {process.env.NEXT_PUBLIC_LUKSO_DEMO_TOKEN_ADDRESS && (
+                              <button
+                                type="button"
+                                onClick={() => setLuksoToken(process.env.NEXT_PUBLIC_LUKSO_DEMO_TOKEN_ADDRESS!)}
+                                className="text-xs px-3 py-1.5 rounded-lg transition-opacity hover:opacity-80"
+                                style={{ background: 'var(--card-mid)', border: '1px solid var(--primary)', color: 'var(--primary)' }}
+                              >
+                                AVT — Test Token (testnet)
+                              </button>
+                            )}
+                            <input
+                              type="text"
+                              value={luksoToken}
+                              onChange={(e) => setLuksoToken(e.target.value)}
+                              placeholder={t('wizard.vault.lukso_token_placeholder')}
+                              className="w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none font-mono"
+                              style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                            />
+                            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                              {t('wizard.vault.lukso_token_hint')}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                    {/* ── Sub-vaults (Track 7B) ─────────────────────────────── */}
+                    <div>
                       <button
                         type="button"
-                        onClick={() => setSubVaults((prev) => [...prev, { label: '', budget: '', period: 'weekly' }])}
-                        className="text-xs font-medium transition-opacity hover:opacity-80"
-                        style={{ color: 'var(--accent)' }}
+                        onClick={() => setSubVaultsOpen((v) => !v)}
+                        className="flex items-center gap-1.5 text-xs font-medium transition-opacity hover:opacity-80"
+                        style={{ color: 'var(--text-muted)' }}
+                        title={t('wizard.subvaults.tooltip')}
                       >
-                        {t('wizard.subvaults.add_another')}
+                        <span
+                          className="inline-block transition-transform duration-200"
+                          style={{ transform: subVaultsOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+                        >▶</span>
+                        {t('wizard.subvaults.add_cta')}
                       </button>
+
+                      {subVaultsOpen && (
+                        <div className="mt-3 space-y-3">
+                          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                            {t('wizard.subvaults.tooltip')}
+                          </p>
+                          {subVaults.map((sv, idx) => (
+                            <div key={idx} className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={sv.label}
+                                onChange={(e) => setSubVaults((prev) => prev.map((s, i) => i === idx ? { ...s, label: e.target.value } : s))}
+                                placeholder={t('wizard.subvaults.label_placeholder')}
+                                className="flex-1 rounded-xl px-3 py-2 text-sm focus:outline-none"
+                                style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                              />
+                              <input
+                                type="number"
+                                value={sv.budget}
+                                onChange={(e) => setSubVaults((prev) => prev.map((s, i) => i === idx ? { ...s, budget: e.target.value } : s))}
+                                placeholder={t('wizard.subvaults.budget_label')}
+                                min="0"
+                                className="w-24 rounded-xl px-3 py-2 text-sm focus:outline-none"
+                                style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                              />
+                              <select
+                                value={sv.period}
+                                onChange={(e) => setSubVaults((prev) => prev.map((s, i) => i === idx ? { ...s, period: e.target.value as FrequencyKey } : s))}
+                                className="rounded-xl px-2 py-2 text-xs focus:outline-none"
+                                style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                              >
+                                {SIMPLE_FREQS.map((f) => (
+                                  <option key={f} value={f}>{t(FREQ_I18N[f] as Parameters<typeof t>[0])}</option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => setSubVaults((prev) => prev.filter((_, i) => i !== idx))}
+                                className="text-xs px-2 py-1 rounded-lg"
+                                style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--blocked)' }}
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => setSubVaults((prev) => [...prev, { label: '', budget: '', period: 'weekly' }])}
+                            className="text-xs font-medium transition-opacity hover:opacity-80"
+                            style={{ color: 'var(--accent)' }}
+                          >
+                            {t('wizard.subvaults.add_another')}
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
+
+                  {/* Right: Controller */}
+                  <div className="space-y-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+                        {t('wizard.controller.title')}
+                      </label>
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        {t('wizard.controller.subtitle')}
+                      </p>
+                    </div>
+
+                    {/* Mode selector */}
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {(['single', 'multisig'] as const).map((mode) => {
+                        const isActive = controllerMode === mode;
+                        return (
+                          <button
+                            key={mode}
+                            type="button"
+                            onClick={() => setControllerMode(mode)}
+                            className="p-4 rounded-xl text-left transition-all"
+                            style={{
+                              background: isActive ? 'var(--card-mid)' : 'var(--bg)',
+                              border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
+                              boxShadow: isActive ? '0 0 0 1px var(--accent)' : 'none',
+                            }}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                                {t(`create.controller.${mode}.label` as Parameters<typeof t>[0])}
+                              </p>
+                              {mode === 'multisig' && (
+                                <span
+                                  className="text-xs px-2 py-0.5 rounded-full font-medium"
+                                  style={{ background: 'rgba(34,255,178,0.15)', color: 'var(--success)' }}
+                                >
+                                  {t('create.controller.multisig.badge')}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                              {t(`create.controller.${mode}.desc` as Parameters<typeof t>[0])}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Multisig config form */}
+                    {controllerMode === 'multisig' && (
+                      <MultisigConfigForm
+                        value={multisigConfig}
+                        onChange={setMultisigConfig}
+                        rawSigners={rawMultisigSigners}
+                        onRawSignersChange={setRawMultisigSigners}
+                        errors={multisigErrors}
+                      />
+                    )}
+                  </div>
                 </div>
 
                 {stepError && (

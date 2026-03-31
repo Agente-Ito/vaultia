@@ -1,7 +1,8 @@
 'use client';
 export const dynamic = 'force-dynamic';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ethers } from 'ethers';
 import { useWeb3 } from '@/context/Web3Context';
 import { useContacts, CATEGORY_META, type ContactCategory } from '@/hooks/useContacts';
@@ -17,7 +18,7 @@ function FilterPill({ active, onClick, children }: { active: boolean; onClick: (
       className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
       style={{
         background: active ? 'var(--primary)' : 'var(--card-mid)',
-        color:      active ? '#fff'           : 'var(--text-muted)',
+        color:      active ? 'var(--bg)'      : 'var(--text-muted)',
         border:     active ? '1px solid transparent' : '1px solid var(--border)',
       }}
     >
@@ -30,11 +31,39 @@ export default function ProfilesPage() {
   const { chainId } = useWeb3();
   const { contacts } = useContacts();
   const { t } = useI18n();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const returnTo = searchParams.get('returnTo');   // e.g. /vaults/create
+  const returnField = searchParams.get('field');   // e.g. 'merchants'
+  const isVaultReturn = !!returnTo;
 
   const [query, setQuery]               = useState('');
   const [searchAddr, setSearchAddr]     = useState<string | null>(null);
   const [searchError, setSearchError]   = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<ContactCategory | typeof ALL_FILTER>(ALL_FILTER);
+  const [pendingAddresses, setPendingAddresses] = useState<Set<string>>(new Set());
+
+  const togglePending = useCallback((address: string) => {
+    setPendingAddresses((prev) => {
+      const next = new Set(prev);
+      const key = address.toLowerCase();
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
+  const handleVaultDone = () => {
+    try {
+      sessionStorage.setItem('vaultPendingMerchants', JSON.stringify(Array.from(pendingAddresses)));
+    } catch { /* ignore */ }
+    router.push(returnTo!);
+  };
+
+  const handleVaultCancel = () => {
+    router.push(returnTo!);
+  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,6 +92,48 @@ export default function ProfilesPage() {
         <p className="mt-xs" style={{ color: 'var(--text-muted)' }}>{t('profiles.subtitle')}</p>
       </div>
 
+      {/* Vault-return banner — shown when navigated from vault creation */}
+      {isVaultReturn && (
+        <div
+          className="sticky top-0 z-40 rounded-xl px-4 py-3 flex items-center gap-3 flex-wrap"
+          style={{ background: 'color-mix(in srgb, var(--accent) 12%, var(--card))', border: '1px solid color-mix(in srgb, var(--accent) 40%, var(--border))' }}
+        >
+          <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: 'var(--accent)' }} />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+              {t('profiles.vault_return_banner')}
+            </p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              {pendingAddresses.size > 0
+                ? `${pendingAddresses.size} ${t('profiles.vault_return_hint')}`
+                : returnField === 'merchants'
+                  ? t('profiles.vault_return_hint').replace(/^\d+\s/, '')
+                  : t('profiles.vault_return_hint').replace(/^\d+\s/, '')}
+            </p>
+          </div>
+          <div className="flex gap-2 flex-shrink-0">
+            <button
+              type="button"
+              onClick={handleVaultCancel}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-70"
+              style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+            >
+              {t('profiles.vault_return_cancel')}
+            </button>
+            <button
+              type="button"
+              onClick={handleVaultDone}
+              disabled={pendingAddresses.size === 0}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ background: 'var(--accent)', color: '#000' }}
+            >
+              {t('profiles.vault_return_done')}
+              {pendingAddresses.size > 0 && ` (${pendingAddresses.size})`}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Search bar */}
       <form onSubmit={handleSearch}>
         <div className="flex gap-sm">
@@ -84,7 +155,7 @@ export default function ProfilesPage() {
           <button
             type="submit"
             className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-85"
-            style={{ background: 'var(--primary)', color: '#fff' }}
+            style={{ background: 'var(--primary)', color: 'var(--bg)' }}
           >
             {t('profiles.search.btn')}
           </button>
@@ -101,7 +172,11 @@ export default function ProfilesPage() {
             {t('profiles.search.result')}
           </p>
           <div className="max-w-sm">
-            <ProfileCard address={searchAddr!} chainId={chainId} />
+            <ProfileCard
+              address={searchAddr!}
+              chainId={chainId}
+              onSelectAsMerchant={isVaultReturn ? togglePending : undefined}
+            />
           </div>
         </div>
       )}
@@ -146,7 +221,23 @@ export default function ProfilesPage() {
               .slice()
               .sort((a, b) => b.addedAt - a.addedAt)
               .map((contact) => (
-                <ProfileCard key={contact.address} address={contact.address} chainId={chainId} cachedContact={contact} />
+                <div key={contact.address} className="relative">
+                  <ProfileCard
+                    address={contact.address}
+                    chainId={chainId}
+                    cachedContact={contact}
+                    onSelectAsMerchant={isVaultReturn ? togglePending : undefined}
+                  />
+                  {/* Selected-for-vault indicator */}
+                  {isVaultReturn && pendingAddresses.has(contact.address.toLowerCase()) && (
+                    <div
+                      className="absolute top-2 right-2 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                      style={{ background: 'var(--accent)', color: '#000' }}
+                    >
+                      ✓
+                    </div>
+                  )}
+                </div>
               ))}
           </div>
         )}

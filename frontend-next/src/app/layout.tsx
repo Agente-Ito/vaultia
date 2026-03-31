@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
+import { Analytics } from '@vercel/analytics/next';
 import { ModeProvider } from '@/context/ModeContext';
 import { Web3Provider } from '@/context/Web3Context';
 import { OnboardingProvider } from '@/context/OnboardingContext';
@@ -109,6 +110,7 @@ export default function RootLayout({
                 <ModeProvider>
                   <OnboardingProvider>
                     {children}
+                    <Analytics />
                   </OnboardingProvider>
                 </ModeProvider>
               </I18nProvider>

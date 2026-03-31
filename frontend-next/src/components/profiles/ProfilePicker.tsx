@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { ethers } from 'ethers';
 import { useContacts, ContactCategory, CATEGORY_META } from '@/hooks/useContacts';
 import { useI18n } from '@/context/I18nContext';
 import { cn } from '@/lib/utils/cn';
@@ -123,6 +124,9 @@ export function ProfilePicker({ isOpen, onClose, onConfirm, mode = 'contacts', p
   const [activeCategory, setActiveCategory] = useState<ContactCategory | 'all'>('all');
   const [selected, setSelected] = useState<Set<string>>(() => new Set(preSelected.map((a) => a.toLowerCase())));
   const [searchQuery, setSearchQuery] = useState('');
+  const [manualAddress, setManualAddress] = useState('');
+  const [manualError, setManualError] = useState<string | null>(null);
+  const [manualEntries, setManualEntries] = useState<string[]>([]);
 
   const titleKey = mode === 'agents'
     ? 'picker.title.agents'
@@ -154,6 +158,25 @@ export function ProfilePicker({ isOpen, onClose, onConfirm, mode = 'contacts', p
       else next.add(key);
       return next;
     });
+  };
+
+  const handleAddManual = () => {
+    const addr = manualAddress.trim();
+    if (!addr) return;
+    if (!ethers.isAddress(addr)) {
+      setManualError(t('picker.address_invalid'));
+      return;
+    }
+    const normalized = ethers.getAddress(addr);
+    const key = normalized.toLowerCase();
+    if (selected.has(key)) {
+      setManualError(t('picker.address_already'));
+      return;
+    }
+    setManualEntries((prev) => (prev.includes(normalized) ? prev : [...prev, normalized]));
+    setSelected((prev) => new Set([...prev, key]));
+    setManualAddress('');
+    setManualError(null);
   };
 
   const handleConfirm = () => {
@@ -236,11 +259,48 @@ export function ProfilePicker({ isOpen, onClose, onConfirm, mode = 'contacts', p
 
         {/* Contact list */}
         <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
-          {eligible.length === 0 ? (
-            <div className="text-center py-8 space-y-3">
+          {/* Manually-added entries (shown even when no saved contacts) */}
+          {manualEntries.map((addr) => (
+            <ContactRow
+              key={addr}
+              address={addr}
+              categoryLabel="manual"
+              checked={selected.has(addr.toLowerCase())}
+              onToggle={() => toggle(addr)}
+            />
+          ))}
+
+          {eligible.length === 0 && manualEntries.length === 0 ? (
+            <div className="text-center py-6 space-y-4">
               <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{t('picker.empty')}</p>
+
+              {/* Inline address input — primary action when no contacts */}
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{t('picker.add_by_address')}</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={manualAddress}
+                    onChange={(e) => { setManualAddress(e.target.value); setManualError(null); }}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddManual()}
+                    placeholder={t('picker.add_by_address_placeholder')}
+                    className="flex-1 h-8 rounded-lg px-3 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--accent)] font-mono"
+                    style={{ background: 'var(--card-mid)', border: `1px solid ${manualError ? 'var(--blocked)' : 'var(--border)'}`, color: 'var(--text)' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddManual}
+                    className="px-3 h-8 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80 flex-shrink-0"
+                    style={{ background: 'var(--accent)', color: '#000' }}
+                  >
+                    {t('picker.add_address_btn')}
+                  </button>
+                </div>
+                {manualError && <p className="text-xs text-left" style={{ color: 'var(--blocked)' }}>{manualError}</p>}
+              </div>
+
               <Link
-                href="/profiles"
+                href={`/profiles?returnTo=%2Fvaults%2Fcreate&field=${mode}`}
                 onClick={onClose}
                 className="inline-block text-xs font-medium underline transition-opacity hover:opacity-80"
                 style={{ color: 'var(--accent)' }}
@@ -248,7 +308,7 @@ export function ProfilePicker({ isOpen, onClose, onConfirm, mode = 'contacts', p
                 {t('picker.go_explorer')}
               </Link>
             </div>
-          ) : visible.length === 0 ? (
+          ) : visible.length === 0 && manualEntries.length === 0 ? (
             <p className="text-sm text-center py-8" style={{ color: 'var(--text-muted)' }}>{t('picker.empty_filter')}</p>
           ) : (
             visible.map((contact) => (
@@ -262,6 +322,35 @@ export function ProfilePicker({ isOpen, onClose, onConfirm, mode = 'contacts', p
                 onToggle={() => toggle(contact.address)}
               />
             ))
+          )}
+
+          {/* Add-by-address row — always shown when there ARE contacts */}
+          {eligible.length > 0 && (
+            <div className="pt-2 mt-2" style={{ borderTop: '1px solid var(--border)' }}>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                {t('picker.add_by_address')}
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={manualAddress}
+                  onChange={(e) => { setManualAddress(e.target.value); setManualError(null); }}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddManual()}
+                  placeholder={t('picker.add_by_address_placeholder')}
+                  className="flex-1 h-8 rounded-lg px-3 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--accent)] font-mono"
+                  style={{ background: 'var(--card-mid)', border: `1px solid ${manualError ? 'var(--blocked)' : 'var(--border)'}`, color: 'var(--text)' }}
+                />
+                <button
+                  type="button"
+                  onClick={handleAddManual}
+                  className="px-3 h-8 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80 flex-shrink-0"
+                  style={{ background: 'var(--accent)', color: '#000' }}
+                >
+                  {t('picker.add_address_btn')}
+                </button>
+              </div>
+              {manualError && <p className="text-xs mt-1" style={{ color: 'var(--blocked)' }}>{manualError}</p>}
+            </div>
           )}
         </div>
 

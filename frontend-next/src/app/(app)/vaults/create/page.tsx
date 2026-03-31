@@ -1,7 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
@@ -31,6 +31,10 @@ import {
   type VaultDeployPhase,
   type VaultProgressCallback,
 } from '@/lib/web3/deployVault';
+import MultisigConfigForm, {
+  parseSignerList,
+  type MultisigConfig,
+} from '@/components/wizard/MultisigConfigForm';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -430,8 +434,76 @@ export default function CreateVaultPage() {
   const [pickerOpen, setPickerOpen]                     = useState<'agents' | 'merchants' | null>(null);
   const [recipientRows, setRecipientRows]               = useState<Array<{ recipient: string; budget: string; period: string }>>([]);
 
+  // Controller step state
+  const [controllerMode, setControllerMode]             = useState<'single' | 'multisig'>('single');
+  const [multisigConfig, setMultisigConfig]             = useState<MultisigConfig>({ signers: [], threshold: 1, timelockHours: 0, executorMode: 'any_signer' });
+  const [rawMultisigSigners, setRawMultisigSigners]     = useState('');
+  const [multisigErrors, setMultisigErrors]             = useState<{ signers?: string | null; threshold?: string | null }>({});
+
   const rawAgentList  = agents.split(',').map((a) => a.trim()).filter(Boolean);
   const merchantCount = merchants.split(',').map((m) => m.trim()).filter(Boolean).length;
+
+  // ── Draft persistence ─────────────────────────────────────────────────────
+  const DRAFT_KEY = 'vaultDraft';
+
+  // Restore draft from sessionStorage on mount (also consume pendingMerchants from profiles page)
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        const d = JSON.parse(raw) as Record<string, unknown>;
+        if (typeof d.label === 'string')           setLabel(d.label);
+        if (typeof d.budget === 'string')          setBudget(d.budget);
+        if (typeof d.period === 'string')          setPeriod(d.period);
+        if (typeof d.hasExpiry === 'boolean')      setHasExpiry(d.hasExpiry);
+        if (typeof d.expiryDate === 'string')      setExpiryDate(d.expiryDate);
+        if (typeof d.agents === 'string')          setAgents(d.agents);
+        if (typeof d.merchants === 'string')       setMerchants(d.merchants);
+        if (typeof d.agentMode === 'number')       setAgentMode(d.agentMode);
+        if (typeof d.allowSuper === 'boolean')     setAllowSuperPermissions(d.allowSuper);
+        if (d.controllerMode === 'single' || d.controllerMode === 'multisig') setControllerMode(d.controllerMode);
+        if (typeof d.rawSigners === 'string')      setRawMultisigSigners(d.rawSigners);
+        if (d.multisigThreshold && typeof d.multisigThreshold === 'number')
+          setMultisigConfig((prev) => ({ ...prev, threshold: d.multisigThreshold as number }));
+        if (d.multisigTimelock && typeof d.multisigTimelock === 'number')
+          setMultisigConfig((prev) => ({ ...prev, timelockHours: d.multisigTimelock as number }));
+      }
+      // Consume addresses pending from /profiles page
+      const pending = sessionStorage.getItem('vaultPendingMerchants');
+      if (pending) {
+        const addrs = JSON.parse(pending) as string[];
+        if (Array.isArray(addrs) && addrs.length > 0) {
+          setMerchants((prev) => {
+            const current = prev.split(',').map((a) => a.trim()).filter(Boolean).map((a) => a.toLowerCase());
+            const toAdd = addrs.filter((a) => !current.includes(a.toLowerCase()));
+            const parts = prev.trim() ? [prev.trim(), ...toAdd] : toAdd;
+            return parts.join(', ');
+          });
+        }
+        sessionStorage.removeItem('vaultPendingMerchants');
+      }
+    } catch {
+      // ignore parse errors
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Save draft whenever key fields change
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({
+        label, budget, period, hasExpiry, expiryDate,
+        agents, merchants, agentMode,
+        allowSuper: allowSuperPermissions,
+        controllerMode, rawSigners: rawMultisigSigners,
+        multisigThreshold: multisigConfig.threshold,
+        multisigTimelock: multisigConfig.timelockHours,
+      }));
+    } catch {
+      // ignore storage errors (e.g. private browsing quota)
+    }
+  }, [label, budget, period, hasExpiry, expiryDate, agents, merchants, agentMode,
+      allowSuperPermissions, controllerMode, rawMultisigSigners, multisigConfig.threshold, multisigConfig.timelockHours]);
 
   const securityLabel =
     agentMode === AgentMode.STRICT_PAYMENTS   ? t('create.security.strict.label') :
@@ -448,7 +520,7 @@ export default function CreateVaultPage() {
   const step1Valid = label.trim().length >= 2 && !!budget && parseFloat(budget) > 0;
   const step2Valid = !hasExpiry || !!expiryDate;
 
-  const stepLabels = [t('create.step1.title'), t('create.step2.title'), t('create.step.security'), t('create.step3.title')];
+  const stepLabels = [t('create.step1.title'), t('create.step2.title'), t('create.step.controller'), t('create.step.security'), t('create.step3.title')];
 
   const applyTemplate = (cfg: TemplateConfig) => {
     setBudget(cfg.budget);
@@ -477,7 +549,23 @@ export default function CreateVaultPage() {
 
   const handleStep1Next = () => { setStepTouched((p) => ({ ...p, 1: true })); if (step1Valid) setStep(2); };
   const handleStep2Next = () => { setStepTouched((p) => ({ ...p, 2: true })); if (step2Valid) setStep(3); };
-  const handleStep3Next = () => setStep(4);
+
+  const handleStep3Next = () => {
+    // Validate controller step
+    if (controllerMode === 'multisig') {
+      const { signers, error: signerError } = parseSignerList(rawMultisigSigners);
+      const thresholdError = (multisigConfig.threshold < 1 || multisigConfig.threshold > (signers.length || 1))
+        ? t('create.controller.multisig.error.threshold_invalid') : null;
+      setMultisigErrors({ signers: signerError, threshold: thresholdError });
+      if (signerError || thresholdError || signers.length === 0) return;
+      setMultisigConfig((prev) => ({ ...prev, signers }));
+    } else {
+      setMultisigErrors({});
+    }
+    setStep(4);
+  };
+
+  const handleStep4Next = () => setStep(5);
 
   // ── LUKSO create ─────────────────────────────────────────────────────────────
   const handleCreateVault = async (e: React.FormEvent) => {
@@ -544,6 +632,7 @@ export default function CreateVaultPage() {
         setCreateWarnings(ownershipWarnings);
         setCreateDialogOpen(true);
         setStatus(t('create.status.deployed'));
+        try { sessionStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
       }
     } catch (err: unknown) {
       const message = getErrorMessage(err, t);
@@ -889,15 +978,79 @@ export default function CreateVaultPage() {
                     {t('create.btn.skip_protection')}
                   </Button>
                   <Button type="button" variant="primary" onClick={handleStep2Next}>
-                    {t('create.btn.next_security')}
+                    {t('create.btn.next_controller')}
                   </Button>
                 </div>
               </div>
             </StepCard>
           )}
 
-          {/* ── Step 3: Security profile ─────────────────────────────────────── */}
+          {/* ── Step 3: Controller ──────────────────────────────────────────── */}
           {step === 3 && (
+            <StepCard>
+              <h3 className="text-base font-semibold" style={{ color: 'var(--text)' }}>{t('create.controller.title')}</h3>
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{t('create.controller.subtitle')}</p>
+
+              <div className="grid sm:grid-cols-2 gap-3">
+                {/* Single signer */}
+                <button
+                  type="button"
+                  onClick={() => setControllerMode('single')}
+                  className="p-4 rounded-xl text-left transition-all"
+                  style={{
+                    background: controllerMode === 'single' ? 'var(--card-mid)' : 'var(--bg)',
+                    border: `1px solid ${controllerMode === 'single' ? 'var(--accent)' : 'var(--border)'}`,
+                    boxShadow: controllerMode === 'single' ? '0 0 0 1px var(--accent)' : 'none',
+                  }}
+                >
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{t('create.controller.single.label')}</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{t('create.controller.single.desc')}</p>
+                </button>
+
+                {/* Multisig */}
+                <button
+                  type="button"
+                  onClick={() => setControllerMode('multisig')}
+                  className="p-4 rounded-xl text-left transition-all relative"
+                  style={{
+                    background: controllerMode === 'multisig' ? 'var(--card-mid)' : 'var(--bg)',
+                    border: `1px solid ${controllerMode === 'multisig' ? 'var(--accent)' : 'var(--border)'}`,
+                    boxShadow: controllerMode === 'multisig' ? '0 0 0 1px var(--accent)' : 'none',
+                  }}
+                >
+                  <span
+                    className="absolute -top-2 right-3 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                    style={{ background: 'rgba(34,255,178,0.15)', color: 'var(--accent)' }}
+                  >
+                    {t('create.controller.multisig.badge')}
+                  </span>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{t('create.controller.multisig.label')}</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{t('create.controller.multisig.desc')}</p>
+                </button>
+              </div>
+
+              {/* Multisig config form */}
+              {controllerMode === 'multisig' && (
+                <MultisigConfigForm
+                  value={multisigConfig}
+                  onChange={setMultisigConfig}
+                  rawSigners={rawMultisigSigners}
+                  onRawSignersChange={setRawMultisigSigners}
+                  errors={multisigErrors}
+                />
+              )}
+
+              <div className="flex justify-between pt-2">
+                <Button type="button" variant="secondary" onClick={() => setStep(2)}>{t('create.btn.back')}</Button>
+                <Button type="button" variant="primary" onClick={handleStep3Next}>
+                  {t('create.btn.next_security_from_ctrl')}
+                </Button>
+              </div>
+            </StepCard>
+          )}
+
+          {/* ── Step 4: Security profile ─────────────────────────────────────── */}
+          {step === 4 && (
             <StepCard>
               <h3 className="text-base font-semibold" style={{ color: 'var(--text)' }}>{t('create.security.title')}</h3>
               <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
@@ -972,14 +1125,14 @@ export default function CreateVaultPage() {
               )}
 
               <div className="flex justify-between pt-2">
-                <Button type="button" variant="secondary" onClick={() => setStep(2)}>{t('create.btn.back')}</Button>
-                <Button type="button" variant="primary" onClick={handleStep3Next}>{t('create.btn.next_agents')}</Button>
+                <Button type="button" variant="secondary" onClick={() => setStep(3)}>{t('create.btn.back')}</Button>
+                <Button type="button" variant="primary" onClick={handleStep4Next}>{t('create.btn.next_agents')}</Button>
               </div>
             </StepCard>
           )}
 
-          {/* ── Step 4: Agents ──────────────────────────────────────────────── */}
-          {step === 4 && (
+          {/* ── Step 5: Agents ──────────────────────────────────────────────── */}
+          {step === 5 && (
             <form onSubmit={handleCreateVault}>
               <StepCard>
                 <h3 className="text-base font-semibold" style={{ color: 'var(--text)' }}>{t('create.step3.title')}</h3>
@@ -1141,7 +1294,7 @@ export default function CreateVaultPage() {
                 </div>
 
                 <div className="flex justify-between pt-2">
-                  <Button type="button" variant="secondary" onClick={() => setStep(3)}>{t('create.btn.back')}</Button>
+                  <Button type="button" variant="secondary" onClick={() => setStep(4)}>{t('create.btn.back')}</Button>
                   <div className="flex gap-2">
                     {agents.trim() === '' && (
                       <Button type="submit" variant="secondary" disabled={loading || !isConnected || !isRegistryConfigured}>

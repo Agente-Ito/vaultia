@@ -23,7 +23,7 @@ const LSP3_SCHEMA = [
 ];
 
 /** True when NEXT_PUBLIC_INDEXER_URL is configured at build time */
-const INDEXER_ENABLED = !!process.env.NEXT_PUBLIC_INDEXER_URL;
+const INDEXER_ENABLED = false; // @lsp-indexer/react removed (security); re-add package to re-enable
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -55,48 +55,12 @@ export function resolveIpfs(url: string): string {
   return url;
 }
 
-// ─── Indexer-based fetcher (only called when NEXT_PUBLIC_INDEXER_URL is set) ──
-
-async function fetchFromIndexer(address: string): Promise<UPProfile | null> {
-  // Guard: avoids importing or calling the indexer if URL is not configured.
-  // process.env.NEXT_PUBLIC_INDEXER_URL is replaced at build time by Next.js.
-  const indexerUrl = process.env.NEXT_PUBLIC_INDEXER_URL;
-  if (!indexerUrl) return null;
-
-  try {
-    const { fetchProfile } = await import('@lsp-indexer/node');
-    const result = await fetchProfile(indexerUrl, {
-      address,
-      include: {
-        name: true,
-        description: true,
-        profileImage: true,
-        backgroundImage: true,
-        tags: true,
-        links: true,
-        followerCount: true,
-        followingCount: true,
-      },
-    });
-
-    if (!result) return null;
-
-    const avatarRaw = result.profileImage?.[0]?.url ?? null;
-    const bgRaw     = result.backgroundImage?.[0]?.url ?? null;
-
-    return {
-      name:           result.name          ?? '',
-      description:    result.description   ?? '',
-      avatarUrl:      avatarRaw ? resolveIpfs(avatarRaw) : null,
-      backgroundUrl:  bgRaw     ? resolveIpfs(bgRaw)     : null,
-      tags:           result.tags  ?? [],
-      links:          (result.links ?? []) as Array<{ title: string; url: string }>,
-      followerCount:  result.followerCount  ?? null,
-      followingCount: result.followingCount ?? null,
-    };
-  } catch {
-    return null;
-  }
+// ─── Indexer-based fetcher (disabled — @lsp-indexer/react not installed) ──────
+// To re-enable: npm install @lsp-indexer/react, set NEXT_PUBLIC_INDEXER_URL,
+// and set INDEXER_ENABLED = !!process.env.NEXT_PUBLIC_INDEXER_URL above.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function fetchFromIndexer(_address: string): Promise<UPProfile | null> {
+  return null;
 }
 
 // ─── ERC725.js-based fetcher (always available, no external service needed) ──
