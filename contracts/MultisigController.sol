@@ -119,6 +119,7 @@ contract MultisigController is ReentrancyGuard {
         address target,
         uint256 value,
         uint256 deadline,
+        uint256 timelockEnd,      // absolute timestamp when execution unlocks (0 if no timelock)
         ExecutorMode executorMode
     );
     event Approved(bytes32 indexed id, address indexed signer);
@@ -218,7 +219,7 @@ contract MultisigController is ReentrancyGuard {
         // Auto-approve for the proposer.
         _grantApproval(id, msg.sender);
 
-        emit Proposed(id, msg.sender, target, value, deadline, executorMode);
+        emit Proposed(id, msg.sender, target, value, deadline, proposals[id].timelockEnd, executorMode);
     }
 
     /// @notice Approve a pending proposal.

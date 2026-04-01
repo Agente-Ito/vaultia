@@ -39,12 +39,25 @@ export function useMultisigActions(multisigAddress: string | null) {
       try {
         const tx = await ms.propose(target, value, data, deadline, timelockOverride, executorMode);
         const receipt = await tx.wait();
-        // Extract proposal id from Proposed event
-        const iface = new ethers.Interface([
-          'event Proposed(bytes32 indexed id, address indexed proposer, address indexed target, uint256 value, uint256 deadline, bytes32 intentHash)',
+        // Extract proposal id from Proposed event.
+        // Try v2 ABI first (with timelockEnd); fall back to topics[1] for old nodes.
+        const ifaceV2 = new ethers.Interface([
+          'event Proposed(bytes32 indexed id, address indexed proposer, address target, uint256 value, uint256 deadline, uint256 timelockEnd, uint8 executorMode)',
         ]);
         for (const log of receipt.logs) {
-          try { const parsed = iface.parseLog(log); if (parsed?.name === 'Proposed') return parsed.args.id as string; } catch { /* skip */ }
+          try {
+            const parsed = ifaceV2.parseLog(log as { topics: string[]; data: string });
+            if (parsed?.name === 'Proposed') return parsed.args.id as string;
+          } catch { /* v2 parse failed — try raw topic fallback */ }
+          // Fallback: id is always topics[1] (first indexed param of Proposed)
+          if ((log as { topics?: string[] }).topics?.[0]) {
+            const topic0 = ethers.id('Proposed(bytes32,address,address,uint256,uint256,uint256,uint8)');
+            const topic0old = ethers.id('Proposed(bytes32,address,address,uint256,uint256,uint8)');
+            const logTopics = (log as { topics: string[] }).topics;
+            if (logTopics[0] === topic0 || logTopics[0] === topic0old) {
+              return logTopics[1] as string;
+            }
+          }
         }
         return null;
       } catch (err: unknown) {

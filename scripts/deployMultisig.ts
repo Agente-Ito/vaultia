@@ -10,8 +10,12 @@
  *   SIGNERS            — Comma-separated list of signer addresses (EOA or UP)
  *   THRESHOLD          — Minimum approvals required to execute (integer ≥ 1)
  *   TIMELOCK           — Global timelock in seconds (default: 0)
- *   ALLOWED_TARGETS    — Optional comma-separated external addresses to add to AllowedCalls
- *                        (the vault and policy engine are always included automatically)
+ *   ALLOWED_TARGETS    — Optional comma-separated addresses to add to AllowedCalls.
+ *                        IMPORTANT: AllowedCalls is checked against the FINAL target of
+ *                        ERC725X.execute(), i.e. the payment recipient or called contract —
+ *                        NOT the vault address. Vault admin proposals need safeAddress here
+ *                        (already included by default). For LYX payments, add the recipient;
+ *                        for LSP7 transfers, add the token contract address.
  *   REVOKE_DEPLOYER    — If "true", zero out the deployer's own LSP6 permissions after
  *                        wiring (transfers full control to the multisig)
  *
@@ -43,6 +47,7 @@ dotenv.config({ path: path.join(__dirname, "..", ".env") });
 const ERC725Y_ABI = [
   "function getData(bytes32 key) external view returns (bytes memory)",
   "function setDataBatch(bytes32[] calldata keys, bytes[] calldata values) external",
+  "function policyEngine() external view returns (address)",
 ];
 
 const KM_ABI = [
@@ -147,10 +152,27 @@ async function main() {
   const currentLen  = decodeArrayLength(rawArrayLen);
   console.log("   Current AP array length:", currentLen);
 
-  // Build AllowedCalls: vault + policyEngine + any extras
-  // Retrieve policyEngine from the vault's stored key (or let user add via ALLOWED_TARGETS)
-  // Always include vault itself so the multisig can call through it
-  const defaultTargets = [safeAddress, ...extraTargets];
+  // ─── Auto-discover PolicyEngine ─────────────────────────────────────────────
+  // AllowedCalls is validated by LSP6 against the FINAL target of ERC725X.execute():
+  //   • vault admin proposals (setPolicyEngine, setKeyManager…) → safeAddress (always included)
+  //   • PE admin proposals (addPolicy, pause…)                  → policyEngine address (auto-discovered)
+  //   • payment recipients / token contracts                    → add via ALLOWED_TARGETS env var
+  let discoveredPE: string | null = null;
+  try {
+    const peAddr: string = await safe.policyEngine();
+    if (peAddr && peAddr !== ethers.ZeroAddress) {
+      discoveredPE = peAddr;
+      console.log("   Auto-discovered PolicyEngine:", peAddr);
+    }
+  } catch {
+    console.log("   PolicyEngine getter not exposed — add PE via ALLOWED_TARGETS if needed");
+  }
+
+  const defaultTargets: string[] = [
+    safeAddress,                                   // vault admin proposals
+    ...(discoveredPE ? [discoveredPE] : []),        // PE admin proposals
+    ...extraTargets,                                // payment recipients / token contracts
+  ];
   const allowedCallsValue = encodeAllowedCalls(defaultTargets);
 
   // Keys to set:
@@ -196,6 +218,44 @@ async function main() {
   await verifyWrite(safe as any, permKey, PERM_STRICT_PAYMENTS, "MultisigController permissions");
   await verifyWrite(safe as any, acKey, allowedCallsValue, "MultisigController AllowedCalls");
   await verifyWrite(safe as any, AP_ARRAY_KEY, newArrayLength, "AP array length");
+
+  // ── Extra semantic guards ─────────────────────────────────────────────────
+  // 1. Confirm AP array element[currentLen] == MultisigController address
+  const rawElem = await safe.getData(elementKey);
+  const elemAddr = "0x" + rawElem.replace(/^0x/, "").toLowerCase().slice(-40);
+  if (elemAddr !== msAddr.toLowerCase()) {
+    throw new Error(
+      `AP array element mismatch: expected ${msAddr.toLowerCase()} got ${elemAddr}`
+    );
+  }
+  console.log("✅ AP array element[", currentLen, "] = MultisigController confirmed");
+
+  // 2. Semantic check: AllowedCalls contains at least one entry for safeAddress
+  //    with callType CALL|TRANSFERVALUE (0x00000003). CompactBytesArray format:
+  //    each entry = 0x0020 (len) + 4-byte callType + 20-byte addr + 4-byte stdId + 4-byte sel = 34 bytes
+  const acRaw = (await safe.getData(acKey)).replace(/^0x/, "").toLowerCase();
+  const safeAddrHex = safeAddress.toLowerCase().replace(/^0x/, "");
+  const expectedEntry = "0020" + "00000003" + safeAddrHex + "ffffffff" + "ffffffff";
+  if (!acRaw.includes(expectedEntry)) {
+    throw new Error(
+      `AllowedCalls does not contain a valid CALL|TRANSFERVALUE entry for safeAddress (${safeAddress}).\n` +
+      `Encoded AllowedCalls: 0x${acRaw}`
+    );
+  }
+  console.log("✅ AllowedCalls semantic check: safeAddress present with CALL|TRANSFERVALUE");
+
+  // 3. If REVOKE_DEPLOYER=true, confirm deployer permissions are zeroed
+  if (revokeDeployer) {
+    const deployerPermRaw = await safe.getData(apPermissionsKey(deployer.address));
+    const deployerPerm = deployerPermRaw.replace(/^0x/, "").replace(/^0+$/, "");
+    if (deployerPerm !== "") {
+      throw new Error(
+        `Deployer permissions NOT zeroed! Got: 0x${deployerPermRaw.replace(/^0x/, "")}`
+      );
+    }
+    console.log("✅ Deployer permissions confirmed zero");
+  }
+
   console.log("✅ All permission writes verified");
 
   // ── Save deployment artifact ────────────────────────────────────────────────

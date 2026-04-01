@@ -24,8 +24,9 @@ const MULTISIG_ABI = [
   'function unapprove(bytes32 id) external',
   'function revoke(bytes32 id) external',
   'function execute(bytes32 id) external',
-  // Events
-  'event Proposed(bytes32 indexed id, address indexed proposer, address indexed target, uint256 value, uint256 deadline, bytes32 intentHash)',
+  // Events — v2: added timelockEnd between deadline and executorMode
+  // Nodes running old contract binary will emit without timelockEnd; we fall back to topics[1] for the id.
+  'event Proposed(bytes32 indexed id, address indexed proposer, address target, uint256 value, uint256 deadline, uint256 timelockEnd, uint8 executorMode)',
   'event Approved(bytes32 indexed id, address indexed signer)',
   'event Unapproved(bytes32 indexed id, address indexed signer)',
   'event Revoked(bytes32 indexed id, address indexed proposer)',
@@ -92,13 +93,19 @@ export function useMultisigController(multisigAddress: string | null) {
         nonce: Number(nonce),
       });
 
-      // Fetch proposals via event logs
-      const proposedFilter = ms.filters.Proposed();
-      const logs = await ms.queryFilter(proposedFilter, -50000);
+      // Fetch proposals via event logs.
+      // Backward-compat: old nodes emit Proposed without timelockEnd — the id is always
+      // topics[1] (first indexed param), so fall back to raw log topic if parse fails.
+      const logs = await ms.queryFilter(ms.filters.Proposed(), -50000);
 
       const ids = [...new Set(logs.map((l) => {
-        const parsed = l as { args?: { id?: string } };
-        return parsed.args?.id;
+        // Primary: ethers successfully parsed the log against the v2 ABI
+        if ('args' in l && (l as ethers.EventLog).args?.id) {
+          return (l as ethers.EventLog).args.id as string;
+        }
+        // Fallback: read id directly from topics[1] (hex bytes32)
+        const raw = l as ethers.Log;
+        return raw.topics?.[1] ?? null;
       }).filter((id): id is string => typeof id === 'string'))];
 
       const proposalList = await Promise.all(
