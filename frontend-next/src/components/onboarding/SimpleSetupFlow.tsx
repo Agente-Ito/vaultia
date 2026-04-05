@@ -473,7 +473,7 @@ export function SimpleSetupFlow() {
           if (recovered) {
             let recoveredOwnershipPending = false;
             try {
-              if (signer.provider) {
+              if (signer?.provider) {
                 recoveredOwnershipPending = (await checkVaultOwnership(recovered.safe, owner, signer.provider)) === 'pending';
               }
             } catch {
@@ -523,6 +523,7 @@ export function SimpleSetupFlow() {
       });
       removePendingMultisigSetup(stagedSetup.safeAddress);
       setPendingMultisigSetup(null);
+      if (!signer) throw new Error('Wallet not connected');
       const result = await claimVaultOwnership(stagedSetup.safeAddress, signer);
       setOwnershipPending(result.claimed === 0);
       setCreateWarnings((current) => {

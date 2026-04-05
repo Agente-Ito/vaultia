@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { ethers } from 'ethers';
 import { useI18n } from '@/context/I18nContext';
 import { useMultisigActions } from '@/hooks/useMultisigActions';
@@ -45,8 +45,10 @@ interface Props {
 export default function ProposeActionModal({ multisigAddress, safeAddress, onClose, onSuccess }: Omit<Props, 'info'> & { info?: MultisigInfo }) {
   const { t } = useI18n();
   const actions = useMultisigActions(multisigAddress);
-  const safeInterface = new ethers.Interface(SAFE_AGENT_TRANSFER_ABI);
-  const multisigInterface = new ethers.Interface(MULTISIG_TEMPLATE_ABI);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const safeInterface = useMemo(() => new ethers.Interface(SAFE_AGENT_TRANSFER_ABI), []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const multisigInterface = useMemo(() => new ethers.Interface(MULTISIG_TEMPLATE_ABI), []);
 
   const [target, setTarget]                   = useState('');
   const [value, setValue]                     = useState('0');

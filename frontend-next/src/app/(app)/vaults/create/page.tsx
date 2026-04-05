@@ -828,6 +828,7 @@ export default function CreateVaultPage() {
       });
       removePendingMultisigSetup(stagedSetup.safeAddress);
       setPendingMultisigSetup(null);
+      if (!signer) throw new Error('Wallet not connected');
       const result = await claimVaultOwnership(stagedSetup.safeAddress, signer);
       setOwnershipPending(result.claimed === 0);
       setCreateWarnings((current) => {
