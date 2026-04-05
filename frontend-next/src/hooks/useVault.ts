@@ -37,6 +37,8 @@ export interface VaultPolicySummary {
 export interface VaultDetail {
   safe: string;
   policyEngine: string;
+  policyEnginePaused: boolean;
+  policyEngineOwner: string;
   keyManager: string;
   balance: string;
   policySummary: VaultPolicySummary;
@@ -77,7 +79,11 @@ export function useVault(safeAddress: string | null) {
         ]);
 
         const policyEngineContract = getPolicyEngineContract(policyEngine, provider);
-        const policyAddrs: string[] = await policyEngineContract.getPolicies();
+        const [policyAddrs, pePaused, peOwner]: [string[], boolean, string] = await Promise.all([
+          policyEngineContract.getPolicies() as Promise<string[]>,
+          policyEngineContract.paused() as Promise<boolean>,
+          policyEngineContract.owner() as Promise<string>,
+        ]);
         const warnings: string[] = [];
         const summary: VaultPolicySummary = { warnings };
 
@@ -195,7 +201,7 @@ export function useVault(safeAddress: string | null) {
         }
 
         if (!cancelled) {
-          setDetail({ safe: safeAddress, policyEngine, keyManager, balance: ethers.formatEther(balance), policySummary: summary });
+          setDetail({ safe: safeAddress, policyEngine, policyEnginePaused: pePaused, policyEngineOwner: peOwner, keyManager, balance: ethers.formatEther(balance), policySummary: summary });
         }
       } catch (err: unknown) {
         if (!cancelled) setError(decodeRevertReason(err));

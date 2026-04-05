@@ -20,9 +20,25 @@ import { useManageVaultPolicy } from '@/hooks/useManageVaultPolicy';
 import { VaultFundingActions } from '@/components/vaults/VaultFundingActions';
 import { SendPaymentModal } from '@/components/vaults/SendPaymentModal';
 import { LuksoIcon } from '@/components/common/LuksoIcon';
+import CompactMultisigSummary from '@/components/multisig/CompactMultisigSummary';
 import { checkVaultOwnership, claimVaultOwnership } from '@/lib/web3/deployVault';
 import { decodeRevertReason, localizeErrorMessage } from '@/lib/errorMap';
 import { ethers } from 'ethers';
+
+const SCHEDULER_ADDRESS = process.env.NEXT_PUBLIC_TASK_SCHEDULER_ADDRESS ?? '';
+const safePermissionsInterface = new ethers.Interface([
+  'function getData(bytes32 dataKey) view returns (bytes memory)',
+]);
+const AP_PERMS_PREFIX = '4b80742de2bf82acb363';
+
+function schedulerPermissionKey(address: string) {
+  return `0x${AP_PERMS_PREFIX}0000${address.toLowerCase().replace(/^0x/, '')}`;
+}
+
+function hasNonZeroPermission(value: string) {
+  const normalized = value.toLowerCase().replace(/^0x/, '');
+  return normalized.length > 0 && /[1-9a-f]/.test(normalized);
+}
 
 // ─── Animated counter ─────────────────────────────────────────────────────────
 
@@ -76,12 +92,12 @@ function VaultCard({
   signer,
   onAddAgent,
 }: {
-  vault: { safe: string; keyManager: string; policyEngine: string; label: string };
+  vault: { safe: string; keyManager: string; policyEngine: string; multisigController: string; label: string };
   signer: ethers.Signer | null;
   onAddAgent: (ref: VaultRef) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const { detail, loading } = useVault(expanded ? vault.safe : null);
+  const { detail, loading } = useVault(vault.safe);
   const { t } = useI18n();
   const { updating, error: policyError, updateBudget, addMerchants, removeMerchant, updateExpiration } = useManageVaultPolicy();
   const { account } = useWeb3();
@@ -91,14 +107,47 @@ function VaultCard({
   const [claiming, setClaiming] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
   const [claimSuccess, setClaimSuccess] = useState(false);
+  const [schedulerAuthorized, setSchedulerAuthorized] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (!expanded || !signer || !account) return;
+    if (!signer || !account) {
+      setOwnershipStatus(null);
+      return;
+    }
     setOwnershipStatus(null);
     const provider = signer.provider;
     if (!provider) return;
     checkVaultOwnership(vault.safe, account, provider).then(setOwnershipStatus).catch(() => setOwnershipStatus(null));
-  }, [expanded, signer, account, vault.safe]);
+  }, [signer, account, vault.safe]);
+
+  useEffect(() => {
+    if (!signer || !SCHEDULER_ADDRESS) {
+      setSchedulerAuthorized(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadSchedulerAuthorization = async () => {
+      try {
+        const safe = new ethers.Contract(vault.safe, safePermissionsInterface.fragments, signer);
+        const value: string = await safe.getData(schedulerPermissionKey(SCHEDULER_ADDRESS));
+        if (!cancelled) {
+          setSchedulerAuthorized(hasNonZeroPermission(value));
+        }
+      } catch {
+        if (!cancelled) {
+          setSchedulerAuthorized(false);
+        }
+      }
+    };
+
+    void loadSchedulerAuthorization();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [signer, vault.safe]);
 
   const handleClaimOwnership = async () => {
     if (!signer) return;
@@ -131,6 +180,22 @@ function VaultCard({
   const animatedBalance = useCountUp(balanceNum);
   const parsedNewBudget = Number(newBudget);
   const budgetInputValid = newBudget.trim() !== '' && Number.isFinite(parsedNewBudget) && parsedNewBudget > 0;
+  const statusPills = [
+    ownershipStatus === 'pending'
+      ? { label: t('vaults.card.status_pending'), color: 'var(--warning)', bg: 'rgba(255,176,0,0.12)' }
+      : { label: t('vaults.card.status_ready'), color: 'var(--success)', bg: 'rgba(16,185,129,0.12)' },
+    detail?.policyEnginePaused
+      ? { label: t('vaults.card.status_paused'), color: 'var(--warning)', bg: 'rgba(255,176,0,0.12)' }
+      : { label: t('vaults.card.status_live'), color: 'var(--success)', bg: 'rgba(16,185,129,0.12)' },
+    detail?.policySummary.merchants?.length
+      ? { label: t('vaults.card.status_restricted'), color: 'var(--text)', bg: 'var(--card-mid)' }
+      : { label: t('vaults.card.status_open'), color: 'var(--text-muted)', bg: 'var(--card-mid)' },
+    schedulerAuthorized === null
+      ? { label: t('vaults.card.status_scheduler_unknown'), color: 'var(--text-muted)', bg: 'var(--card-mid)' }
+      : schedulerAuthorized
+        ? { label: t('vaults.card.status_scheduler_ready'), color: 'var(--success)', bg: 'rgba(16,185,129,0.12)' }
+        : { label: t('vaults.card.status_scheduler_missing'), color: 'var(--warning)', bg: 'rgba(255,176,0,0.12)' },
+  ];
 
   const handleUpdateBudget = async () => {
     if (!signer || !detail?.policySummary.budgetPolicyAddress || !budgetInputValid) return;
@@ -165,7 +230,12 @@ function VaultCard({
             <CardTitle>{vault.label || 'Unnamed Vault'}</CardTitle>
             <CardDescription className="font-mono text-xs mt-xs">{short(vault.safe)}</CardDescription>
           </div>
-          <Badge variant="success" pulse>{t('common.active')}</Badge>
+          <div className="flex gap-xs flex-wrap justify-end">
+            {ownershipStatus === 'pending' && (
+              <Badge variant="warning">{t('vaults.card.ownership_pending')}</Badge>
+            )}
+            <Badge variant={detail?.policyEnginePaused ? 'warning' : 'success'} pulse={!detail?.policyEnginePaused}>{detail?.policyEnginePaused ? t('vaults.card.status_paused') : t('common.active')}</Badge>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col gap-md">
@@ -230,6 +300,20 @@ function VaultCard({
           </>
         )}
 
+        <div className="flex flex-wrap gap-2">
+          {statusPills.map((pill) => (
+            <span
+              key={pill.label}
+              className="rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wider"
+              style={{ background: pill.bg, color: pill.color }}
+            >
+              {pill.label}
+            </span>
+          ))}
+        </div>
+
+        <CompactMultisigSummary safeAddress={vault.safe} multisigAddress={vault.multisigController} />
+
         <button
           onClick={() => setExpanded((v) => !v)}
           aria-expanded={expanded}
@@ -288,6 +372,17 @@ function VaultCard({
                   >
                     {t('vaults.card.manage_agents')}
                   </Button>
+                  {vault.multisigController && vault.multisigController !== ethers.ZeroAddress && (
+                    <Link href={`/vaults/${vault.safe}/multisig?ms=${encodeURIComponent(vault.multisigController)}`}>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="font-sans"
+                      >
+                        {t('vaults.card.open_multisig')}
+                      </Button>
+                    </Link>
+                  )}
                 </div>
                 <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
                   {t('vaults.agent_delegation.coming_soon_note')}

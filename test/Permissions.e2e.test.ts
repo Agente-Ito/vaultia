@@ -50,14 +50,18 @@ describe("Permissions — E2E storage + execution", function () {
 
     const coreC    = await ethers.getContractFactory("AgentVaultDeployerCore");
     const deployerC = await ethers.getContractFactory("AgentVaultDeployer");
+    const optC     = await ethers.getContractFactory("AgentVaultOptionalPolicyDeployer");
     const kmC      = await ethers.getContractFactory("AgentKMDeployer");
+    const msC      = await ethers.getContractFactory("MultisigControllerDeployer");
     const regC     = await ethers.getContractFactory("AgentVaultRegistry");
     const coordC   = await ethers.getContractFactory("AgentCoordinator");
     const poolC    = await ethers.getContractFactory("SharedBudgetPool");
 
     const vdCore = await coreC.deploy() as AgentVaultDeployerCore;
     const vd     = await deployerC.deploy() as AgentVaultDeployer;
+    const opt    = await optC.deploy();
     const km     = await kmC.deploy() as AgentKMDeployer;
+    const ms     = await msC.deploy();
     // Coordinator and pool are required by the Registry constructor but not exercised
     // in these permission-focused tests. Deploy real instances as stubs.
     const coord  = await coordC.deploy();
@@ -66,9 +70,11 @@ describe("Permissions — E2E storage + execution", function () {
     registry = await regC.deploy(
       await vdCore.getAddress(),
       await vd.getAddress(),
+      await opt.getAddress(),
       await km.getAddress(),
       await coord.getAddress(),
       await pool.getAddress(),
+      await ms.getAddress(),
     ) as AgentVaultRegistry;
   });
 
@@ -90,6 +96,9 @@ describe("Permissions — E2E storage + execution", function () {
       allowSuperPermissions:  false,
       customAgentPermissions: ethers.ZeroHash,
       allowedCallsByAgent:    [{ agent: agent.address, allowedCalls: encodeAllowedCalls([merchant.address]) }],
+      multisigSigners:        [],
+      multisigThreshold:      0,
+      multisigTimeLock:       0,
     });
     const receipt = await tx.wait();
 
@@ -164,6 +173,9 @@ describe("Permissions — E2E storage + execution", function () {
         allowSuperPermissions: false,
         customAgentPermissions: ethers.ZeroHash,
         allowedCallsByAgent: [],
+        multisigSigners:    [],
+        multisigThreshold:  0,
+        multisigTimeLock:   0,
       });
       const receipt = await tx.wait();
       const event = receipt!.logs
@@ -285,6 +297,9 @@ describe("Permissions — E2E storage + execution", function () {
         allowSuperPermissions:  true,
         customAgentPermissions: PERM_POWER_USER as `0x${string}`,
         allowedCallsByAgent:    [],
+        multisigSigners:        [],
+        multisigThreshold:      0,
+        multisigTimeLock:       0,
       });
       const receipt = await tx.wait();
       const event = receipt!.logs
@@ -310,6 +325,9 @@ describe("Permissions — E2E storage + execution", function () {
           allowSuperPermissions:  false,
           customAgentPermissions: PERM_POWER_USER as `0x${string}`,
           allowedCallsByAgent:    [],
+          multisigSigners:        [],
+          multisigThreshold:      0,
+          multisigTimeLock:       0,
         })
       ).to.be.revertedWith("Registry: super permissions disabled");
     });

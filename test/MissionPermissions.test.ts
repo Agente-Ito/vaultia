@@ -82,23 +82,29 @@ describe("MissionPermissions — dynamic controller key lifecycle", function () 
     // ── Deploy infrastructure ──────────────────────────────────────────────
     const coreC    = await ethers.getContractFactory("AgentVaultDeployerCore");
     const deployerC = await ethers.getContractFactory("AgentVaultDeployer");
+    const optC     = await ethers.getContractFactory("AgentVaultOptionalPolicyDeployer");
     const kmC      = await ethers.getContractFactory("AgentKMDeployer");
+    const msC      = await ethers.getContractFactory("MultisigControllerDeployer");
     const regC     = await ethers.getContractFactory("AgentVaultRegistry");
     const coordC   = await ethers.getContractFactory("AgentCoordinator");
     const poolC    = await ethers.getContractFactory("SharedBudgetPool");
 
     const vdCore = await coreC.deploy()     as AgentVaultDeployerCore;
     const vd     = await deployerC.deploy() as AgentVaultDeployer;
+    const opt    = await optC.deploy();
     const km     = await kmC.deploy()       as AgentKMDeployer;
+    const ms     = await msC.deploy();
     const coord  = await coordC.deploy();
     const pool   = await poolC.deploy(owner.address);
 
     registry = await regC.deploy(
       await vdCore.getAddress(),
       await vd.getAddress(),
+      await opt.getAddress(),
       await km.getAddress(),
       await coord.getAddress(),
       await pool.getAddress(),
+      await ms.getAddress(),
     ) as AgentVaultRegistry;
 
     // ── Deploy vault (NO agents at creation — controller added dynamically) ─
@@ -116,6 +122,9 @@ describe("MissionPermissions — dynamic controller key lifecycle", function () 
       customAgentPermissions: ethers.ZeroHash,
       allowedCallsByAgent:    [],
       recipientConfigs:       [],
+      multisigSigners:        [],
+      multisigThreshold:      0,
+      multisigTimeLock:       0,
     });
     const receipt = await tx.wait();
 

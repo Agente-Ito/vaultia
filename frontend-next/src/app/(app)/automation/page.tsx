@@ -1,13 +1,16 @@
 'use client';
 export const dynamic = 'force-dynamic';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Interface, ethers } from 'ethers';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/common/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/common/Card';
 import { TaskTimeline, type TaskRecord } from '@/components/automation/TaskTimeline';
+import { EditTaskModal } from '@/components/automation/EditTaskModal';
 import { NewTaskWizardModal, type NewTaskDraft } from '@/components/automation/NewTaskWizardModal';
 import { useWeb3 } from '@/context/Web3Context';
+import { useVault } from '@/hooks/useVault';
 import { useVaults } from '@/hooks/useVaults';
 import { useMode } from '@/context/ModeContext';
 import { useI18n } from '@/context/I18nContext';
@@ -95,7 +98,10 @@ function buildTaskRecord(
     description: recipientLabel,
     botName: 'TaskScheduler',
     vaultLabel,
+    vaultSafe: vault,
     nextExecution: nextExecutionDate,
+    nextExecutionValue: Number(nextExecution),
+    intervalValue: Number(interval),
     intervalLabel: getIntervalLabel(Number(interval), triggerType, locale, t),
     triggerType,
     enabled,
@@ -104,11 +110,19 @@ function buildTaskRecord(
   };
 }
 
-export default function AutomationPage() {
+function AutomationPageContent() {
   const { registry, account, signer, isConnected } = useWeb3();
   const { vaults } = useVaults(registry, account);
   const { isAdvanced } = useMode();
   const { t, locale } = useI18n();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const selectedSafe = searchParams.get('safe') ?? '';
+  const selectedVault = selectedSafe
+    ? vaults.find((vault) => vault.safe.toLowerCase() === selectedSafe.toLowerCase()) ?? null
+    : null;
+  const { detail: selectedVaultDetail } = useVault(selectedVault?.safe ?? null);
 
   const scheduler = useMemo(() => {
     if (!SCHEDULER_ADDRESS) return null;
@@ -123,14 +137,24 @@ export default function AutomationPage() {
   const [txStatus, setTxStatus] = useState<string | null>(null);
   const [isMutating, setIsMutating] = useState(false);
   const [authorizedVaults, setAuthorizedVaults] = useState<Record<string, boolean>>({});
+  const [editingTask, setEditingTask] = useState<TaskRecord | null>(null);
 
-  const enabledCount = tasks.filter((task) => task.enabled).length;
+  const visibleTasks = selectedSafe
+    ? tasks.filter((task) => task.vaultSafe?.toLowerCase() === selectedSafe.toLowerCase())
+    : tasks;
+  const visibleEnabledCount = visibleTasks.filter((task) => task.enabled).length;
+  const selectedVaultAuthorized = selectedSafe ? authorizedVaults[selectedSafe.toLowerCase()] : undefined;
+  const selectedVaultNextTask = visibleTasks[0] ?? null;
   const isSchedulerConfigured = Boolean(SCHEDULER_ADDRESS);
   const schedulerBlockedReason = !isSchedulerConfigured
     ? t('automation.scheduler.not_configured')
     : !isConnected
       ? t('automation.scheduler.connect_wallet')
       : undefined;
+
+  const clearVaultFilter = useCallback(() => {
+    router.push(pathname);
+  }, [pathname, router]);
 
   const loadAuthorizationState = useCallback(async () => {
     if (!signer || !SCHEDULER_ADDRESS || vaults.length === 0) {
@@ -305,6 +329,63 @@ export default function AutomationPage() {
     }
   }, [isConnected, loadTasks, scheduler, t, tasks]);
 
+  const handleDelete = useCallback(async (taskId: string) => {
+    if (!scheduler || !isConnected) {
+      setTasksError(t('automation.scheduler.connect_wallet'));
+      return;
+    }
+
+    setIsMutating(true);
+    setTxStatus(t('automation.status.deleting'));
+
+    try {
+      const tx = await scheduler.deleteTask(taskId);
+      await tx.wait();
+      setTxStatus(t('automation.status.deleted'));
+      await loadTasks();
+    } catch (error) {
+      setTasksError(getErrorMessage(error));
+      setTxStatus(null);
+    } finally {
+      setIsMutating(false);
+    }
+  }, [isConnected, loadTasks, scheduler, t]);
+
+  const handleEdit = useCallback(async (taskId: string) => {
+    if (!isConnected) {
+      setTasksError(t('automation.scheduler.connect_wallet'));
+      return;
+    }
+    const currentTask = tasks.find((task) => task.id === taskId) ?? null;
+    if (!currentTask) return;
+    setTasksError(null);
+    setEditingTask(currentTask);
+  }, [isConnected, t, tasks]);
+
+  const handleSaveEdit = useCallback(async ({ nextExecution, interval }: { nextExecution: number; interval: number }) => {
+    if (!scheduler || !editingTask || !isConnected) {
+      setTasksError(t('automation.scheduler.connect_wallet'));
+      return;
+    }
+
+    setIsMutating(true);
+    setTasksError(null);
+    setTxStatus(t('automation.status.updating'));
+
+    try {
+      const tx = await scheduler.updateTask(editingTask.id, nextExecution, interval);
+      await tx.wait();
+      setTxStatus(t('automation.status.updated'));
+      setEditingTask(null);
+      await loadTasks();
+    } catch (error) {
+      setTasksError(getErrorMessage(error));
+      setTxStatus(null);
+    } finally {
+      setIsMutating(false);
+    }
+  }, [editingTask, isConnected, loadTasks, scheduler, t]);
+
   const handleNewTask = useCallback(async (draft: NewTaskDraft) => {
     if (!scheduler || !signer) {
       throw new Error(t('automation.scheduler.connect_wallet'));
@@ -367,8 +448,13 @@ export default function AutomationPage() {
         <div>
           <h1 className="text-3xl font-bold" style={{ color: 'var(--text)' }}>{t('automation.title')}</h1>
           <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
-            {tasksLoading ? t('automation.loading') : `${tasks.length} ${t('automation.subtitle_tasks')} · ${enabledCount} ${t('automation.subtitle_active')}`}
+            {tasksLoading ? t('automation.loading') : `${visibleTasks.length} ${t('automation.subtitle_tasks')} · ${visibleEnabledCount} ${t('automation.subtitle_active')}`}
           </p>
+          {selectedSafe && (
+            <p className="mt-1 text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
+              {t('automation.filtered_vault').replace('{safe}', selectedSafe)}
+            </p>
+          )}
         </div>
         <Button size="sm" onClick={() => setShowWizard(true)} disabled={!isConnected || isMutating || !isSchedulerConfigured}>
           {t('automation.new_task')}
@@ -399,11 +485,87 @@ export default function AutomationPage() {
         )}
       </div>
 
+      {selectedSafe && selectedVault && (
+        <div className="rounded-xl p-4 space-y-4" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+                {selectedVault.label || t('automation.vault_summary.unnamed')}
+              </p>
+              <p className="text-xs font-mono mt-1" style={{ color: 'var(--text-muted)' }}>
+                {selectedVault.safe}
+              </p>
+            </div>
+            <Button size="sm" variant="secondary" onClick={clearVaultFilter}>
+              {t('automation.vault_summary.clear_filter')}
+            </Button>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <span
+              className="rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wider"
+              style={{
+                background: selectedVaultDetail?.policyEnginePaused ? 'rgba(255,176,0,0.12)' : 'rgba(16,185,129,0.12)',
+                color: selectedVaultDetail?.policyEnginePaused ? 'var(--warning)' : 'var(--success)',
+              }}
+            >
+              {selectedVaultDetail?.policyEnginePaused ? t('automation.vault_summary.paused') : t('automation.vault_summary.live')}
+            </span>
+            <span
+              className="rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wider"
+              style={{ background: 'var(--card-mid)', color: selectedVaultDetail?.policySummary.merchants?.length ? 'var(--text)' : 'var(--text-muted)' }}
+            >
+              {selectedVaultDetail?.policySummary.merchants?.length
+                ? t('automation.vault_summary.restricted')
+                : t('automation.vault_summary.open')}
+            </span>
+            <span
+              className="rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wider"
+              style={{
+                background: selectedVaultAuthorized ? 'rgba(16,185,129,0.12)' : 'rgba(255,176,0,0.12)',
+                color: selectedVaultAuthorized ? 'var(--success)' : 'var(--warning)',
+              }}
+            >
+              {selectedVaultAuthorized
+                ? t('automation.vault_summary.scheduler_ready')
+                : t('automation.vault_summary.scheduler_missing')}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="rounded-xl p-3" style={{ background: 'var(--card-mid)', border: '1px solid var(--border)' }}>
+              <p className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>{t('automation.vault_summary.tasks')}</p>
+              <p className="mt-1 text-xl font-semibold" style={{ color: 'var(--text)' }}>{visibleTasks.length}</p>
+            </div>
+            <div className="rounded-xl p-3" style={{ background: 'var(--card-mid)', border: '1px solid var(--border)' }}>
+              <p className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>{t('automation.vault_summary.active')}</p>
+              <p className="mt-1 text-xl font-semibold" style={{ color: 'var(--text)' }}>{visibleEnabledCount}</p>
+            </div>
+            <div className="rounded-xl p-3" style={{ background: 'var(--card-mid)', border: '1px solid var(--border)' }}>
+              <p className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>{t('automation.vault_summary.balance')}</p>
+              <p className="mt-1 text-xl font-semibold" style={{ color: 'var(--text)' }}>
+                {selectedVaultDetail?.policySummary.budgetToken && selectedVaultDetail.policySummary.budgetToken !== ethers.ZeroAddress
+                  ? `${selectedVaultDetail.policySummary.tokenBalance ?? '—'} AVT`
+                  : `${selectedVaultDetail ? Number(selectedVaultDetail.balance).toFixed(4) : '—'} LYX`}
+              </p>
+            </div>
+            <div className="rounded-xl p-3" style={{ background: 'var(--card-mid)', border: '1px solid var(--border)' }}>
+              <p className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>{t('automation.vault_summary.next')}</p>
+              <p className="mt-1 text-sm font-semibold leading-tight" style={{ color: 'var(--text)' }}>
+                {selectedVaultNextTask
+                  ? selectedVaultNextTask.nextExecution.toLocaleString(locale === 'es' ? 'es-MX' : 'en-US')
+                  : t('automation.vault_summary.none')}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         {[
-          { tone: 'var(--success)', label: t('automation.summary.active'), value: enabledCount },
-          { tone: 'var(--accent)', label: t('automation.summary.timestamp'), value: tasks.filter((task) => task.triggerType === 'timestamp').length },
-          { tone: 'var(--primary)', label: t('automation.summary.block'), value: tasks.filter((task) => task.triggerType === 'block').length },
+          { tone: 'var(--success)', label: t('automation.summary.active'), value: visibleEnabledCount },
+          { tone: 'var(--accent)', label: t('automation.summary.timestamp'), value: visibleTasks.filter((task) => task.triggerType === 'timestamp').length },
+          { tone: 'var(--primary)', label: t('automation.summary.block'), value: visibleTasks.filter((task) => task.triggerType === 'block').length },
         ].map((summary) => (
           <div
             key={summary.label}
@@ -425,9 +587,22 @@ export default function AutomationPage() {
       <Card>
         <CardHeader><CardTitle>{t('automation.calendar.title')}</CardTitle></CardHeader>
         <CardContent>
-          <TaskTimeline tasks={tasks} onToggle={handleToggle} toggleDisabled={!isConnected || isMutating} />
+          <TaskTimeline tasks={visibleTasks} onToggle={handleToggle} onEdit={handleEdit} onDelete={handleDelete} toggleDisabled={!isConnected || isMutating} />
         </CardContent>
       </Card>
+
+      <EditTaskModal
+        open={editingTask !== null}
+        task={editingTask}
+        saving={isMutating}
+        error={tasksError}
+        onClose={() => {
+          if (!isMutating) {
+            setEditingTask(null);
+          }
+        }}
+        onSave={handleSaveEdit}
+      />
 
       <NewTaskWizardModal
         open={showWizard}
@@ -436,8 +611,17 @@ export default function AutomationPage() {
         isAdvanced={isAdvanced}
         canCreateOnChain={isConnected && isSchedulerConfigured}
         blockedReason={schedulerBlockedReason}
+        initialVaultSafe={selectedSafe || undefined}
         onSave={handleNewTask}
       />
     </div>
+  );
+}
+
+export default function AutomationPage() {
+  return (
+    <Suspense fallback={<div className="space-y-6" />}>
+      <AutomationPageContent />
+    </Suspense>
   );
 }

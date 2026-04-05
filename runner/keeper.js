@@ -126,6 +126,7 @@ async function runOnce(scheduler, wallet) {
       if (receipt.status === 1) {
         log('info', '✅ Task executed successfully', {
           taskId,
+          vault: task.vault,
           txHash: tx.hash,
           blockNumber: receipt.blockNumber,
           gasUsed: receipt.gasUsed.toString(),

@@ -359,10 +359,11 @@ interface NewTaskWizardModalProps {
   isAdvanced: boolean;
   canCreateOnChain: boolean;
   blockedReason?: string;
+  initialVaultSafe?: string;
   onSave: (task: NewTaskDraft) => Promise<void>;
 }
 
-export function NewTaskWizardModal({ open, onClose, vaults, isAdvanced, canCreateOnChain, blockedReason, onSave }: NewTaskWizardModalProps) {
+export function NewTaskWizardModal({ open, onClose, vaults, isAdvanced, canCreateOnChain, blockedReason, initialVaultSafe, onSave }: NewTaskWizardModalProps) {
   const { t } = useI18n();
   const [step, setStep] = useState(0);
   const [actionType, setActionType] = useState<ActionType>(null);
@@ -436,6 +437,13 @@ export function NewTaskWizardModal({ open, onClose, vaults, isAdvanced, canCreat
     if (freq !== 'custom-blocks' || frequencyConfig === null) return true;
     return allowedMaxPeriodSeconds === null || (frequencyConfig.interval * 12) <= allowedMaxPeriodSeconds;
   }, [allowedMaxPeriodSeconds, freq, frequencyConfig]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (!initialVaultSafe) return;
+    if (!vaults.some((vault) => vault.safe === initialVaultSafe)) return;
+    setSelectedVault((current) => current || initialVaultSafe);
+  }, [initialVaultSafe, open, vaults]);
 
   useEffect(() => {
     if (!open || !selectedVault) {

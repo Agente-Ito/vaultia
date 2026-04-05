@@ -5,7 +5,6 @@
   "coordinatorAddress": "0x80586CdB331fF827467CBcf0C5Da0B73B3f3446a",
   "roleAdmin": "0x859722730e0FE001962202d53d5c7b11e8327421",
   "demoAgentAddress": "0x65cf9f9B7581ceE2bb494B7e38CE2478bf704bce",
-  "demoAgentPrivateKey": "0xe7329910df3be1da2adaaf8b0f401fafa558b1783601f2840a1a0dba1a44d4f1",
   "deploymentTimestamp": 1774060614,
   "blockNumber": 7293479
 }

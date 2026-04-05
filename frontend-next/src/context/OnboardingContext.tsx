@@ -19,6 +19,7 @@ export type ExecutorType = 'me' | 'vaultia' | 'my_agent';
 export type WizardMode = 'simple' | 'expert';
 export type FrequencyKey = 'daily' | 'weekly' | 'monthly' | 'hourly' | 'five-minutes';
 export type RecipientNetwork = 'up' | 'base';
+export type ControllerMode = 'single' | 'multisig';
 
 export interface RecipientEntry {
   address: string;
@@ -41,6 +42,10 @@ interface OnboardingState {
   agentEnabled: boolean;
   executor: ExecutorType;
   safetyLevel: SafetyLevel;
+  controllerMode: ControllerMode;
+  rawMultisigSigners: string;
+  multisigThreshold: number;
+  multisigTimelockHours: number;
 }
 
 interface OnboardingContextType extends OnboardingState {
@@ -58,6 +63,10 @@ interface OnboardingContextType extends OnboardingState {
   setAgentEnabled: (v: boolean) => void;
   setExecutor: (e: ExecutorType) => void;
   setSafetyLevel: (s: SafetyLevel) => void;
+  setControllerMode: (mode: ControllerMode) => void;
+  setRawMultisigSigners: (value: string) => void;
+  setMultisigThreshold: (value: number) => void;
+  setMultisigTimelockHours: (value: number) => void;
 }
 
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
@@ -80,6 +89,10 @@ const WIZARD_DEFAULTS = {
   agentEnabled: true,
   executor: 'vaultia' as ExecutorType,
   safetyLevel: 'safe' as SafetyLevel,
+  controllerMode: 'single' as ControllerMode,
+  rawMultisigSigners: '',
+  multisigThreshold: 1,
+  multisigTimelockHours: 0,
 };
 
 function loadWizardProgress(): Partial<typeof WIZARD_DEFAULTS> {
@@ -128,6 +141,10 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const [agentEnabled, setAgentEnabledState]   = useState<boolean>(WIZARD_DEFAULTS.agentEnabled);
   const [executor, setExecutorState]           = useState<ExecutorType>(WIZARD_DEFAULTS.executor);
   const [safetyLevel, setSafetyLevelState]     = useState<SafetyLevel>(WIZARD_DEFAULTS.safetyLevel);
+  const [controllerMode, setControllerModeState] = useState<ControllerMode>(WIZARD_DEFAULTS.controllerMode);
+  const [rawMultisigSigners, setRawMultisigSignersState] = useState<string>(WIZARD_DEFAULTS.rawMultisigSigners);
+  const [multisigThreshold, setMultisigThresholdState] = useState<number>(WIZARD_DEFAULTS.multisigThreshold);
+  const [multisigTimelockHours, setMultisigTimelockHoursState] = useState<number>(WIZARD_DEFAULTS.multisigTimelockHours);
 
   useEffect(() => {
     const isCompleted = readLocalStorage(STORAGE_COMPLETED) === 'true';
@@ -147,6 +164,10 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     if (saved.executor)     setExecutorState(saved.executor);
     if (saved.safetyLevel)  setSafetyLevelState(saved.safetyLevel);
     if (typeof saved.agentEnabled === 'boolean') setAgentEnabledState(saved.agentEnabled);
+    if (saved.controllerMode === 'single' || saved.controllerMode === 'multisig') setControllerModeState(saved.controllerMode);
+    if (typeof saved.rawMultisigSigners === 'string') setRawMultisigSignersState(saved.rawMultisigSigners);
+    if (typeof saved.multisigThreshold === 'number') setMultisigThresholdState(saved.multisigThreshold);
+    if (typeof saved.multisigTimelockHours === 'number') setMultisigTimelockHoursState(saved.multisigTimelockHours);
 
     setHydrated(true);
   }, []);
@@ -156,8 +177,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     if (!hydrated) return;
     writeLocalStorage(STORAGE_WIZARD, JSON.stringify({
       wizardVaultName, goal, recipientNetwork, baseToken, luksoToken, recipients, maxPerTx, frequency, wizardMode, executor, safetyLevel, agentEnabled,
+      controllerMode, rawMultisigSigners, multisigThreshold, multisigTimelockHours,
     }));
-  }, [wizardVaultName, goal, recipientNetwork, baseToken, luksoToken, recipients, maxPerTx, frequency, wizardMode, executor, safetyLevel, agentEnabled, hydrated]);
+  }, [wizardVaultName, goal, recipientNetwork, baseToken, luksoToken, recipients, maxPerTx, frequency, wizardMode, executor, safetyLevel, agentEnabled, controllerMode, rawMultisigSigners, multisigThreshold, multisigTimelockHours, hydrated]);
 
   const finish = useCallback(() => {
     setCompleted(true);
@@ -187,16 +209,20 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const setAgentEnabled = useCallback((v: boolean) => setAgentEnabledState(v), []);
   const setExecutor     = useCallback((e: ExecutorType) => setExecutorState(e), []);
   const setSafetyLevel  = useCallback((s: SafetyLevel) => setSafetyLevelState(s), []);
+  const setControllerMode = useCallback((mode: ControllerMode) => setControllerModeState(mode), []);
+  const setRawMultisigSigners = useCallback((value: string) => setRawMultisigSignersState(value), []);
+  const setMultisigThreshold = useCallback((value: number) => setMultisigThresholdState(value), []);
+  const setMultisigTimelockHours = useCallback((value: number) => setMultisigTimelockHoursState(value), []);
 
   return (
     <OnboardingContext.Provider
       value={{
         completed,
         wizardMode, wizardVaultName, goal, recipientNetwork, baseToken, luksoToken, recipients, maxPerTx, frequency,
-        agentEnabled, executor, safetyLevel,
+        agentEnabled, executor, safetyLevel, controllerMode, rawMultisigSigners, multisigThreshold, multisigTimelockHours,
         finish,
         setWizardMode, setWizardVaultName, setGoal, setRecipientNetwork, setBaseToken, setLuksoToken, addRecipient, removeRecipient,
-        setMaxPerTx, setFrequency, setAgentEnabled, setExecutor, setSafetyLevel,
+        setMaxPerTx, setFrequency, setAgentEnabled, setExecutor, setSafetyLevel, setControllerMode, setRawMultisigSigners, setMultisigThreshold, setMultisigTimelockHours,
       }}
     >
       {children}

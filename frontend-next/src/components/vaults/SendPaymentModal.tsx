@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetBody, SheetFooter } from '@/components/ui/sheet';
 import { Button } from '@/components/common/Button';
-import { getSafeContract, getPolicyEngineContract, getMerchantPolicyContract, getKeyManagerContract } from '@/lib/web3/contracts';
+import { getSafeContract, getPolicyEngineContract, getMerchantPolicyContract, getKeyManagerContract, getMerchantRegistryContract } from '@/lib/web3/contracts';
 import { decodeRevertReason, isUserRejection } from '@/lib/errorMap';
 import { getReadOnlyProvider } from '@/lib/web3/provider';
 import { appendLocalActivityLog } from '@/lib/activityLocalLog';
@@ -24,6 +24,8 @@ interface SendPaymentModalProps {
   /** Pre-selected single vault (used from VaultCard). */
   vaultSafe?: string;
   vaultLabel?: string;
+  /** If the vault uses an LSP7 token budget, pre-fill the token address. */
+  budgetToken?: string;
   /** List of vaults to pick from (used from Dashboard). */
   vaults?: VaultOption[];
 }
@@ -34,11 +36,17 @@ export function SendPaymentModal({
   signer,
   vaultSafe,
   vaultLabel,
+  budgetToken,
   vaults,
 }: SendPaymentModalProps) {
   const [selectedSafe, setSelectedSafe] = useState(vaultSafe ?? '');
   const [merchants, setMerchants] = useState<string[]>([]);
+  const [merchantNames, setMerchantNames] = useState<Record<string, string>>({});
   const [merchantsLoading, setMerchantsLoading] = useState(false);
+
+  // Asset type: native LYX or LSP7 token
+  const [assetType, setAssetType] = useState<'lyx' | 'token'>('lyx');
+  const [tokenAddress, setTokenAddress] = useState('');
 
   // Recipient mode: 'merchant' (pick from list) or 'manual' (type address)
   const [recipientMode, setRecipientMode] = useState<'merchant' | 'manual'>('merchant');
@@ -83,6 +91,19 @@ export function SendPaymentModal({
         }
       }
       setMerchants(found);
+      // Resolve merchant names from MerchantRegistry if configured
+      const registryAddr = process.env.NEXT_PUBLIC_MERCHANT_REGISTRY_ADDRESS;
+      if (registryAddr && found.length > 0) {
+        try {
+          const reg = getMerchantRegistryContract(registryAddr, provider);
+          const names = await Promise.all(found.map(async (addr) => {
+            try { return [addr.toLowerCase(), await reg.getName(addr) as string] as const; } catch { return [addr.toLowerCase(), ''] as const; }
+          }));
+          setMerchantNames(Object.fromEntries(names.filter(([, name]) => name)));
+        } catch {
+          // registry not reachable — show addresses only
+        }
+      }
       // Auto-switch to manual if no merchants are configured
       if (found.length === 0) setRecipientMode('manual');
       else { setRecipientMode('merchant'); setSelectedMerchant(found[0]); }
@@ -103,19 +124,31 @@ export function SendPaymentModal({
     if (!open) {
       setManualRecipient('');
       setSelectedMerchant('');
+      setMerchantNames({});
       setAmount('');
       setTxHash(null);
       setError(null);
       setSending(false);
+      setAssetType('lyx');
+      setTokenAddress('');
     }
   }, [open]);
+
+  // Auto-detect token mode from budgetToken prop
+  useEffect(() => {
+    if (open && budgetToken && budgetToken !== ethers.ZeroAddress) {
+      setAssetType('token');
+      setTokenAddress(budgetToken);
+    }
+  }, [open, budgetToken]);
 
   const recipient = recipientMode === 'merchant' ? selectedMerchant : manualRecipient.trim();
   const recipientValid = ethers.isAddress(recipient);
   const recipientWhitelisted = merchants.length === 0 || recipientMode === 'merchant' || merchants.some((addr) => addr.toLowerCase() === recipient.toLowerCase());
   const amountNum = parseFloat(amount);
   const amountValid = !isNaN(amountNum) && amountNum > 0;
-  const canSend = !!signer && !!selectedSafe && recipientValid && recipientWhitelisted && amountValid && !sending;
+  const tokenAddressValid = assetType === 'lyx' || ethers.isAddress(tokenAddress.trim());
+  const canSend = !!signer && !!selectedSafe && recipientValid && recipientWhitelisted && amountValid && tokenAddressValid && !sending;
 
   const handleSend = async () => {
     if (!canSend || !signer) return;
@@ -124,20 +157,25 @@ export function SendPaymentModal({
     setTxHash(null);
     try {
       const safe = getSafeContract(selectedSafe, signer);
-      const amountWei = ethers.parseEther(amount.trim());
-
-      // Route through the vault KeyManager so AgentSafe sees msg.sender == vaultKeyManager
-      // and enforces PolicyEngine validation (whitelists, budgets, etc.). Direct owner
-      // calls to safe.execute() bypass policy checks by design in AgentSafe.
       const keyManagerAddress = await safe.vaultKeyManager();
       const keyManager = getKeyManagerContract(keyManagerAddress, signer);
-      const executeCalldata = safe.interface.encodeFunctionData('execute', [
-        0,
-        recipient,
-        amountWei,
-        '0x',
-      ]);
-      const tx = await keyManager.execute(executeCalldata);
+
+      let calldata: string;
+      if (assetType === 'token') {
+        // Route LSP7 token transfer through agentTransferToken (enforces PolicyEngine)
+        const tokenAmt = ethers.parseEther(amount.trim());
+        calldata = safe.interface.encodeFunctionData('agentTransferToken', [
+          tokenAddress.trim(), recipient, tokenAmt, true, '0x',
+        ]);
+      } else {
+        // Native LYX — route through execute so PolicyEngine validates
+        const amountWei = ethers.parseEther(amount.trim());
+        calldata = safe.interface.encodeFunctionData('execute', [
+          0, recipient, amountWei, '0x',
+        ]);
+      }
+
+      const tx = await keyManager.execute(calldata);
       await tx.wait();
       setTxHash(tx.hash as string);
       setAmount('');
@@ -152,7 +190,7 @@ export function SendPaymentModal({
           vaultSafe: selectedSafe,
           vaultLabel: selectedLabel,
           status: 'blocked',
-          type: 'LYX',
+          type: assetType === 'token' ? 'TOKEN' : 'LYX',
           to: recipient,
           amount: amount.trim(),
           reason: decodedError,
@@ -217,6 +255,56 @@ export function SendPaymentModal({
             </div>
           )}
 
+          {/* ── Asset type ─────────────────────────────────────── */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+              Asset
+            </label>
+            <div className="flex rounded-xl overflow-hidden text-sm" style={{ border: '1px solid var(--border)' }}>
+              <button
+                type="button"
+                onClick={() => setAssetType('lyx')}
+                className="flex-1 px-3 py-2 transition-colors"
+                style={{
+                  background: assetType === 'lyx' ? 'var(--text)' : 'var(--card-mid)',
+                  color: assetType === 'lyx' ? 'var(--bg)' : 'var(--text-muted)',
+                }}
+              >
+                LYX
+              </button>
+              <button
+                type="button"
+                onClick={() => setAssetType('token')}
+                className="flex-1 px-3 py-2 transition-colors"
+                style={{
+                  background: assetType === 'token' ? 'var(--text)' : 'var(--card-mid)',
+                  color: assetType === 'token' ? 'var(--bg)' : 'var(--text-muted)',
+                }}
+              >
+                LSP7 Token
+              </button>
+            </div>
+            {assetType === 'token' && (
+              <div className="space-y-1">
+                <input
+                  type="text"
+                  value={tokenAddress}
+                  onChange={(e) => setTokenAddress(e.target.value)}
+                  placeholder="Token contract address (0x…)"
+                  className="w-full rounded-xl px-3 py-2 text-sm font-mono focus:outline-none"
+                  style={{
+                    background: 'var(--card-mid)',
+                    border: `1px solid ${tokenAddress && !ethers.isAddress(tokenAddress.trim()) ? 'var(--blocked)' : 'var(--border)'}`,
+                    color: 'var(--text)',
+                  }}
+                />
+                {tokenAddress && !ethers.isAddress(tokenAddress.trim()) && (
+                  <p className="text-xs" style={{ color: 'var(--blocked)' }}>Invalid token address</p>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* ── Recipient ──────────────────────────────────────── */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -275,7 +363,14 @@ export function SendPaymentModal({
                       className="h-3 w-3 rounded-full flex-shrink-0"
                       style={{ background: selectedMerchant === addr ? 'var(--primary)' : 'var(--border)' }}
                     />
-                    <span className="font-mono text-xs truncate">{addr}</span>
+                    <span className="flex-1 min-w-0">
+                      {merchantNames[addr.toLowerCase()] && (
+                        <span className="block text-xs font-semibold" style={{ color: 'var(--text)' }}>
+                          {merchantNames[addr.toLowerCase()]}
+                        </span>
+                      )}
+                      <span className="block font-mono text-xs truncate" style={{ color: 'var(--text-muted)' }}>{addr}</span>
+                    </span>
                   </button>
                 ))}
               </div>
@@ -323,7 +418,7 @@ export function SendPaymentModal({
           {/* ── Amount ─────────────────────────────────────────── */}
           <div className="space-y-1">
             <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
-              Amount (LYX)
+              {assetType === 'token' ? 'Amount (tokens)' : 'Amount (LYX)'}
             </label>
             <div className="flex items-center gap-2">
               <input

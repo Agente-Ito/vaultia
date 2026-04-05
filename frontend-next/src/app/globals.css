@@ -45,6 +45,7 @@
 
   /* Legacy compat */
   --primary:     #1D1D1F;
+  --primary-fg:  #FFFFFF;
   --accent:      #10B981;
   --accent-soft: #34D399;
   --bg-surface:  #FFFFFF;
@@ -79,6 +80,7 @@
   --glow:        rgba(16, 185, 129, 0.25);
 
   --primary:     #F9F9F9;
+  --primary-fg:  #1D1D1F;
   --accent:      #10B981;
   --accent-soft: #34D399;
 }

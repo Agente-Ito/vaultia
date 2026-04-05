@@ -21,22 +21,28 @@ async function deployFixture() {
 
   const CoreFactory     = await ethers.getContractFactory("AgentVaultDeployerCore");
   const DeployerFactory = await ethers.getContractFactory("AgentVaultDeployer");
+  const OptFactory      = await ethers.getContractFactory("AgentVaultOptionalPolicyDeployer");
   const KmFactory       = await ethers.getContractFactory("AgentKMDeployer");
+  const MsFactory       = await ethers.getContractFactory("MultisigControllerDeployer");
   const RegFactory      = await ethers.getContractFactory("AgentVaultRegistry");
   const CoordFactory    = await ethers.getContractFactory("AgentCoordinator");
   const PoolFactory     = await ethers.getContractFactory("SharedBudgetPool");
 
   const core     = await CoreFactory.deploy()     as AgentVaultDeployerCore;
   const deployer = await DeployerFactory.deploy() as AgentVaultDeployer;
+  const opt      = await OptFactory.deploy();
   const km       = await KmFactory.deploy()       as AgentKMDeployer;
+  const ms       = await MsFactory.deploy();
   const coord    = await CoordFactory.deploy();
   const pool     = await PoolFactory.deploy(owner.address);
   const registry = await RegFactory.deploy(
     await core.getAddress(),
     await deployer.getAddress(),
+    await opt.getAddress(),
     await km.getAddress(),
     await coord.getAddress(),
     await pool.getAddress(),
+    await ms.getAddress(),
   ) as AgentVaultRegistry;
 
   return { owner, agent, recipient1, recipient2, recipient3, other, registry, deployer };
@@ -81,6 +87,9 @@ describe("RecipientBudgetPolicy", function () {
         allowSuperPermissions: false,
         customAgentPermissions: ethers.ZeroHash,
         allowedCallsByAgent: [],
+        multisigSigners:    [],
+        multisigThreshold:  0,
+        multisigTimeLock:   0,
       });
 
       const receipt = await tx.wait();
@@ -136,6 +145,9 @@ describe("RecipientBudgetPolicy", function () {
         allowSuperPermissions: false,
         customAgentPermissions: ethers.ZeroHash,
         allowedCallsByAgent: [],
+        multisigSigners:    [],
+        multisigThreshold:  0,
+        multisigTimeLock:   0,
       });
 
       const vaults = await registry.getVaults(owner.address);
@@ -169,6 +181,9 @@ describe("RecipientBudgetPolicy", function () {
         allowSuperPermissions: false,
         customAgentPermissions: ethers.ZeroHash,
         allowedCallsByAgent: [],
+        multisigSigners:    [],
+        multisigThreshold:  0,
+        multisigTimeLock:   0,
       });
 
       const vaults = await registry.getVaults(owner.address);
@@ -207,6 +222,9 @@ describe("RecipientBudgetPolicy", function () {
           allowSuperPermissions: false,
           customAgentPermissions: ethers.ZeroHash,
           allowedCallsByAgent: [],
+          multisigSigners:    [],
+          multisigThreshold:  0,
+          multisigTimeLock:   0,
         })
       ).to.be.revertedWith("Registry: too many recipient configs");
     });
@@ -233,6 +251,9 @@ describe("RecipientBudgetPolicy", function () {
         allowSuperPermissions: false,
         customAgentPermissions: ethers.ZeroHash,
         allowedCallsByAgent: [],
+        multisigSigners:    [],
+        multisigThreshold:  0,
+        multisigTimeLock:   0,
       });
 
       const vaults = await registry.getVaults(owner.address);
@@ -269,6 +290,9 @@ describe("RecipientBudgetPolicy", function () {
         allowSuperPermissions: false,
         customAgentPermissions: ethers.ZeroHash,
         allowedCallsByAgent: [],
+        multisigSigners:    [],
+        multisigThreshold:  0,
+        multisigTimeLock:   0,
       });
 
       const vaults = await registry.getVaults(owner.address);
@@ -299,6 +323,9 @@ describe("RecipientBudgetPolicy", function () {
         allowSuperPermissions: false,
         customAgentPermissions: ethers.ZeroHash,
         allowedCallsByAgent: [],
+        multisigSigners:    [],
+        multisigThreshold:  0,
+        multisigTimeLock:   0,
       });
 
       const vaults = await registry.getVaults(owner.address);
@@ -574,6 +601,9 @@ describe("RecipientBudgetPolicy", function () {
         allowSuperPermissions: false,
         customAgentPermissions: ethers.ZeroHash,
         allowedCallsByAgent: [],
+        multisigSigners:    [],
+        multisigThreshold:  0,
+        multisigTimeLock:   0,
       });
 
       const receipt = await tx.wait();

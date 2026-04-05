@@ -19,6 +19,7 @@
 
 import { expect } from "chai";
 import { ethers } from "hardhat";
+import type { ContractTransactionReceipt } from "ethers";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
 import {
@@ -120,10 +121,10 @@ async function deployE2EStack(
 }
 
 /** Extracts the proposal id from a transaction receipt by parsing Proposed event. */
-function extractProposalId(ms: MultisigController, receipt: ethers.ContractTransactionReceipt): string {
+function extractProposalId(ms: MultisigController, receipt: ContractTransactionReceipt): string {
   for (const log of receipt.logs) {
     try {
-      const parsed = ms.interface.parseLog(log as { topics: string[]; data: string });
+      const parsed = ms.interface.parseLog(log as unknown as { topics: string[]; data: string });
       if (parsed?.name === "Proposed") return parsed.args.id as string;
     } catch { /* skip non-matching logs */ }
   }
@@ -268,7 +269,7 @@ describe("MultisigController — E2E (full call path)", function () {
       let timelockEnd: bigint | undefined;
       for (const log of receipt!.logs) {
         try {
-          const parsed = ms.interface.parseLog(log as { topics: string[]; data: string });
+          const parsed = ms.interface.parseLog(log as unknown as { topics: string[]; data: string });
           if (parsed?.name === "Proposed") {
             timelockEnd = parsed.args.timelockEnd as bigint;
             break;

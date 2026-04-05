@@ -8,6 +8,7 @@ import { Badge } from '@/components/common/Badge';
 import { useI18n } from '@/context/I18nContext';
 import { useWeb3 } from '@/context/Web3Context';
 import { useUniversalProfile } from '@/hooks/useUniversalProfile';
+import { MerchantRegistrationCard } from '@/components/settings/MerchantRegistrationCard';
 
 export const dynamic = 'force-dynamic';
 
@@ -129,7 +130,7 @@ export default function SettingsPage() {
                   ) : (
                     <div
                       className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold"
-                      style={{ background: 'var(--primary)', color: '#fff' }}
+                      style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}
                     >
                       {(profile?.name?.[0] ?? account[2] ?? '?').toUpperCase()}
                     </div>
@@ -307,6 +308,8 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+      {/* ─── Merchant identity ────────────────────────────────────────────── */}
+      <MerchantRegistrationCard />
     </div>
   );
 }

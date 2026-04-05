@@ -13,18 +13,31 @@ import { SafetyLevelChips } from '@/components/wizard/SafetyLevelChips';
 import { WizardReviewSummary } from '@/components/wizard/WizardReviewSummary';
 import { useI18n } from '@/context/I18nContext';
 import { getLocalizedErrorMessage } from '@/lib/errorMap';
+import { getPendingMultisigSetup, removePendingMultisigSetup, savePendingMultisigSetup, type PendingMultisigSetup } from '@/lib/pendingMultisigSetup';
 import { useOnboarding } from '@/context/OnboardingContext';
 import type { FrequencyKey, ExecutorType, GoalKey } from '@/context/OnboardingContext';
 import { useWeb3 } from '@/context/Web3Context';
 import { WIZARD_FREQUENCY_KEYS } from '@/lib/utils/frequencyLabels';
 import { ethers } from 'ethers';
 import type { DeployedVaultSummary, VaultDeployPhase, VaultProgressCallback } from '@/lib/web3/deployVault';
-import { buildSimpleWizardDeployParams, deployRegistryVault, validateSimpleWizardInput } from '@/lib/web3/deployVault';
+import { buildSimpleWizardDeployParams, checkVaultOwnership, claimVaultOwnership, deployRegistryVault, enableVaultMultisig, finalizeDeployedVaultOwnership, supportsMultisigVaultDeploy, supportsStagedMultisigActivation, validateSimpleWizardInput, waitForRecoveredDeployedVaultCandidate } from '@/lib/web3/deployVault';
 import { LuksoIcon } from '@/components/common/LuksoIcon';
 import MultisigConfigForm, {
   parseSignerList,
   type MultisigConfig,
 } from '@/components/wizard/MultisigConfigForm';
+
+function localizeOwnershipWarnings(warnings: string[], t: (key: string) => string) {
+  return warnings.map((warning) => {
+    if (warning === '[[ownership_batch_success]]') {
+      return t('deploy_result.note.ownership_batch_success');
+    }
+    if (warning.startsWith('[[ownership_batch_fallback]] ')) {
+      return t('deploy_result.note.ownership_batch_fallback').replace('{message}', warning.replace('[[ownership_batch_fallback]] ', ''));
+    }
+    return warning;
+  });
+}
 
 // ─── Step indices ─────────────────────────────────────────────────────────────
 // 0: Goal
@@ -122,6 +135,14 @@ export function SimpleSetupFlow() {
     setExecutor,
     safetyLevel,
     setSafetyLevel,
+    controllerMode,
+    setControllerMode,
+    rawMultisigSigners,
+    setRawMultisigSigners,
+    multisigThreshold,
+    setMultisigThreshold,
+    multisigTimelockHours,
+    setMultisigTimelockHours,
     setWizardMode,
     finish,
   } = useOnboarding();
@@ -137,6 +158,9 @@ export function SimpleSetupFlow() {
   const [createdVault, setCreatedVault] = useState<DeployedVaultSummary | null>(null);
   const [createTxHash, setCreateTxHash] = useState<string | null>(null);
   const [createWarnings, setCreateWarnings] = useState<string[]>([]);
+  const [pendingMultisigSetup, setPendingMultisigSetup] = useState<PendingMultisigSetup | null>(null);
+  const [ownershipPending, setOwnershipPending] = useState(false);
+  const [claimingOwnership, setClaimingOwnership] = useState(false);
   const myAgentAddress = '';
   const [goalsExpanded, setGoalsExpanded] = useState(false);
   const [customTokenOpen, setCustomTokenOpen] = useState(false);
@@ -148,10 +172,9 @@ export function SimpleSetupFlow() {
   const [perRecipientLimits, setPerRecipientLimits] = useState<Record<string, { amount: string; period: FrequencyKey }>>({});
 
   // ── Controller step ────────────────────────────────────────────────────────
-  const [controllerMode, setControllerMode]         = useState<'single' | 'multisig'>('single');
-  const [multisigConfig, setMultisigConfig]         = useState<MultisigConfig>({ signers: [], threshold: 1, timelockHours: 0, executorMode: 'any_signer' });
-  const [rawMultisigSigners, setRawMultisigSigners] = useState('');
+  const [multisigConfig, setMultisigConfig]         = useState<MultisigConfig>({ signers: [], threshold: multisigThreshold, timelockHours: multisigTimelockHours, executorMode: 'any_signer' });
   const [multisigErrors, setMultisigErrors]         = useState<{ signers?: string | null; threshold?: string | null }>({});
+  const [multisigDeploySupported, setMultisigDeploySupported] = useState<boolean | null>(null);
 
   // ── Sub-vaults (Track 7B) ─────────────────────────────────────────────────
   const [subVaultsOpen, setSubVaultsOpen] = useState(false);
@@ -166,6 +189,48 @@ export function SimpleSetupFlow() {
       setExecutor('vaultia');
     }
   }, [executor, setExecutor]);
+
+  useEffect(() => {
+    setMultisigConfig((prev) => ({
+      ...prev,
+      threshold: multisigThreshold,
+      timelockHours: multisigTimelockHours,
+    }));
+  }, [multisigThreshold, multisigTimelockHours]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCapability = async () => {
+      if (!registry) {
+        setMultisigDeploySupported(null);
+        return;
+      }
+
+      try {
+        const supported = await supportsMultisigVaultDeploy(registry);
+        if (!cancelled) {
+          setMultisigDeploySupported(supported);
+          if (!supported && controllerMode === 'multisig') {
+            setControllerMode('single');
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setMultisigDeploySupported(false);
+          if (controllerMode === 'multisig') {
+            setControllerMode('single');
+          }
+        }
+      }
+    };
+
+    void loadCapability();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [controllerMode, registry, setControllerMode]);
 
   const isLastStep = step === TOTAL_STEPS - 1;
   const canCreate = isConnected && isRegistryConfigured && !creating;
@@ -233,6 +298,10 @@ export function SimpleSetupFlow() {
     }
 
     if (step === 1 && controllerMode === 'multisig') {
+      if (multisigDeploySupported === false) {
+        setMultisigErrors({ signers: t('create.controller.multisig.unsupported'), threshold: null });
+        return;
+      }
       const { signers, error: signerError } = parseSignerList(rawMultisigSigners);
       const thresholdError =
         multisigConfig.threshold < 1 || multisigConfig.threshold > (signers.length || 1)
@@ -241,6 +310,8 @@ export function SimpleSetupFlow() {
       setMultisigErrors({ signers: signerError, threshold: thresholdError });
       if (signerError || thresholdError || signers.length === 0) return;
       setMultisigConfig((prev) => ({ ...prev, signers }));
+      setMultisigThreshold(multisigConfig.threshold);
+      setMultisigTimelockHours(multisigConfig.timelockHours);
     } else if (step === 1) {
       setMultisigErrors({});
     }
@@ -280,6 +351,8 @@ export function SimpleSetupFlow() {
   };
 
   const handleCreateVault = async () => {
+    let owner = '';
+    let existingSafeAddresses: Set<string> | undefined;
     const validationErrors = validateSimple(true);
     if (validationErrors.length > 0) {
       setCreateError(translateSimpleError(validationErrors[0]));
@@ -300,6 +373,8 @@ export function SimpleSetupFlow() {
     setDeployPhases([]);
     setCreateError(null);
     setCreateWarnings([]);
+    setPendingMultisigSetup(null);
+    setOwnershipPending(false);
     const onProgress: VaultProgressCallback = (phase, detail) => {
       setDeployPhases((prev) => [...prev, { phase, detail }]);
     };
@@ -309,9 +384,10 @@ export function SimpleSetupFlow() {
         setCreateError(t('wizard.review.connect_wallet_required'));
         return;
       }
-      const owner = await signer.getAddress();
+      owner = await signer.getAddress();
       const existingVaults = await registry.getVaults(owner);
-      const existingSafeAddresses = new Set(existingVaults.map((vault) => vault.safe.toLowerCase()));
+      existingSafeAddresses = new Set(existingVaults.map((vault) => vault.safe.toLowerCase()));
+      const shouldStageMultisig = controllerMode === 'multisig' && await supportsStagedMultisigActivation(registry);
       const { deployed, receipt, ownershipWarnings } = await deployRegistryVault({
         registry,
         owner,
@@ -332,20 +408,165 @@ export function SimpleSetupFlow() {
           recipientLimitMode,
           globalRecipientLimit: { amount: globalRecipientAmount, period: globalRecipientPeriod },
           perRecipientLimits,
+          controllerMode,
+          deferMultisigActivation: shouldStageMultisig,
+          multisigConfig: {
+            signers: multisigConfig.signers,
+            threshold: multisigConfig.threshold,
+            timelockHours: multisigConfig.timelockHours,
+          },
         }),
+        deferOwnershipFinalization: shouldStageMultisig,
       });
       if (!deployed) {
         throw new Error(t('deploy_result.error.no_vault_address'));
       }
+      const postCreateWarnings = [...ownershipWarnings];
+      let nextOwnershipPending = false;
+      if (shouldStageMultisig) {
+        const stagedSetup: PendingMultisigSetup = {
+          safeAddress: deployed.safe,
+          label: wizardVaultName,
+          signers: multisigConfig.signers,
+          threshold: multisigConfig.threshold,
+          timeLock: multisigConfig.timelockHours * 3600,
+          createdAt: Date.now(),
+        };
+        try {
+          await enableVaultMultisig({
+            registry,
+            safeAddress: deployed.safe,
+            signers: multisigConfig.signers,
+            threshold: multisigConfig.threshold,
+            timeLock: multisigConfig.timelockHours * 3600,
+            onProgress,
+          });
+          removePendingMultisigSetup(deployed.safe);
+          postCreateWarnings.push(t('deploy_result.warning.multisig_enabled_followup'));
+          const finalizationWarnings = await finalizeDeployedVaultOwnership(registry, deployed, owner, onProgress);
+          postCreateWarnings.push(...finalizationWarnings);
+        } catch (multisigErr: unknown) {
+          savePendingMultisigSetup(stagedSetup);
+          setPendingMultisigSetup(stagedSetup);
+          nextOwnershipPending = true;
+          postCreateWarnings.push(
+            t('deploy_result.warning.multisig_activation_failed').replace('{message}', getLocalizedErrorMessage(multisigErr, t))
+          );
+        }
+      }
+      try {
+        if (signer.provider) {
+          nextOwnershipPending = (await checkVaultOwnership(deployed.safe, owner, signer.provider)) === 'pending';
+        }
+      } catch {
+        // keep best-effort value from flow state
+      }
       setCreatedVault(deployed);
       setCreateTxHash(receipt.hash);
-      setCreateWarnings(ownershipWarnings);
+      setCreateWarnings(localizeOwnershipWarnings(postCreateWarnings, t));
+      setOwnershipPending(nextOwnershipPending);
       setCreateDialogOpen(true);
     } catch (error: unknown) {
+      if (owner && existingSafeAddresses && registry) {
+        try {
+          const recovered = await waitForRecoveredDeployedVaultCandidate(registry, owner, existingSafeAddresses, wizardVaultName);
+          if (recovered) {
+            let recoveredOwnershipPending = false;
+            try {
+              if (signer.provider) {
+                recoveredOwnershipPending = (await checkVaultOwnership(recovered.safe, owner, signer.provider)) === 'pending';
+              }
+            } catch {
+              // best effort only
+            }
+            setCreatedVault(recovered);
+            setCreateTxHash(null);
+            setCreateWarnings([t('deploy_result.warning.recovered_after_wallet_error')]);
+            setOwnershipPending(recoveredOwnershipPending);
+            setCreateError(null);
+            setCreateDialogOpen(true);
+            return;
+          }
+        } catch {
+          // Keep the original error if recovery probing fails.
+        }
+      }
       setCreateError(getLocalizedErrorMessage(error, t));
       setCreateDialogOpen(true);
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleRetryPendingMultisig = async () => {
+    if (!registry || !createdVault) return;
+
+    const stagedSetup = pendingMultisigSetup ?? getPendingMultisigSetup(createdVault.safe);
+    if (!stagedSetup) return;
+
+    setCreating(true);
+    setCreateError(null);
+    setDeployPhases([]);
+
+    const onProgress: VaultProgressCallback = (phase, detail) => {
+      setDeployPhases((prev) => [...prev, { phase, detail }]);
+    };
+
+    try {
+      await enableVaultMultisig({
+        registry,
+        safeAddress: stagedSetup.safeAddress,
+        signers: stagedSetup.signers,
+        threshold: stagedSetup.threshold,
+        timeLock: stagedSetup.timeLock,
+        onProgress,
+      });
+      removePendingMultisigSetup(stagedSetup.safeAddress);
+      setPendingMultisigSetup(null);
+      const result = await claimVaultOwnership(stagedSetup.safeAddress, signer);
+      setOwnershipPending(result.claimed === 0);
+      setCreateWarnings((current) => {
+        const next = current.filter((warning) => !warning.startsWith(t('deploy_result.warning.multisig_activation_failed_prefix')));
+        next.push(t('deploy_result.warning.multisig_retry_success'));
+        next.push(...result.warnings);
+        return next;
+      });
+    } catch (error: unknown) {
+      const message = getLocalizedErrorMessage(error, t);
+      setCreateError(message);
+      setCreateWarnings((current) => {
+        const next = current.filter((warning) => !warning.startsWith(t('deploy_result.warning.multisig_activation_failed_prefix')));
+        next.push(t('deploy_result.warning.multisig_activation_failed').replace('{message}', message));
+        return next;
+      });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleClaimOwnership = async () => {
+    if (!createdVault || !signer) return;
+
+    setClaimingOwnership(true);
+    setCreateError(null);
+
+    try {
+      const signerAddress = await signer.getAddress();
+      const result = await claimVaultOwnership(createdVault.safe, signer);
+      if (result.warnings.length > 0) {
+        setCreateWarnings((current) => [...current, ...localizeOwnershipWarnings(result.warnings, t)]);
+      }
+
+      if (result.claimed > 0) {
+        setOwnershipPending(false);
+      } else if (signer.provider) {
+        const status = await checkVaultOwnership(createdVault.safe, signerAddress, signer.provider);
+        setOwnershipPending(status === 'pending');
+      }
+    } catch (error: unknown) {
+      setCreateError(getLocalizedErrorMessage(error, t));
+    } finally {
+      setClaimingOwnership(false);
     }
   };
 
@@ -777,13 +998,19 @@ export function SimpleSetupFlow() {
                           <button
                             key={mode}
                             type="button"
-                            onClick={() => setControllerMode(mode)}
+                            onClick={() => {
+                              if (mode === 'multisig' && multisigDeploySupported === false) return;
+                              setControllerMode(mode);
+                            }}
                             className="p-4 rounded-xl text-left transition-all"
                             style={{
                               background: isActive ? 'var(--card-mid)' : 'var(--bg)',
                               border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
                               boxShadow: isActive ? '0 0 0 1px var(--accent)' : 'none',
+                              opacity: mode === 'multisig' && multisigDeploySupported === false ? 0.55 : 1,
+                              cursor: mode === 'multisig' && multisigDeploySupported === false ? 'not-allowed' : 'pointer',
                             }}
+                            disabled={mode === 'multisig' && multisigDeploySupported === false}
                           >
                             <div className="flex items-center justify-between mb-1">
                               <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
@@ -792,9 +1019,9 @@ export function SimpleSetupFlow() {
                               {mode === 'multisig' && (
                                 <span
                                   className="text-xs px-2 py-0.5 rounded-full font-medium"
-                                  style={{ background: 'rgba(34,255,178,0.15)', color: 'var(--success)' }}
+                                  style={{ background: multisigDeploySupported === false ? 'var(--card-mid)' : 'rgba(34,255,178,0.15)', color: multisigDeploySupported === false ? 'var(--text-muted)' : 'var(--success)' }}
                                 >
-                                  {t('create.controller.multisig.badge')}
+                                  {multisigDeploySupported === false ? t('create.controller.multisig.unsupported_badge') : t('create.controller.multisig.badge')}
                                 </span>
                               )}
                             </div>
@@ -806,11 +1033,21 @@ export function SimpleSetupFlow() {
                       })}
                     </div>
 
+                    {multisigDeploySupported === false && (
+                      <Alert variant="warning">
+                        <AlertDescription>{t('create.controller.multisig.unsupported')}</AlertDescription>
+                      </Alert>
+                    )}
+
                     {/* Multisig config form */}
                     {controllerMode === 'multisig' && (
                       <MultisigConfigForm
                         value={multisigConfig}
-                        onChange={setMultisigConfig}
+                        onChange={(next) => {
+                          setMultisigConfig(next);
+                          setMultisigThreshold(next.threshold);
+                          setMultisigTimelockHours(next.timelockHours);
+                        }}
                         rawSigners={rawMultisigSigners}
                         onRawSignersChange={setRawMultisigSigners}
                         errors={multisigErrors}
@@ -1030,17 +1267,25 @@ export function SimpleSetupFlow() {
                         </p>
                         {SIMPLE_EXECUTORS.map((option) => {
                           const isSelected = executor === option;
+                          const isLockedOption = option === 'my_agent';
                           return (
-                            <button
+                            <div
                               key={option}
-                              type="button"
-                              onClick={() => option === 'vaultia' && setExecutor(option)}
                               className="w-full rounded-2xl px-4 py-4 text-left transition-all"
+                              role={isLockedOption ? undefined : 'button'}
+                              tabIndex={isLockedOption ? undefined : 0}
+                              onClick={isLockedOption ? undefined : () => setExecutor(option)}
+                              onKeyDown={isLockedOption ? undefined : (e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  setExecutor(option);
+                                }
+                              }}
                               style={{
                                 background: isSelected ? 'var(--card-mid)' : 'var(--bg)',
                                 border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
-                                opacity: option === 'my_agent' ? 0.62 : 1,
-                                cursor: option === 'my_agent' ? 'not-allowed' : 'pointer',
+                                opacity: isLockedOption ? 0.62 : 1,
+                                cursor: isLockedOption ? 'not-allowed' : 'pointer',
                               }}
                             >
                               <div className="flex items-center justify-between">
@@ -1062,13 +1307,13 @@ export function SimpleSetupFlow() {
                                   : t('wizard.automation.executor.my_agent_locked_desc')}
                               </p>
                               {option === 'my_agent' && (
-                                <div className="mt-3 space-y-3" onClick={(e) => e.stopPropagation()}>
+                                <div className="mt-3 space-y-3">
                                   <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
                                     {t('wizard.automation.my_agent_locked_notice')}
                                   </p>
                                   <button
                                     type="button"
-                                    onClick={(e) => { e.stopPropagation(); handleContinueToExpert(); }}
+                                    onClick={handleContinueToExpert}
                                     className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all"
                                     style={{ background: 'var(--card-mid)', border: '1px solid var(--border)', color: 'var(--text)' }}
                                   >
@@ -1076,7 +1321,7 @@ export function SimpleSetupFlow() {
                                   </button>
                                 </div>
                               )}
-                            </button>
+                            </div>
                           );
                         })}
                       </div>
@@ -1263,6 +1508,11 @@ export function SimpleSetupFlow() {
         txHash={createTxHash}
         budgetToken={luksoToken}
         signer={signer}
+        ownershipPending={ownershipPending}
+        ownershipActionBusy={claimingOwnership}
+        onOwnershipAction={createdVault && ownershipPending ? handleClaimOwnership : undefined}
+        tertiaryLabel={createdVault && pendingMultisigSetup ? t('deploy_result.retry_multisig') : undefined}
+        onTertiaryAction={createdVault && pendingMultisigSetup ? handleRetryPendingMultisig : undefined}
         secondaryLabel={createdVault ? t('create.success.create_another') : t('wizard.review.edit')}
         onSecondaryAction={createdVault ? handleCreateAnother : () => setCreateDialogOpen(false)}
         primaryLabel={createdVault ? t('create.success.view_vaults') : t('deploy_result.close')}

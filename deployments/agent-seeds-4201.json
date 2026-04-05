@@ -7,7 +7,6 @@
     {
       "name": "Recurring Payments Agent",
       "address": "0x419726D43C04abaAaED9200e295726D4Ef5E5Fe2",
-      "privateKey": "0xafa6723a891c8f52f4116a3340174ae6f55f68bfe4e184c3fb51894437f89ea2",
       "role": "PAYMENT_AGENT",
       "capabilities": [
         "CAN_PAY",
@@ -19,7 +18,6 @@
     {
       "name": "Subscriptions Agent",
       "address": "0x451543146b3bbf7ACcf8a33cc7C80b29216aab2A",
-      "privateKey": "0x8d8511812b9656523004e306221566fec8db340414342b1bed35c2784585d138",
       "role": "SUBSCRIPTION_AGENT",
       "capabilities": [
         "CAN_SUBSCRIBE"
@@ -30,7 +28,6 @@
     {
       "name": "Treasury Agent",
       "address": "0x9730EF61165D11737F5026d93B07cA740878A982",
-      "privateKey": "0xca2e865015d9cdbd917e958dbb9c4e8cd1d5ad11d276147a0a6e6ca0b00d82f1",
       "role": "TREASURY_AGENT",
       "capabilities": [
         "CAN_REBALANCE",

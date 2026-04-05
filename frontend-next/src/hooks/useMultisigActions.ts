@@ -10,6 +10,9 @@ const MULTISIG_WRITE_ABI = [
   'function unapprove(bytes32 id) external',
   'function revoke(bytes32 id) external',
   'function execute(bytes32 id) external',
+  'function selfCall(bytes calldata data) external',
+  'function updateSigners(address[] calldata newSigners, uint256 newThreshold) external',
+  'function updateTimelock(uint256 newDelay) external',
   'function previewIntentHash(address target, uint256 value, bytes calldata data, uint8 executorMode, uint256 deadline, uint256 timelockOverride) external view returns (bytes32 intentHash, bytes32 proposalId, uint256 currentNonce)',
 ];
 
@@ -163,5 +166,118 @@ export function useMultisigActions(multisigAddress: string | null) {
     [getContract],
   );
 
-  return { propose, approve, unapprove, revoke, execute, previewIntentHash, pending, error };
+  /**
+   * Proposes a signer rotation via selfCall(updateSigners(...)).
+   *
+   * Call chain once executed:
+   *   execute() → KM → Vault.execute(msAddr, selfCallData)
+   *             → ms.selfCall(updateSignersData)
+   *               → address(ms).call(updateSignersData) → ms.updateSigners(newSigners, threshold)
+   *
+   * Returns the proposal id on success, null on failure.
+   */
+  const rotateSigners = useCallback(
+    async (
+      newSigners: string[],
+      newThreshold: number,
+      timelockOverride = 0,
+      deadlineHours = 72,
+    ): Promise<string | null> => {
+      const ms = getContract();
+      if (!ms || !multisigAddress) { setError('Not connected'); return null; }
+      setPending('rotateSigners');
+      setError(null);
+      try {
+        const updateSignersCalldata = ms.interface.encodeFunctionData('updateSigners', [
+          newSigners, newThreshold,
+        ]);
+        const selfCallData = ms.interface.encodeFunctionData('selfCall', [updateSignersCalldata]);
+        const deadline = Math.floor(Date.now() / 1000) + deadlineHours * 3600;
+        const tx = await ms.propose(
+          multisigAddress,
+          BigInt(0),
+          selfCallData,
+          Math.floor(deadline),
+          timelockOverride,
+          1, // ANY_SIGNER
+        );
+        const receipt = await tx.wait();
+        const ifaceProposed = new ethers.Interface([
+          'event Proposed(bytes32 indexed id, address indexed proposer, address target, uint256 value, uint256 deadline, uint256 timelockEnd, uint8 executorMode)',
+        ]);
+        for (const log of receipt.logs) {
+          try {
+            const parsed = ifaceProposed.parseLog(log as { topics: string[]; data: string });
+            if (parsed?.name === 'Proposed') return parsed.args.id as string;
+          } catch { /* skip */ }
+          const logTopics = (log as { topics?: string[] }).topics;
+          if (logTopics?.[0]) {
+            const topic0 = ethers.id('Proposed(bytes32,address,address,uint256,uint256,uint256,uint8)');
+            if (logTopics[0] === topic0) return logTopics[1] as string;
+          }
+        }
+        return null;
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'rotateSigners failed');
+        return null;
+      } finally {
+        setPending(null);
+      }
+    },
+    [getContract, multisigAddress],
+  );
+
+  /**
+   * Proposes a timelock change via selfCall(updateTimelock(newDelaySecs)).
+   * Returns the proposal id on success, null on failure.
+   */
+  const changeTimelock = useCallback(
+    async (
+      newDelaySecs: number,
+      timelockOverride = 0,
+      deadlineHours = 72,
+    ): Promise<string | null> => {
+      const ms = getContract();
+      if (!ms || !multisigAddress) { setError('Not connected'); return null; }
+      setPending('changeTimelock');
+      setError(null);
+      try {
+        const updateTimelockCalldata = ms.interface.encodeFunctionData('updateTimelock', [newDelaySecs]);
+        const selfCallData = ms.interface.encodeFunctionData('selfCall', [updateTimelockCalldata]);
+        const deadline = Math.floor(Date.now() / 1000) + deadlineHours * 3600;
+        const tx = await ms.propose(
+          multisigAddress,
+          BigInt(0),
+          selfCallData,
+          Math.floor(deadline),
+          timelockOverride,
+          1, // ANY_SIGNER
+        );
+        const receipt = await tx.wait();
+        const ifaceProposed = new ethers.Interface([
+          'event Proposed(bytes32 indexed id, address indexed proposer, address target, uint256 value, uint256 deadline, uint256 timelockEnd, uint8 executorMode)',
+        ]);
+        for (const log of receipt.logs) {
+          try {
+            const parsed = ifaceProposed.parseLog(log as { topics: string[]; data: string });
+            if (parsed?.name === 'Proposed') return parsed.args.id as string;
+          } catch { /* skip */ }
+          const logTopics = (log as { topics?: string[] }).topics;
+          if (logTopics?.[0]) {
+            const topic0 = ethers.id('Proposed(bytes32,address,address,uint256,uint256,uint256,uint8)');
+            if (logTopics[0] === topic0) return logTopics[1] as string;
+          }
+        }
+        return null;
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'changeTimelock failed');
+        return null;
+      } finally {
+        setPending(null);
+      }
+    },
+    [getContract, multisigAddress],
+  );
+
+  return { propose, approve, unapprove, revoke, execute, previewIntentHash, rotateSigners, changeTimelock, pending, error };
 }

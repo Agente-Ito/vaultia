@@ -24,10 +24,15 @@ interface VaultDeployResultDialogProps {
   txHash?: string | null;
   budgetToken?: string;
   signer?: ethers.Signer | null;
+  ownershipPending?: boolean;
+  ownershipActionBusy?: boolean;
+  onOwnershipAction?: () => void;
   onPrimaryAction?: () => void;
   onSecondaryAction?: () => void;
+  onTertiaryAction?: () => void;
   primaryLabel?: string;
   secondaryLabel?: string;
+  tertiaryLabel?: string;
 }
 
 export function VaultDeployResultDialog({
@@ -40,10 +45,15 @@ export function VaultDeployResultDialog({
   txHash,
   budgetToken,
   signer,
+  ownershipPending = false,
+  ownershipActionBusy = false,
+  onOwnershipAction,
   onPrimaryAction,
   onSecondaryAction,
+  onTertiaryAction,
   primaryLabel,
   secondaryLabel,
+  tertiaryLabel,
 }: VaultDeployResultDialogProps) {
   const { t } = useI18n();
 
@@ -92,9 +102,25 @@ export function VaultDeployResultDialog({
 
               <div
                 className="rounded-2xl px-4 py-3 text-xs"
-                style={{ background: 'rgba(34,255,178,0.07)', border: '1px solid rgba(34,255,178,0.2)', color: 'var(--text-muted)' }}
+                style={{
+                  background: ownershipPending ? 'rgba(255,176,0,0.08)' : 'rgba(34,255,178,0.07)',
+                  border: ownershipPending ? '1px solid rgba(255,176,0,0.22)' : '1px solid rgba(34,255,178,0.2)',
+                  color: 'var(--text-muted)',
+                }}
               >
-                {t('create.success.ownership.desc')}
+                <p className="font-medium" style={{ color: 'var(--text)' }}>
+                  {ownershipPending ? t('create.success.ownership.pending_title') : t('create.success.ownership.title')}
+                </p>
+                <p className="mt-1">
+                  {ownershipPending ? t('create.success.ownership.pending_desc') : t('create.success.ownership.desc')}
+                </p>
+                {ownershipPending && onOwnershipAction ? (
+                  <div className="mt-3">
+                    <Button onClick={onOwnershipAction} disabled={ownershipActionBusy}>
+                      {ownershipActionBusy ? t('dashboard.ownership.claiming') : t('dashboard.ownership.cta')}
+                    </Button>
+                  </div>
+                ) : null}
               </div>
 
               {ownershipWarnings.length > 0 ? (
@@ -103,7 +129,7 @@ export function VaultDeployResultDialog({
                   style={{ background: 'rgba(255,176,0,0.08)', border: '1px solid rgba(255,176,0,0.22)', color: 'var(--text-muted)' }}
                 >
                   <p className="font-medium" style={{ color: 'var(--text)' }}>
-                    {t('deploy_result.warning.title')}
+                    {ownershipPending ? t('deploy_result.warning.title') : t('deploy_result.notes.title')}
                   </p>
                   {ownershipWarnings.map((warning) => (
                     <p key={warning}>{warning}</p>
@@ -130,6 +156,9 @@ export function VaultDeployResultDialog({
         </div>
 
         <DialogFooter>
+          {tertiaryLabel && onTertiaryAction ? (
+            <Button variant="secondary" onClick={onTertiaryAction}>{tertiaryLabel}</Button>
+          ) : null}
           {secondaryLabel && onSecondaryAction ? (
             <Button variant="secondary" onClick={onSecondaryAction}>{secondaryLabel}</Button>
           ) : null}

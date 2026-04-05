@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { ethers } from 'ethers';
-import { createPublicClient, custom } from 'viem';
+import { createPublicClient, http } from 'viem';
 import { Alert, AlertTitle, AlertDescription } from '@/components/common/Alert';
 import { Button } from '@/components/common/Button';
 import { ProfilePicker } from '@/components/profiles/ProfilePicker';
@@ -20,13 +20,21 @@ import { VaultDeployResultDialog } from '@/components/vaults/VaultDeployResultDi
 import { cn } from '@/lib/utils/cn';
 import { LuksoIcon } from '@/components/common/LuksoIcon';
 import { verifyPermissionsWrite } from '@/lib/verifyWrite';
+import { getPendingMultisigSetup, removePendingMultisigSetup, savePendingMultisigSetup, type PendingMultisigSetup } from '@/lib/pendingMultisigSetup';
 import {
   AgentMode,
   buildRegistryDeployParams,
+  checkVaultOwnership,
+  claimVaultOwnership,
   deployRegistryVault,
   encodeAllowedCallsForTargets,
+  enableVaultMultisig,
+  finalizeDeployedVaultOwnership,
   permissionHexForMode,
   PERM_POWER_USER,
+  supportsMultisigVaultDeploy,
+  supportsStagedMultisigActivation,
+  waitForRecoveredDeployedVaultCandidate,
   type RecipientConfig,
   type VaultDeployPhase,
   type VaultProgressCallback,
@@ -57,13 +65,23 @@ function parseAddressList(value: string, fieldName: string) {
     });
 }
 
-interface Eip1193ProviderLike {
-  request: (args: { method: string; params?: unknown[] | object }) => Promise<unknown>;
-}
-
 function getErrorMessage(error: unknown, t: (key: string) => string) {
   return getLocalizedErrorMessage(error, t);
 }
+
+function localizeOwnershipWarnings(warnings: string[], t: (key: string) => string) {
+  return warnings.map((warning) => {
+    if (warning === '[[ownership_batch_success]]') {
+      return t('deploy_result.note.ownership_batch_success');
+    }
+    if (warning.startsWith('[[ownership_batch_fallback]] ')) {
+      return t('deploy_result.note.ownership_batch_fallback').replace('{message}', warning.replace('[[ownership_batch_fallback]] ', ''));
+    }
+    return warning;
+  });
+}
+
+const VERIFY_RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || 'https://rpc.testnet.lukso.network';
 
 // ─── Template data ─────────────────────────────────────────────────────────────
 
@@ -423,6 +441,9 @@ export default function CreateVaultPage() {
   const [createDialogOpen, setCreateDialogOpen]         = useState(false);
   const [createError, setCreateError]                   = useState<string | null>(null);
   const [createWarnings, setCreateWarnings]             = useState<string[]>([]);
+  const [pendingMultisigSetup, setPendingMultisigSetup] = useState<PendingMultisigSetup | null>(null);
+  const [ownershipPending, setOwnershipPending]         = useState(false);
+  const [claimingOwnership, setClaimingOwnership]       = useState(false);
   const [agentModalOpen, setAgentModalOpen]             = useState(false);
 
   const [step, setStep]                                 = useState(1);
@@ -439,12 +460,47 @@ export default function CreateVaultPage() {
   const [multisigConfig, setMultisigConfig]             = useState<MultisigConfig>({ signers: [], threshold: 1, timelockHours: 0, executorMode: 'any_signer' });
   const [rawMultisigSigners, setRawMultisigSigners]     = useState('');
   const [multisigErrors, setMultisigErrors]             = useState<{ signers?: string | null; threshold?: string | null }>({});
+  const [multisigDeploySupported, setMultisigDeploySupported] = useState<boolean | null>(null);
 
   const rawAgentList  = agents.split(',').map((a) => a.trim()).filter(Boolean);
   const merchantCount = merchants.split(',').map((m) => m.trim()).filter(Boolean).length;
 
   // ── Draft persistence ─────────────────────────────────────────────────────
   const DRAFT_KEY = 'vaultDraft';
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCapability = async () => {
+      if (!registry) {
+        setMultisigDeploySupported(null);
+        return;
+      }
+
+      try {
+        const supported = await supportsMultisigVaultDeploy(registry);
+        if (!cancelled) {
+          setMultisigDeploySupported(supported);
+          if (!supported && controllerMode === 'multisig') {
+            setControllerMode('single');
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setMultisigDeploySupported(false);
+          if (controllerMode === 'multisig') {
+            setControllerMode('single');
+          }
+        }
+      }
+    };
+
+    void loadCapability();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [controllerMode, registry]);
 
   // Restore draft from sessionStorage on mount (also consume pendingMerchants from profiles page)
   useEffect(() => {
@@ -553,6 +609,10 @@ export default function CreateVaultPage() {
   const handleStep3Next = () => {
     // Validate controller step
     if (controllerMode === 'multisig') {
+      if (multisigDeploySupported === false) {
+        setMultisigErrors({ signers: t('create.controller.multisig.unsupported'), threshold: null });
+        return;
+      }
       const { signers, error: signerError } = parseSignerList(rawMultisigSigners);
       const thresholdError = (multisigConfig.threshold < 1 || multisigConfig.threshold > (signers.length || 1))
         ? t('create.controller.multisig.error.threshold_invalid') : null;
@@ -572,18 +632,22 @@ export default function CreateVaultPage() {
     e.preventDefault();
     if (!isRegistryConfigured) { setStatus('Error: Registry address not configured. Set NEXT_PUBLIC_REGISTRY_ADDRESS in .env.local.'); return; }
     if (!registry || !signer) { setStatus('Error: Connect your profile first.'); return; }
+    let owner = '';
+    let existingSafeAddresses: Set<string> | undefined;
     setLoading(true);
     setStatus('');
     setCreateError(null);
     setCreateWarnings([]);
+    setPendingMultisigSetup(null);
+    setOwnershipPending(false);
     setDeployPhases([]);
     const onProgress: VaultProgressCallback = (phase, detail) => {
       setDeployPhases((prev) => [...prev, { phase, detail }]);
     };
     try {
-      const owner = await signer.getAddress();
+      owner = await signer.getAddress();
       const existingVaults = await registry.getVaults(owner);
-      const existingSafeAddresses = new Set(existingVaults.map((v) => v.safe.toLowerCase()));
+      existingSafeAddresses = new Set(existingVaults.map((v) => v.safe.toLowerCase()));
       const agentList    = parseAddressList(agents, 'Agents');
       const merchantList = parseAddressList(merchants, 'Merchant whitelist');
       const expirationUnix = hasExpiry && expiryDate ? BigInt(Math.floor(new Date(expiryDate).getTime() / 1000)) : BigInt(0);
@@ -605,42 +669,211 @@ export default function CreateVaultPage() {
           budget: r.budget && parseFloat(r.budget) > 0 ? ethers.parseEther(r.budget) : BigInt(0),
           period: Number(r.period),
         }));
+      const shouldStageMultisig = controllerMode === 'multisig' && await supportsStagedMultisigActivation(registry);
       setStatus(t('create.status.sending'));
-      const { receipt, deployed: deployedVault, ownershipWarnings } = await deployRegistryVault({ registry, owner, existingSafeAddresses, onProgress, params: buildRegistryDeployParams({ budget: ethers.parseEther(budget), period: Number(period), budgetToken, expiration: expirationUnix, agents: agentList, agentBudgets: agentBudgetsList, merchants: merchantList, recipientConfigs, label, agentMode, allowSuperPermissions, customAgentPermissions, allowedCallsByAgent }) });
+      const deployParams = buildRegistryDeployParams({
+        budget: ethers.parseEther(budget),
+        period: Number(period),
+        budgetToken,
+        expiration: expirationUnix,
+        agents: agentList,
+        agentBudgets: agentBudgetsList,
+        merchants: merchantList,
+        recipientConfigs,
+        label,
+        agentMode,
+        allowSuperPermissions,
+        customAgentPermissions,
+        allowedCallsByAgent,
+        multisigSigners: shouldStageMultisig ? [] : controllerMode === 'multisig' ? multisigConfig.signers : [],
+        multisigThreshold: shouldStageMultisig ? 0 : controllerMode === 'multisig' ? multisigConfig.threshold : 0,
+        multisigTimeLock: shouldStageMultisig ? 0 : controllerMode === 'multisig' ? multisigConfig.timelockHours * 3600 : 0,
+      });
+      const { receipt, deployed: deployedVault, ownershipWarnings } = await deployRegistryVault({
+        registry,
+        owner,
+        existingSafeAddresses,
+        onProgress,
+        params: deployParams,
+        deferOwnershipFinalization: shouldStageMultisig,
+      });
       const safeAddr = deployedVault?.safe ?? '';
       const kmAddr   = deployedVault?.keyManager ?? '';
       const peAddr   = deployedVault?.policyEngine ?? '';
       if (!safeAddr) {
         throw new Error(`Vault created (tx: ${receipt.hash}), but the created addresses could not be recovered. Check the explorer or refresh your vault list.`);
       } else {
+        const postCreateWarnings = [...ownershipWarnings];
+        let nextOwnershipPending = false;
+        if (shouldStageMultisig) {
+          const stagedSetup: PendingMultisigSetup = {
+            safeAddress: safeAddr,
+            label,
+            signers: multisigConfig.signers,
+            threshold: multisigConfig.threshold,
+            timeLock: multisigConfig.timelockHours * 3600,
+            createdAt: Date.now(),
+          };
+          try {
+            await enableVaultMultisig({
+              registry,
+              safeAddress: safeAddr,
+              signers: multisigConfig.signers,
+              threshold: multisigConfig.threshold,
+              timeLock: multisigConfig.timelockHours * 3600,
+              onProgress,
+            });
+            removePendingMultisigSetup(safeAddr);
+            postCreateWarnings.push(t('deploy_result.warning.multisig_enabled_followup'));
+            const finalizationWarnings = await finalizeDeployedVaultOwnership(registry, deployedVault, owner, onProgress);
+            postCreateWarnings.push(...finalizationWarnings);
+          } catch (multisigErr: unknown) {
+            savePendingMultisigSetup(stagedSetup);
+            setPendingMultisigSetup(stagedSetup);
+            nextOwnershipPending = true;
+            postCreateWarnings.push(
+              t('deploy_result.warning.multisig_activation_failed').replace('{message}', getErrorMessage(multisigErr, t))
+            );
+          }
+        }
         try {
           onProgress('verifying');
-          const ethereumProvider = (window as unknown as { ethereum?: Eip1193ProviderLike }).ethereum;
-          if (!ethereumProvider) throw new Error('Wallet provider is unavailable for post-creation verification.');
-          const client = createPublicClient({ transport: custom(ethereumProvider) });
+          const client = createPublicClient({ transport: http(VERIFY_RPC_URL) });
           const expectedPermissions = permissionHexForMode(agentMode);
           const verifyRows = await verifyPermissionsWrite(client, safeAddr as `0x${string}`, agentList.map((address) => ({ address, mode: agentMode, expectedPermissions, expectedAllowedCalls: shouldWriteAllowedCalls ? encodedAllowedCalls : '0x' })));
           const failed = verifyRows.filter((r) => !r.permissionsMatch || !r.allowedCallsMatch);
-          if (failed.length > 0) throw new Error('On-chain permission verification failed after creation.');
+          if (failed.length > 0) {
+            postCreateWarnings.push(t('deploy_result.warning.permissions_unverified'));
+          }
         } catch (verifyErr: unknown) {
-          setStatus('Error: ' + getErrorMessage(verifyErr, t));
-          return;
+          postCreateWarnings.push(
+            t('deploy_result.warning.post_create_verification_failed').replace('{message}', getErrorMessage(verifyErr, t))
+          );
+        }
+        try {
+          if (signer.provider) {
+            nextOwnershipPending = (await checkVaultOwnership(safeAddr, owner, signer.provider)) === 'pending';
+          }
+        } catch {
+          // keep best-effort value from flow state
         }
         onProgress('done');
         setCreatedVault({ safe: safeAddr, keyManager: kmAddr, policyEngine: peAddr });
         setCreateTxHash(receipt.hash);
-        setCreateWarnings(ownershipWarnings);
+        setCreateWarnings(localizeOwnershipWarnings(postCreateWarnings, t));
+        setOwnershipPending(nextOwnershipPending);
         setCreateDialogOpen(true);
         setStatus(t('create.status.deployed'));
         try { sessionStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
       }
     } catch (err: unknown) {
+      if (owner && existingSafeAddresses) {
+        try {
+          const recovered = await waitForRecoveredDeployedVaultCandidate(registry, owner, existingSafeAddresses, label);
+          if (recovered) {
+            let recoveredOwnershipPending = false;
+            try {
+              if (signer.provider) {
+                recoveredOwnershipPending = (await checkVaultOwnership(recovered.safe, owner, signer.provider)) === 'pending';
+              }
+            } catch {
+              // best effort only
+            }
+            setCreatedVault({ safe: recovered.safe, keyManager: recovered.keyManager, policyEngine: recovered.policyEngine });
+            setCreateTxHash(null);
+            setCreateWarnings([t('deploy_result.warning.recovered_after_wallet_error')]);
+            setOwnershipPending(recoveredOwnershipPending);
+            setCreateError(null);
+            setCreateDialogOpen(true);
+            setStatus(t('create.status.deployed'));
+            try { sessionStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+            return;
+          }
+        } catch {
+          // Keep the original error if recovery probing fails.
+        }
+      }
       const message = getErrorMessage(err, t);
       setCreateError(message);
       setStatus('Error: ' + message);
       setCreateDialogOpen(true);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRetryPendingMultisig = async () => {
+    if (!registry || !createdVault) return;
+
+    const stagedSetup = pendingMultisigSetup ?? getPendingMultisigSetup(createdVault.safe);
+    if (!stagedSetup) return;
+
+    setLoading(true);
+    setCreateError(null);
+    setDeployPhases([]);
+    setStatus(t('create.status.sending'));
+
+    const onProgress: VaultProgressCallback = (phase, detail) => {
+      setDeployPhases((prev) => [...prev, { phase, detail }]);
+    };
+
+    try {
+      await enableVaultMultisig({
+        registry,
+        safeAddress: stagedSetup.safeAddress,
+        signers: stagedSetup.signers,
+        threshold: stagedSetup.threshold,
+        timeLock: stagedSetup.timeLock,
+        onProgress,
+      });
+      removePendingMultisigSetup(stagedSetup.safeAddress);
+      setPendingMultisigSetup(null);
+      const result = await claimVaultOwnership(stagedSetup.safeAddress, signer);
+      setOwnershipPending(result.claimed === 0);
+      setCreateWarnings((current) => {
+        const next = current.filter((warning) => !warning.startsWith(t('deploy_result.warning.multisig_activation_failed_prefix')));
+        next.push(t('deploy_result.warning.multisig_retry_success'));
+        next.push(...result.warnings);
+        return next;
+      });
+      setStatus(t('create.status.deployed'));
+    } catch (error: unknown) {
+      const message = getErrorMessage(error, t);
+      setCreateError(message);
+      setStatus(`Error: ${message}`);
+      setCreateWarnings((current) => {
+        const next = current.filter((warning) => !warning.startsWith(t('deploy_result.warning.multisig_activation_failed_prefix')));
+        next.push(t('deploy_result.warning.multisig_activation_failed').replace('{message}', message));
+        return next;
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClaimOwnership = async () => {
+    if (!createdVault || !signer) return;
+
+    setClaimingOwnership(true);
+    setCreateError(null);
+
+    try {
+      const signerAddress = await signer.getAddress();
+      const result = await claimVaultOwnership(createdVault.safe, signer);
+      if (result.warnings.length > 0) {
+        setCreateWarnings((current) => [...current, ...localizeOwnershipWarnings(result.warnings, t)]);
+      }
+
+      if (result.claimed > 0) {
+        setOwnershipPending(false);
+      } else if (signer.provider) {
+        const status = await checkVaultOwnership(createdVault.safe, signerAddress, signer.provider);
+        setOwnershipPending(status === 'pending');
+      }
+    } catch (error: unknown) {
+      setCreateError(getErrorMessage(error, t));
+    } finally {
+      setClaimingOwnership(false);
     }
   };
 
@@ -1010,24 +1243,36 @@ export default function CreateVaultPage() {
                 {/* Multisig */}
                 <button
                   type="button"
-                  onClick={() => setControllerMode('multisig')}
+                  onClick={() => {
+                    if (multisigDeploySupported === false) return;
+                    setControllerMode('multisig');
+                  }}
                   className="p-4 rounded-xl text-left transition-all relative"
                   style={{
                     background: controllerMode === 'multisig' ? 'var(--card-mid)' : 'var(--bg)',
-                    border: `1px solid ${controllerMode === 'multisig' ? 'var(--accent)' : 'var(--border)'}`,
+                    border: `1px solid ${controllerMode === 'multisig' ? 'var(--accent)' : multisigDeploySupported === false ? 'var(--border)' : 'var(--border)'}`,
                     boxShadow: controllerMode === 'multisig' ? '0 0 0 1px var(--accent)' : 'none',
+                    opacity: multisigDeploySupported === false ? 0.55 : 1,
+                    cursor: multisigDeploySupported === false ? 'not-allowed' : 'pointer',
                   }}
+                  disabled={multisigDeploySupported === false}
                 >
                   <span
                     className="absolute -top-2 right-3 text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                    style={{ background: 'rgba(34,255,178,0.15)', color: 'var(--accent)' }}
+                    style={{ background: multisigDeploySupported === false ? 'var(--card-mid)' : 'rgba(34,255,178,0.15)', color: multisigDeploySupported === false ? 'var(--text-muted)' : 'var(--accent)' }}
                   >
-                    {t('create.controller.multisig.badge')}
+                    {multisigDeploySupported === false ? t('create.controller.multisig.unsupported_badge') : t('create.controller.multisig.badge')}
                   </span>
                   <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{t('create.controller.multisig.label')}</p>
                   <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{t('create.controller.multisig.desc')}</p>
                 </button>
               </div>
+
+              {multisigDeploySupported === false && (
+                <Alert variant="warning">
+                  <AlertDescription>{t('create.controller.multisig.unsupported')}</AlertDescription>
+                </Alert>
+              )}
 
               {/* Multisig config form */}
               {controllerMode === 'multisig' && (
@@ -1353,6 +1598,11 @@ export default function CreateVaultPage() {
         txHash={createTxHash}
         budgetToken={luksoToken}
         signer={signer}
+        ownershipPending={ownershipPending}
+        ownershipActionBusy={claimingOwnership}
+        onOwnershipAction={createdVault && ownershipPending ? handleClaimOwnership : undefined}
+        tertiaryLabel={createdVault && pendingMultisigSetup ? t('deploy_result.retry_multisig') : undefined}
+        onTertiaryAction={createdVault && pendingMultisigSetup ? handleRetryPendingMultisig : undefined}
         secondaryLabel={createdVault ? t('create.success.add_agent_cta') : t('wizard.review.edit')}
         onSecondaryAction={createdVault ? () => setAgentModalOpen(true) : () => setCreateDialogOpen(false)}
         primaryLabel={createdVault ? t('create.success.view_vaults') : t('deploy_result.close')}

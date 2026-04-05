@@ -9,12 +9,14 @@ import { BudgetTreeView, type BudgetNode } from '@/components/dashboard/BudgetTr
 import { CreateBudgetModal } from '@/components/budgets/CreateBudgetModal';
 import { useBudgetPools } from '@/hooks/useBudgetPools';
 import { useI18n } from '@/context/I18nContext';
+import { useWeb3 } from '@/context/Web3Context';
 
 export default function BudgetsPage() {
   const { nodes, loading, addNode } = useBudgetPools();
   const [showCreate, setShowCreate] = useState(false);
   const [selectedId, setSelectedId] = useState<string>('root');
   const { t } = useI18n();
+  const { signer } = useWeb3();
 
   function findNode(ns: BudgetNode[], id: string): BudgetNode | null {
     for (const n of ns) {
@@ -165,6 +167,7 @@ export default function BudgetsPage() {
         onClose={() => setShowCreate(false)}
         existingNodes={nodes}
         onSave={(parentId, node) => addNode(parentId, node)}
+        signer={signer}
       />
     </div>
   );

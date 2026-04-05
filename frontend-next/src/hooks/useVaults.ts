@@ -1,11 +1,16 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Contract } from 'ethers';
+import { Contract, ethers } from 'ethers';
 import { decodeRevertReason } from '@/lib/errorMap';
+
+const LEGACY_REGISTRY_READ_ABI = [
+  'function getVaults(address owner) external view returns (tuple(address safe,address keyManager,address policyEngine,string label)[])',
+];
 
 export interface VaultRecord {
   safe: string;
   keyManager: string;
   policyEngine: string;
+  multisigController: string;
   label: string;
 }
 
@@ -19,6 +24,7 @@ function normalizeVaultRecord(value: unknown): VaultRecord | null {
     typeof record.safe !== 'string' ||
     typeof record.keyManager !== 'string' ||
     typeof record.policyEngine !== 'string' ||
+    typeof record.multisigController !== 'string' ||
     typeof record.label !== 'string'
   ) {
     return null;
@@ -28,6 +34,7 @@ function normalizeVaultRecord(value: unknown): VaultRecord | null {
     safe: record.safe,
     keyManager: record.keyManager,
     policyEngine: record.policyEngine,
+    multisigController: record.multisigController,
     label: record.label,
   };
 }
@@ -53,7 +60,19 @@ export function useVaults(registry: Contract | null, account: string | null) {
       setLoading(true);
       setError(null);
       try {
-        const result = await registry.getVaults(account);
+        let result: unknown[] = [];
+
+        try {
+          result = await registry.getVaults(account) as unknown[];
+        } catch {
+          const legacyRegistry = new Contract(registry.target, LEGACY_REGISTRY_READ_ABI, registry.runner);
+          const legacyResult = await legacyRegistry.getVaults(account) as Array<{ safe: string; keyManager: string; policyEngine: string; label: string }>;
+          result = legacyResult.map((vault) => ({
+            ...vault,
+            multisigController: ethers.ZeroAddress,
+          }));
+        }
+
         if (!cancelled) {
           const normalizedVaults = (result as unknown[])
             .map(normalizeVaultRecord)

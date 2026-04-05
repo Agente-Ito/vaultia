@@ -25,10 +25,15 @@ export type RegistryContract = Contract & {
     allowSuperPermissions: boolean;
     customAgentPermissions: string;
     allowedCallsByAgent: Array<{ agent: string; allowedCalls: string }>;
+    multisigSigners: string[];
+    multisigThreshold: bigint | number;
+    multisigTimeLock: bigint | number;
   }): Promise<ContractTransactionResponse>;
-  getVaults(owner: string): Promise<Array<{ safe: string; keyManager: string; policyEngine: string; label: string }>>;
+  enableMultisig(safe: string, signers: string[], threshold: bigint | number, timeLock: bigint | number): Promise<ContractTransactionResponse>;
+  getVaults(owner: string): Promise<Array<{ safe: string; keyManager: string; policyEngine: string; multisigController: string; label: string }>>;
   getKeyManager(safe: string): Promise<string>;
   getPolicyEngine(safe: string): Promise<string>;
+  safeToMultisigController(safe: string): Promise<string>;
 };
 
 export type CoordinatorContract = Contract & {
@@ -62,11 +67,14 @@ export type SchedulerContract = Contract & {
 };
 
 const RegistryAbi = [
-  'function getVaults(address owner) external view returns (tuple(address safe,address keyManager,address policyEngine,string label)[])',
+  'function getVaults(address owner) external view returns (tuple(address safe,address keyManager,address policyEngine,address budgetPolicy,address multisigController,address merchantPolicy,address recipientBudgetPolicy,address expirationPolicy,address agentBudgetPolicy,string label)[])',
   'function getKeyManager(address safe) external view returns (address)',
   'function getPolicyEngine(address safe) external view returns (address)',
-  'function deployVault(tuple(uint256 budget,uint8 period,address budgetToken,uint256 expiration,address[] agents,uint256[] agentBudgets,address[] merchants,tuple(address recipient,uint256 budget,uint8 period)[] recipientConfigs,string label,uint8 agentMode,bool allowSuperPermissions,bytes32 customAgentPermissions,tuple(address agent,bytes allowedCalls)[] allowedCallsByAgent) p) external returns (tuple(address safe,address keyManager,address policyEngine,string label))',
-  'event VaultDeployed(address indexed owner,address indexed safe,address indexed keyManager,address policyEngine,string label,uint256 chainId)',
+  'function safeToMultisigController(address safe) external view returns (address)',
+  'function deployVault(tuple(uint256 budget,uint8 period,address budgetToken,uint256 expiration,address[] agents,uint256[] agentBudgets,address[] merchants,tuple(address recipient,uint256 budget,uint8 period)[] recipientConfigs,string label,uint8 agentMode,bool allowSuperPermissions,bytes32 customAgentPermissions,tuple(address agent,bytes allowedCalls)[] allowedCallsByAgent,address[] multisigSigners,uint256 multisigThreshold,uint256 multisigTimeLock) p) external returns (tuple(address safe,address keyManager,address policyEngine,address budgetPolicy,address multisigController,address merchantPolicy,address recipientBudgetPolicy,address expirationPolicy,address agentBudgetPolicy,string label))',
+  'function enableMultisig(address safe,address[] signers,uint256 threshold,uint256 timeLock) external returns (address multisig)',
+  'event VaultDeployed(address indexed owner,address indexed safe,address indexed keyManager,address policyEngine,address budgetPolicy,address multisigController,string label,uint256 chainId)',
+  'event MultisigEnabled(address indexed owner,address indexed safe,address indexed multisig,uint256 signerCount,uint256 threshold,uint256 timeLock)',
 ];
 
 const SafeAbi = [
@@ -74,6 +82,7 @@ const SafeAbi = [
   'function vaultKeyManager() external view returns (address)',
   'function acceptOwnership() external',
   'function execute(uint256 operation, address to, uint256 value, bytes data) external payable returns (bytes memory)',
+  'function agentTransferToken(address token, address to, uint256 amount, bool allowNonLSP1Recipient, bytes tokenData) external',
   'event AgentPaymentExecuted(address indexed keyManager, address indexed to, uint256 amount)',
   'event AgentTokenPaymentExecuted(address indexed keyManager, address indexed token, address indexed to, uint256 amount)',
 ];
@@ -83,6 +92,8 @@ const PolicyEngineAbi = [
   'function pendingOwner() external view returns (address)',
   'function acceptOwnership() external',
   'function getPolicies() external view returns (address[])',
+  'function paused() external view returns (bool)',
+  'function setPaused(bool _paused) external',
   'event Validated(address indexed agent, address indexed token, address indexed to, uint256 amount)',
   'event ExecutionBlocked(address indexed agent, address indexed policy, address indexed token, address to, uint256 amount, string reason)',
 ];
@@ -205,6 +216,7 @@ const SchedulerAbi = [
   'function createTask(bytes32 taskId, address vault, address keyManager, bytes executeCalldata, uint8 triggerType, uint256 nextExecution, uint256 interval) external returns (bytes32)',
   'function enableTask(bytes32 taskId) external',
   'function disableTask(bytes32 taskId) external',
+  'function deleteTask(bytes32 taskId) external',
   'function updateTask(bytes32 taskId, uint256 newNextExecution, uint256 newInterval) external',
   // Execute (public, keeper-compatible) — NOT payable; vault funds its own payments
   'function executeTask(bytes32 taskId) external returns (bool success)',
@@ -266,5 +278,15 @@ const LSP7DemoTokenAbi = [
   'function balanceOf(address account) external view returns (uint256)',
 ];
 
+const MerchantRegistryAbi = [
+  'function register(string calldata name) external',
+  'function getName(address merchant) external view returns (string)',
+  'function isRegistered(address merchant) external view returns (bool)',
+  'function merchantNames(address) external view returns (string)',
+];
+
 export const getLSP7DemoTokenContract = (address: string, provider: Provider | Signer) =>
   new Contract(address, LSP7DemoTokenAbi, provider);
+
+export const getMerchantRegistryContract = (address: string, provider: Provider | Signer) =>
+  new Contract(address, MerchantRegistryAbi, provider);

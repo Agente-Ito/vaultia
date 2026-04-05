@@ -6,6 +6,7 @@ let browserProvider: ethers.BrowserProvider | null = null;
 let readOnlyProvider: ethers.JsonRpcProvider | null = null;
 
 type BrowserWindow = Window & {
+  lukso?: ethers.Eip1193Provider;
   ethereum?: ethers.Eip1193Provider;
 };
 
@@ -14,7 +15,7 @@ function getInjectedProvider(): ethers.Eip1193Provider | null {
     return null;
   }
 
-  return (window as BrowserWindow).ethereum ?? null;
+  return (window as BrowserWindow).lukso ?? (window as BrowserWindow).ethereum ?? null;
 }
 
 export function getReadOnlyProvider() {

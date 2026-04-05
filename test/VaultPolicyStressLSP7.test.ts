@@ -40,23 +40,29 @@ describe("Vault policy stress — LSP7 end to end", function () {
 
     const coreFactory = await ethers.getContractFactory("AgentVaultDeployerCore");
     const deployerFactory = await ethers.getContractFactory("AgentVaultDeployer");
+    const optFactory = await ethers.getContractFactory("AgentVaultOptionalPolicyDeployer");
     const kmFactory = await ethers.getContractFactory("AgentKMDeployer");
+    const msFactory = await ethers.getContractFactory("MultisigControllerDeployer");
     const registryFactory = await ethers.getContractFactory("AgentVaultRegistry");
     const coordinatorFactory = await ethers.getContractFactory("AgentCoordinator");
     const poolFactory = await ethers.getContractFactory("SharedBudgetPool");
 
     const vdCore = await coreFactory.deploy() as AgentVaultDeployerCore;
     const vd = await deployerFactory.deploy() as AgentVaultDeployer;
+    const opt = await optFactory.deploy();
     const km = await kmFactory.deploy() as AgentKMDeployer;
+    const ms = await msFactory.deploy();
     const coordinator = await coordinatorFactory.deploy();
     const pool = await poolFactory.deploy(owner.address);
 
     registry = await registryFactory.deploy(
       await vdCore.getAddress(),
       await vd.getAddress(),
+      await opt.getAddress(),
       await km.getAddress(),
       await coordinator.getAddress(),
       await pool.getAddress(),
+      await ms.getAddress(),
     ) as AgentVaultRegistry;
 
     const allowedTargets = [
@@ -86,6 +92,9 @@ describe("Vault policy stress — LSP7 end to end", function () {
         agent: agent.address,
         allowedCalls: encodeAllowedCalls(allowedTargets),
       }],
+      multisigSigners:    [],
+      multisigThreshold:  0,
+      multisigTimeLock:   0,
     });
 
     const receipt = await tx.wait();

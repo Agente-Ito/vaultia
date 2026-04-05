@@ -14,7 +14,7 @@ interface Props {
 
 export default function ControllerCard({ safeAddress, multisigAddress }: Props) {
   const { t } = useI18n();
-  const { info, loading } = useMultisigController(multisigAddress ?? null);
+  const { info, loading } = useMultisigController(multisigAddress ?? null, { includeProposals: false });
 
   if (!multisigAddress || !ethers.isAddress(multisigAddress)) {
     return (

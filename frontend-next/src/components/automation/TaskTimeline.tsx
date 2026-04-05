@@ -10,7 +10,10 @@ export interface TaskRecord {
   description: string;
   botName: string;
   vaultLabel: string;
+  vaultSafe?: string;
   nextExecution: Date;
+  nextExecutionValue: number;
+  intervalValue: number;
   intervalLabel: string;
   triggerType: 'timestamp' | 'block';
   enabled: boolean;
@@ -39,10 +42,12 @@ function groupByDate(tasks: TaskRecord[], locale: string): { dateLabel: string; 
 interface TaskTimelineProps {
   tasks: TaskRecord[];
   onToggle?: (taskId: string) => void;
+  onEdit?: (taskId: string) => void;
+  onDelete?: (taskId: string) => void;
   toggleDisabled?: boolean;
 }
 
-export function TaskTimeline({ tasks, onToggle, toggleDisabled = false }: TaskTimelineProps) {
+export function TaskTimeline({ tasks, onToggle, onEdit, onDelete, toggleDisabled = false }: TaskTimelineProps) {
   const { t, locale } = useI18n();
 
   if (tasks.length === 0) {
@@ -144,6 +149,38 @@ export function TaskTimeline({ tasks, onToggle, toggleDisabled = false }: TaskTi
                 )}>
                   {task.enabled ? t('automation.task.scheduled') : t('automation.task.disabled')}
                 </span>
+
+                {/* Delete */}
+                {onEdit && (
+                  <button
+                    onClick={() => onEdit(task.id)}
+                    disabled={toggleDisabled}
+                    className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors disabled:cursor-not-allowed disabled:opacity-50 bg-neutral-100 text-neutral-500 hover:bg-neutral-200 dark:bg-neutral-700 dark:hover:bg-neutral-600"
+                    aria-label={t('automation.task.edit')}
+                  >
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25Zm2.92 2.33H5v-.92l8.06-8.06.92.92L5.92 19.58ZM20.71 7.04a1.003 1.003 0 0 0 0-1.42L18.37 3.29a1.003 1.003 0 0 0-1.42 0l-1.13 1.13 3.75 3.75 1.14-1.13Z" />
+                    </svg>
+                  </button>
+                )}
+
+                {/* Delete */}
+                {onDelete && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm(t('automation.task.delete_confirm'))) {
+                        onDelete(task.id);
+                      }
+                    }}
+                    disabled={toggleDisabled}
+                    className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors disabled:cursor-not-allowed disabled:opacity-50 bg-red-50 text-red-400 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40"
+                    aria-label={t('automation.task.delete')}
+                  >
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path fillRule="evenodd" d="M16.5 4.478v.227a48.816 48.816 0 0 1 3.878.512.75.75 0 1 1-.256 1.478l-.209-.035-1.005 13.07a3 3 0 0 1-2.991 2.77H8.084a3 3 0 0 1-2.991-2.77L4.087 6.66l-.209.035a.75.75 0 0 1-.256-1.478A48.567 48.567 0 0 1 7.5 4.705v-.227c0-1.564 1.213-2.9 2.816-2.951a52.662 52.662 0 0 1 3.369 0c1.603.051 2.815 1.387 2.815 2.951Zm-6.136-1.452a51.196 51.196 0 0 1 3.273 0C14.39 3.05 15 3.684 15 4.478v.113a49.488 49.488 0 0 0-6 0v-.113c0-.794.609-1.428 1.364-1.452Zm-.355 5.945a.75.75 0 1 0-1.5.058l.347 9a.75.75 0 1 0 1.499-.058l-.346-9Zm5.48.058a.75.75 0 1 0-1.498-.058l-.347 9a.75.75 0 0 0 1.5.058l.345-9Z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                )}
 
                 {/* Toggle */}
                 <button

@@ -32,8 +32,12 @@ describe("AgentBudgetPolicy - Hybrid Budget Model", function () {
     const vdCore = await coreC.deploy() as AgentVaultDeployerCore;
     const deployerC = await ethers.getContractFactory("AgentVaultDeployer");
     const vd = await deployerC.deploy() as AgentVaultDeployer;
+    const optC = await ethers.getContractFactory("AgentVaultOptionalPolicyDeployer");
+    const opt = await optC.deploy();
     const kmC = await ethers.getContractFactory("AgentKMDeployer");
     const km = await kmC.deploy() as AgentKMDeployer;
+    const msC = await ethers.getContractFactory("MultisigControllerDeployer");
+    const ms = await msC.deploy();
     const coordC = await ethers.getContractFactory("AgentCoordinator");
     const coord  = await coordC.deploy();
     const poolC  = await ethers.getContractFactory("SharedBudgetPool");
@@ -44,9 +48,11 @@ describe("AgentBudgetPolicy - Hybrid Budget Model", function () {
     const registry = await RegistryFactory.deploy(
       await vdCore.getAddress(),
       await vd.getAddress(),
+      await opt.getAddress(),
       await km.getAddress(),
       await coord.getAddress(),
       await pool.getAddress(),
+      await ms.getAddress(),
     ) as AgentVaultRegistry;
     registryAddr = await registry.getAddress();
 
@@ -66,6 +72,9 @@ describe("AgentBudgetPolicy - Hybrid Budget Model", function () {
       allowSuperPermissions:  false,
       customAgentPermissions: ethers.ZeroHash,
       allowedCallsByAgent:    [],
+      multisigSigners:        [],
+      multisigThreshold:      0,
+      multisigTimeLock:       0,
     });
 
     const receipt = await tx.wait();
@@ -136,6 +145,9 @@ describe("AgentBudgetPolicy - Hybrid Budget Model", function () {
         allowSuperPermissions:  false,
         customAgentPermissions: ethers.ZeroHash,
         allowedCallsByAgent:    [],
+        multisigSigners:        [],
+        multisigThreshold:      0,
+        multisigTimeLock:       0,
       });
 
       const receipt = await tx.wait();

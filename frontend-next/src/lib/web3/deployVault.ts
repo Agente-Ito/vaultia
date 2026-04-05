@@ -2,6 +2,20 @@ import { ethers } from 'ethers';
 import type { ContractTransactionReceipt, ContractTransactionResponse } from 'ethers';
 import { getOwnable2StepContract, getPolicyEngineContract, getSafeContract, type RegistryContract } from '@/lib/web3/contracts';
 import type { RecipientEntry } from '@/context/OnboardingContext';
+import { removePendingMultisigSetup } from '@/lib/pendingMultisigSetup';
+
+const LEGACY_REGISTRY_DEPLOY_ABI = [
+  'function deployVault(tuple(uint256 budget,uint8 period,address budgetToken,uint256 expiration,address[] agents,uint256[] agentBudgets,address[] merchants,tuple(address recipient,uint256 budget,uint8 period)[] recipientConfigs,string label,uint8 agentMode,bool allowSuperPermissions,bytes32 customAgentPermissions,tuple(address agent,bytes allowedCalls)[] allowedCallsByAgent) p) external returns (tuple(address safe,address keyManager,address policyEngine,string label))',
+  'function getVaults(address owner) external view returns (tuple(address safe,address keyManager,address policyEngine,string label)[])',
+];
+
+const LEGACY_VAULT_DEPLOYED_EVENT_INTERFACE = new ethers.Interface([
+  'event VaultDeployed(address indexed owner,address indexed safe,address indexed keyManager,address policyEngine,string label,uint256 chainId)',
+]);
+
+const CURRENT_VAULT_DEPLOYED_EVENT_INTERFACE = new ethers.Interface([
+  'event VaultDeployed(address indexed owner,address indexed safe,address indexed keyManager,address policyEngine,address budgetPolicy,address multisigController,string label,uint256 chainId)',
+]);
 
 export const AgentMode = {
   STRICT_PAYMENTS: 0,
@@ -16,8 +30,12 @@ const LSP14_ERRORS_INTERFACE = new ethers.Interface([
   'error LSP14MustAcceptOwnershipInSeparateTransaction()',
 ]);
 
+const ACCOUNT_BATCH_EXECUTOR_ABI = [
+  'function executeBatch(uint256[] operationsType,address[] targets,uint256[] values,bytes[] datas) external payable returns (bytes[])',
+];
+
 const ACCEPT_OWNERSHIP_INTERFACE = new ethers.Interface([
-  'function acceptOwnership() external',
+  'function acceptOwnership()',
 ]);
 
 const PERM_STRICT_PAYMENTS = '0x0000000000000000000000000000000000000000000000000000000000000A00';
@@ -64,11 +82,32 @@ export interface RegistryDeployParams {
   allowSuperPermissions: boolean;
   customAgentPermissions: string;
   allowedCallsByAgent: Array<{ agent: string; allowedCalls: string }>;
+  multisigSigners: string[];
+  multisigThreshold: number;
+  multisigTimeLock: number;
+}
+
+interface LegacyRegistryDeployParams {
+  budget: bigint;
+  period: number;
+  budgetToken: string;
+  expiration: bigint;
+  agents: string[];
+  agentBudgets: bigint[];
+  merchants: string[];
+  recipientConfigs: RecipientConfig[];
+  label: string;
+  agentMode: number;
+  allowSuperPermissions: boolean;
+  customAgentPermissions: string;
+  allowedCallsByAgent: Array<{ agent: string; allowedCalls: string }>;
 }
 
 export type VaultDeployPhase =
   | 'tx_pending'
   | 'tx_confirming'
+  | 'multisig_pending'
+  | 'multisig_confirming'
   | 'ownership_batch'
   | 'ownership_fallback'
   | 'verifying'
@@ -82,6 +121,7 @@ export interface DeployRegistryVaultOptions {
   owner?: string;
   existingSafeAddresses?: Set<string>;
   onProgress?: VaultProgressCallback;
+  deferOwnershipFinalization?: boolean;
 }
 
 export interface DeployedVaultSummary {
@@ -96,6 +136,15 @@ export interface RegistryVaultDeploymentResult {
   receipt: ContractTransactionReceipt;
   deployed: DeployedVaultSummary | null;
   ownershipWarnings: string[];
+}
+
+export interface EnableVaultMultisigOptions {
+  registry: RegistryContract;
+  safeAddress: string;
+  signers: string[];
+  threshold: number;
+  timeLock: number;
+  onProgress?: VaultProgressCallback;
 }
 
 export interface SimpleWizardDeployInput {
@@ -119,6 +168,13 @@ export interface SimpleWizardDeployInput {
   globalRecipientLimit?: { amount: string; period: DeployPeriodKey };
   /** Used when recipientLimitMode === 'per'. Key = normalized address. */
   perRecipientLimits?: Record<string, { amount: string; period: DeployPeriodKey }>;
+  controllerMode?: 'single' | 'multisig';
+  deferMultisigActivation?: boolean;
+  multisigConfig?: {
+    signers: string[];
+    threshold: number;
+    timelockHours: number;
+  };
 }
 
 interface ValidateSimpleWizardOptions {
@@ -249,11 +305,15 @@ export function buildRegistryDeployParams(params: Partial<RegistryDeployParams> 
     allowSuperPermissions: params.allowSuperPermissions ?? false,
     customAgentPermissions: params.customAgentPermissions ?? ethers.ZeroHash,
     allowedCallsByAgent: params.allowedCallsByAgent ?? [],
+    multisigSigners: params.multisigSigners ?? [],
+    multisigThreshold: params.multisigThreshold ?? 0,
+    multisigTimeLock: params.multisigTimeLock ?? 0,
   };
 }
 
 export function buildSimpleWizardDeployParams(input: SimpleWizardDeployInput): RegistryDeployParams {
   const goal = input.goal ?? 'pay_people';
+  const enableMultisigOnDeploy = input.controllerMode === 'multisig' && !input.deferMultisigActivation;
   const advanced = input.safetyLevel === 'advanced';
   const agentMode = advanced ? AgentMode.CUSTOM : SIMPLE_GOAL_MODE[goal];
   const manualExecution = !input.agentEnabled || input.executor === 'me';
@@ -309,6 +369,9 @@ export function buildSimpleWizardDeployParams(input: SimpleWizardDeployInput): R
     allowSuperPermissions: advanced && !manualExecution,
     customAgentPermissions: advanced && !manualExecution ? PERM_POWER_USER : ethers.ZeroHash,
     agents: agentAddr,
+    multisigSigners: enableMultisigOnDeploy ? (input.multisigConfig?.signers ?? []) : [],
+    multisigThreshold: enableMultisigOnDeploy ? (input.multisigConfig?.threshold ?? 0) : 0,
+    multisigTimeLock: enableMultisigOnDeploy ? ((input.multisigConfig?.timelockHours ?? 0) * 3600) : 0,
   });
 }
 
@@ -348,7 +411,7 @@ function extractDeployedVault(receipt: ContractTransactionReceipt, registry: Reg
 
   for (const log of receipt.logs) {
     try {
-      const parsed = registry.interface.parseLog(log);
+      const parsed = CURRENT_VAULT_DEPLOYED_EVENT_INTERFACE.parseLog(log) ?? registry.interface.parseLog(log);
       if (parsed?.name === 'VaultDeployed') {
         safe = parsed.args.safe;
         keyManager = parsed.args.keyManager;
@@ -356,11 +419,117 @@ function extractDeployedVault(receipt: ContractTransactionReceipt, registry: Reg
         label = parsed.args.label ?? '';
       }
     } catch {
-      // Ignore unrelated logs.
+      try {
+        const parsed = LEGACY_VAULT_DEPLOYED_EVENT_INTERFACE.parseLog(log);
+        if (parsed?.name === 'VaultDeployed') {
+          safe = parsed.args.safe;
+          keyManager = parsed.args.keyManager;
+          policyEngine = parsed.args.policyEngine;
+          label = parsed.args.label ?? '';
+        }
+      } catch {
+        // Ignore unrelated logs.
+      }
     }
   }
 
   return safe ? { safe, keyManager, policyEngine, label } : null;
+}
+
+async function supportsCurrentRegistryDeploy(registry: RegistryContract): Promise<boolean> {
+  const probe = new ethers.Contract(
+    registry.target,
+    ['function safeToMultisigController(address) view returns (address)'],
+    registry.runner
+  );
+
+  try {
+    await probe.safeToMultisigController(ethers.ZeroAddress);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function supportsMultisigVaultDeploy(registry: RegistryContract): Promise<boolean> {
+  return supportsCurrentRegistryDeploy(registry);
+}
+
+export async function supportsStagedMultisigActivation(registry: RegistryContract): Promise<boolean> {
+  const probe = new ethers.Contract(
+    registry.target,
+    ['function enableMultisig(address safe,address[] signers,uint256 threshold,uint256 timeLock) returns (address)'],
+    registry.runner
+  );
+
+  try {
+    await probe.enableMultisig.staticCall(ethers.ZeroAddress, [], 0, 0);
+    return true;
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (
+      message.includes('Registry: zero safe') ||
+      message.includes('Registry: unknown safe') ||
+      message.includes('Registry: not designated owner') ||
+      message.includes('execution reverted')
+    ) {
+      return true;
+    }
+    return false;
+  }
+}
+
+async function readVaultsCompat(registry: RegistryContract, owner: string) {
+  try {
+    return await registry.getVaults(owner);
+  } catch {
+    const legacyRegistry = new ethers.Contract(registry.target, LEGACY_REGISTRY_DEPLOY_ABI, registry.runner);
+    return await legacyRegistry.getVaults(owner) as Array<{ safe: string; keyManager: string; policyEngine: string; label: string }>;
+  }
+}
+
+export async function recoverDeployedVaultCandidate(
+  registry: RegistryContract,
+  owner: string,
+  existingSafeAddresses?: Set<string>,
+  label?: string
+): Promise<DeployedVaultSummary | null> {
+  const latest = await readVaultsCompat(registry, owner);
+
+  return (
+    latest.find((vault) => {
+      if (existingSafeAddresses?.has(vault.safe.toLowerCase())) return false;
+      if (label && vault.label === label) return true;
+      return false;
+    }) ??
+    latest.find((vault) => !existingSafeAddresses?.has(vault.safe.toLowerCase())) ??
+    null
+  );
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export async function waitForRecoveredDeployedVaultCandidate(
+  registry: RegistryContract,
+  owner: string,
+  existingSafeAddresses?: Set<string>,
+  label?: string,
+  options?: { attempts?: number; intervalMs?: number }
+): Promise<DeployedVaultSummary | null> {
+  const attempts = options?.attempts ?? 10;
+  const intervalMs = options?.intervalMs ?? 2500;
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const recovered = await recoverDeployedVaultCandidate(registry, owner, existingSafeAddresses, label);
+    if (recovered) return recovered;
+    if (attempt < attempts - 1) {
+      await delay(intervalMs);
+    }
+  }
+
+  return null;
 }
 
 function getErrorData(error: unknown): string | null {
@@ -485,59 +654,100 @@ async function finalizeVaultOwnership(
   const ownerCode = provider ? await provider.getCode(owner) : '0x';
   const ownerIsProfile = ownerCode !== '0x';
 
-  const acceptPayload = ACCEPT_OWNERSHIP_INTERFACE.encodeFunctionData('acceptOwnership');
-
   if (ownerIsProfile && signerAddress.toLowerCase() === owner.toLowerCase()) {
-    // ── Batch path: single executeBatch through the Universal Profile ──────────
-    onProgress?.('ownership_batch');
     try {
-      const profile = new ethers.Contract(
-        owner,
-        [
-          'function executeBatch(uint256[] operationsType, address[] targets, uint256[] values, bytes[] datas) external payable returns (bytes[] memory)',
-        ],
-        signer
-      );
-      const n = pendingContracts.length;
-      const tx = await profile.executeBatch(
-        Array(n).fill(0),
-        pendingContracts,
-        Array(n).fill(0),
-        Array(n).fill(acceptPayload)
-      );
+      onProgress?.('ownership_batch');
+      await batchAcceptOwnershipWithProfile(owner, signer, pendingContracts);
+      warnings.push('[[ownership_batch_success]]');
+      return warnings;
+    } catch (error: unknown) {
+      warnings.push(`[[ownership_batch_fallback]] ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  // ── Automatic acceptOwnership: separate tx per contract ───────────────────
+  onProgress?.('ownership_fallback');
+  for (const contractAddress of pendingContracts) {
+    try {
+      if (ownerIsProfile && signerAddress.toLowerCase() !== owner.toLowerCase()) {
+        warnings.push(`Ownership for ${contractAddress} pending on profile ${owner}. Reconnect that profile and retry.`);
+        continue;
+      }
+      if (!ownerIsProfile && signerAddress.toLowerCase() !== owner.toLowerCase()) {
+        warnings.push(`Automatic acceptOwnership skipped for ${contractAddress}: connected signer ${signerAddress} is not the pending owner ${owner}.`);
+        continue;
+      }
+      const contract = getOwnable2StepContract(contractAddress, signer);
+      const tx = await contract.acceptOwnership();
       await tx.wait();
     } catch (error: unknown) {
-      warnings.push(`Batched ownership acceptance failed: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  } else {
-    // ── Fallback: individual acceptOwnership per contract ─────────────────────
-    onProgress?.('ownership_fallback');
-    for (const contractAddress of pendingContracts) {
-      try {
-        if (ownerIsProfile) {
-          // Signer is not the UP itself — can't batch or proxy
-          warnings.push(`Ownership for ${contractAddress} pending on profile ${owner}. Reconnect that profile and retry.`);
-          continue;
-        }
-        if (signerAddress.toLowerCase() !== owner.toLowerCase()) {
-          warnings.push(`Automatic acceptOwnership skipped for ${contractAddress}: connected signer ${signerAddress} is not the pending owner ${owner}.`);
-          continue;
-        }
-        const contract = getOwnable2StepContract(contractAddress, signer);
-        const tx = await contract.acceptOwnership();
-        await tx.wait();
-      } catch (error: unknown) {
-        warnings.push(formatAcceptOwnershipError(contractAddress, owner, signerAddress, error));
-      }
+      warnings.push(formatAcceptOwnershipError(contractAddress, owner, signerAddress, error));
     }
   }
 
   return warnings;
 }
 
+export async function finalizeDeployedVaultOwnership(
+  registry: RegistryContract,
+  deployed: DeployedVaultSummary | null,
+  owner?: string,
+  onProgress?: VaultProgressCallback
+) {
+  return finalizeVaultOwnership(registry, deployed, owner, onProgress);
+}
+
+export async function enableVaultMultisig(options: EnableVaultMultisigOptions): Promise<{
+  tx: ContractTransactionResponse;
+  receipt: ContractTransactionReceipt;
+  multisigAddress: string;
+}> {
+  options.onProgress?.('multisig_pending');
+  const tx = await options.registry.enableMultisig(
+    options.safeAddress,
+    options.signers,
+    options.threshold,
+    options.timeLock
+  );
+  options.onProgress?.('multisig_confirming');
+  const receipt = await tx.wait();
+  if (!receipt) {
+    throw new Error('Multisig activation receipt not available');
+  }
+
+  const multisigAddress = await options.registry.safeToMultisigController(options.safeAddress);
+  if (!multisigAddress || multisigAddress === ethers.ZeroAddress) {
+    throw new Error('Multisig activation completed, but the controller address could not be recovered from the registry.');
+  }
+
+  return { tx, receipt, multisigAddress };
+}
+
 export async function deployRegistryVault(options: DeployRegistryVaultOptions): Promise<RegistryVaultDeploymentResult> {
   options.onProgress?.('tx_pending');
-  const tx = await options.registry.deployVault(options.params);
+  const supportsCurrentDeploy = await supportsCurrentRegistryDeploy(options.registry);
+
+  if (!supportsCurrentDeploy && options.params.multisigSigners.length > 0) {
+    throw new Error('This deployed registry does not support multisig vault creation yet. Create the vault as single-signer or use a newer registry deployment.');
+  }
+
+  const tx = supportsCurrentDeploy
+    ? await options.registry.deployVault(options.params)
+    : await new ethers.Contract(options.registry.target, LEGACY_REGISTRY_DEPLOY_ABI, options.registry.runner).deployVault({
+        budget: options.params.budget,
+        period: options.params.period,
+        budgetToken: options.params.budgetToken,
+        expiration: options.params.expiration,
+        agents: options.params.agents,
+        agentBudgets: options.params.agentBudgets,
+        merchants: options.params.merchants,
+        recipientConfigs: options.params.recipientConfigs,
+        label: options.params.label,
+        agentMode: options.params.agentMode,
+        allowSuperPermissions: options.params.allowSuperPermissions,
+        customAgentPermissions: options.params.customAgentPermissions,
+        allowedCallsByAgent: options.params.allowedCallsByAgent,
+      } satisfies LegacyRegistryDeployParams);
   options.onProgress?.('tx_confirming');
   const receipt = await tx.wait();
   if (!receipt) {
@@ -546,18 +756,17 @@ export async function deployRegistryVault(options: DeployRegistryVaultOptions): 
 
   let deployed = extractDeployedVault(receipt, options.registry);
   if (!deployed && options.owner) {
-    const latest = await options.registry.getVaults(options.owner);
-    deployed =
-      latest.find((vault) => {
-        if (options.existingSafeAddresses?.has(vault.safe.toLowerCase())) return false;
-        if (options.params.label && vault.label === options.params.label) return true;
-        return false;
-      }) ??
-      latest.find((vault) => !options.existingSafeAddresses?.has(vault.safe.toLowerCase())) ??
-      null;
+    deployed = await recoverDeployedVaultCandidate(
+      options.registry,
+      options.owner,
+      options.existingSafeAddresses,
+      options.params.label
+    );
   }
 
-  const ownershipWarnings = await finalizeVaultOwnership(options.registry, deployed, options.owner, options.onProgress);
+  const ownershipWarnings = options.deferOwnershipFinalization
+    ? []
+    : await finalizeVaultOwnership(options.registry, deployed, options.owner, options.onProgress);
 
   return { tx, receipt, deployed, ownershipWarnings };
 }
@@ -619,7 +828,39 @@ export async function claimVaultOwnership(
     ...policyAddresses,
   ];
 
+  const pendingContracts: string[] = [];
+  for (const addr of allContracts) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const c = getOwnable2StepContract(addr, signer) as any;
+      const pending: string = await c.pendingOwner();
+      if (pending.toLowerCase() === signerAddress.toLowerCase()) {
+        pendingContracts.push(addr);
+      }
+    } catch {
+      // best effort only
+    }
+  }
+
+  const signerCode = signer.provider ? await signer.provider.getCode(signerAddress) : '0x';
+  const signerIsProfile = signerCode !== '0x';
+
   let claimed = 0;
+  if (signerIsProfile && pendingContracts.length > 0) {
+    try {
+      await batchAcceptOwnershipWithProfile(signerAddress, signer, pendingContracts);
+      claimed = pendingContracts.length;
+      warnings.push('[[ownership_batch_success]]');
+    } catch (error: unknown) {
+      warnings.push(`[[ownership_batch_fallback]] ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  if (claimed > 0) {
+    removePendingMultisigSetup(safeAddress);
+    return { claimed, warnings };
+  }
+
   for (const addr of allContracts) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -633,5 +874,24 @@ export async function claimVaultOwnership(
       warnings.push(`${addr.slice(0, 10)}…: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
+  if (claimed > 0) {
+    removePendingMultisigSetup(safeAddress);
+  }
   return { claimed, warnings };
+}
+
+async function batchAcceptOwnershipWithProfile(
+  profileAddress: string,
+  signer: ethers.Signer,
+  contractAddresses: string[]
+) {
+  if (contractAddresses.length === 0) return;
+
+  const profile = new ethers.Contract(profileAddress, ACCOUNT_BATCH_EXECUTOR_ABI, signer);
+  const operations = contractAddresses.map(() => 0);
+  const values = contractAddresses.map(() => 0);
+  const payloads = contractAddresses.map(() => ACCEPT_OWNERSHIP_INTERFACE.encodeFunctionData('acceptOwnership'));
+
+  const tx = await profile.executeBatch(operations, contractAddresses, values, payloads);
+  await tx.wait();
 }

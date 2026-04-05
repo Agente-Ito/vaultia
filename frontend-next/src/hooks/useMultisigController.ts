@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { useWeb3 } from '@/context/Web3Context';
+import { AP_ARRAY_KEY, apArrayElementKey } from '@/lib/missions/permissionCompiler';
 
 const MULTISIG_ABI = [
   // View
@@ -46,6 +47,7 @@ export interface MultisigProposal {
   intentHash: string;
   proposalNonce: number;
   approvalCount: number;
+  hasQuorum: boolean;
   status: number; // 0 = PENDING, 1 = EXECUTED, 2 = CANCELLED
 }
 
@@ -57,17 +59,33 @@ export interface MultisigInfo {
   nonce: number;
 }
 
-export function useMultisigController(multisigAddress: string | null) {
-  const { signer } = useWeb3();
+export type MultisigSignerStatus = 'direct' | 'controller' | 'none';
+
+interface UseMultisigControllerOptions {
+  includeProposals?: boolean;
+  proposalLookbackBlocks?: number;
+}
+
+export function useMultisigController(multisigAddress: string | null, options: UseMultisigControllerOptions = {}) {
+  const { signer, account } = useWeb3();
   const [info, setInfo] = useState<MultisigInfo | null>(null);
   const [proposals, setProposals] = useState<MultisigProposal[]>([]);
   const [loading, setLoading] = useState(false);
+  const [proposalsLoading, setProposalsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [proposalsError, setProposalsError] = useState<string | null>(null);
+  const [signerStatus, setSignerStatus] = useState<MultisigSignerStatus>('none');
+  const [matchedControllers, setMatchedControllers] = useState<string[]>([]);
+
+  const includeProposals = options.includeProposals ?? true;
+  const proposalLookbackBlocks = options.proposalLookbackBlocks ?? 10000;
 
   const load = useCallback(async () => {
     if (!multisigAddress || !ethers.isAddress(multisigAddress)) {
       setInfo(null);
       setProposals([]);
+      setSignerStatus('none');
+      setMatchedControllers([]);
       return;
     }
 
@@ -85,63 +103,145 @@ export function useMultisigController(multisigAddress: string | null) {
         ms.nonce() as Promise<bigint>,
       ]);
 
-      setInfo({
+      const resolvedInfo: MultisigInfo = {
         address: multisigAddress,
         signers,
         threshold: Number(threshold),
         timeLock: Number(timeLock),
         nonce: Number(nonce),
-      });
+      };
+      setInfo(resolvedInfo);
 
-      // Fetch proposals via event logs.
-      // Backward-compat: old nodes emit Proposed without timelockEnd — the id is always
-      // topics[1] (first indexed param), so fall back to raw log topic if parse fails.
-      const logs = await ms.queryFilter(ms.filters.Proposed(), -50000);
-
-      const ids = [...new Set(logs.map((l) => {
-        // Primary: ethers successfully parsed the log against the v2 ABI
-        if ('args' in l && (l as ethers.EventLog).args?.id) {
-          return (l as ethers.EventLog).args.id as string;
+      if (account) {
+        const normalizedAccount = account.toLowerCase();
+        const normalizedSigners = new Set(signers.map((entry) => entry.toLowerCase()));
+        if (normalizedSigners.has(normalizedAccount)) {
+          setSignerStatus('direct');
+          setMatchedControllers([]);
+        } else {
+          const controllers = await readProfileControllers(account, provider);
+          const matches = controllers.filter((controller) => normalizedSigners.has(controller.toLowerCase()));
+          setSignerStatus(matches.length > 0 ? 'controller' : 'none');
+          setMatchedControllers(matches);
         }
-        // Fallback: read id directly from topics[1] (hex bytes32)
-        const raw = l as ethers.Log;
-        return raw.topics?.[1] ?? null;
-      }).filter((id): id is string => typeof id === 'string'))];
+      } else {
+        setSignerStatus('none');
+        setMatchedControllers([]);
+      }
 
-      const proposalList = await Promise.all(
-        ids.map(async (id): Promise<MultisigProposal | null> => {
-          try {
-            const p = await ms.proposals(id);
-            return {
-              id,
-              proposer: p[0],
-              target: p[1],
-              value: p[2],
-              data: p[3],
-              deadline: Number(p[4]),
-              timelockEnd: Number(p[5]),
-              timelockOverride: Number(p[6]),
-              executorMode: Number(p[7]),
-              intentHash: p[8],
-              proposalNonce: Number(p[9]),
-              approvalCount: Number(p[10]),
-              status: Number(p[11]),
-            };
-          } catch {
-            return null;
-          }
-        }),
-      );
-
-      setProposals(proposalList.filter(Boolean) as MultisigProposal[]);
+      // Proposals are loaded separately so they don't block the info display.
+      if (includeProposals) {
+        setProposalsLoading(true);
+        setProposalsError(null);
+        loadProposalsAsync(ms, provider, proposalLookbackBlocks)
+          .then((list) => setProposals(list))
+          .catch((err: unknown) => setProposalsError(err instanceof Error ? err.message : 'Could not load proposals'))
+          .finally(() => setProposalsLoading(false));
+      } else {
+        setProposals([]);
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load multisig data');
     } finally {
       setLoading(false);
     }
-  }, [multisigAddress, signer]);
+  }, [account, includeProposals, multisigAddress, proposalLookbackBlocks, signer]);
 
   useEffect(() => { load(); }, [load]);
 
-  return { info, proposals, loading, error, reload: load };
+  return { info, proposals, loading, proposalsLoading, proposalsError, error, reload: load, signerStatus, matchedControllers };
+}
+
+async function loadProposalsAsync(ms: ethers.Contract, provider: ethers.Provider, lookbackBlocks: number): Promise<MultisigProposal[]> {
+  const latestBlock = await provider.getBlockNumber();
+  const fromBlock = Math.max(0, latestBlock - lookbackBlocks);
+  const logs = await loadRecentProposalLogs(ms, fromBlock, latestBlock);
+
+  const ids = [...new Set(logs.map((l) => {
+    if ('args' in l && (l as ethers.EventLog).args?.id) {
+      return (l as ethers.EventLog).args.id as string;
+    }
+    const raw = l as ethers.Log;
+    return raw.topics?.[1] ?? null;
+  }).filter((id): id is string => typeof id === 'string'))];
+
+  const proposalList = await Promise.all(
+    ids.map(async (id): Promise<MultisigProposal | null> => {
+      try {
+        const [p, hasQuorum] = await Promise.all([
+          ms.proposals(id),
+          ms.hasQuorum(id) as Promise<boolean>,
+        ]);
+        return {
+          id,
+          proposer: p[0],
+          target: p[1],
+          value: p[2],
+          data: p[3],
+          deadline: Number(p[4]),
+          timelockEnd: Number(p[5]),
+          timelockOverride: Number(p[6]),
+          executorMode: Number(p[7]),
+          intentHash: p[8],
+          proposalNonce: Number(p[9]),
+          approvalCount: Number(p[10]),
+          hasQuorum,
+          status: Number(p[11]),
+        };
+      } catch {
+        return null;
+      }
+    }),
+  );
+
+  return proposalList.filter(Boolean) as MultisigProposal[];
+}
+
+async function readProfileControllers(profileAddress: string, provider: ethers.Provider): Promise<string[]> {
+  const erc725 = new ethers.Contract(profileAddress, ['function getData(bytes32 dataKey) view returns (bytes memory)'], provider);
+
+  let count = 0;
+  try {
+    const raw: string = await erc725.getData(AP_ARRAY_KEY);
+    if (raw && raw !== '0x') {
+      count = Number(BigInt(raw));
+    }
+  } catch {
+    return [];
+  }
+
+  if (count <= 0) return [];
+
+  const limit = Math.min(count, 30);
+  const keys = Array.from({ length: limit }, (_, index) => apArrayElementKey(index));
+  const values = await Promise.all(keys.map((key) => erc725.getData(key).catch(() => '0x')));
+
+  return values
+    .map((value: string) => {
+      const raw = value.replace(/^0x/, '');
+      if (raw.length < 40) return null;
+      try {
+        return ethers.getAddress(`0x${raw.slice(-40)}`);
+      } catch {
+        return null;
+      }
+    })
+    .filter((value): value is string => value !== null);
+}
+
+async function loadRecentProposalLogs(ms: ethers.Contract, fromBlock: number, latestBlock: number) {
+  const collected: Array<ethers.EventLog | ethers.Log> = [];
+  const chunkSize = 500;
+
+  for (let start = fromBlock; start <= latestBlock; start += chunkSize) {
+    const end = Math.min(latestBlock, start + chunkSize - 1);
+    try {
+      const logs = await ms.queryFilter(ms.filters.Proposed(), start, end);
+      collected.push(...logs);
+    } catch {
+      // Skip chunks that time out — show what loaded
+    }
+  }
+
+  return collected;
 }

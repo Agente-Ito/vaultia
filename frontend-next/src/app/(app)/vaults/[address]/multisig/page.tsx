@@ -8,6 +8,8 @@ import { useI18n } from '@/context/I18nContext';
 import { useMultisigController } from '@/hooks/useMultisigController';
 import MultisigProposalCard from '@/components/multisig/MultisigProposalCard';
 import ProposeActionModal from '@/components/multisig/ProposeActionModal';
+import RotateSignersModal from '@/components/multisig/RotateSignersModal';
+import ChangeTimelockModal from '@/components/multisig/ChangeTimelockModal';
 import { AddressDisplay } from '@/components/common/AddressDisplay';
 
 /**
@@ -36,8 +38,10 @@ export default function MultisigPage() {
     }
   })();
 
-  const { info, proposals, loading, error, reload } = useMultisigController(multisigAddress);
+  const { info, proposals, loading, proposalsLoading, proposalsError, error, reload, signerStatus, matchedControllers } = useMultisigController(multisigAddress, { includeProposals: true, proposalLookbackBlocks: 10000 });
   const [proposeOpen, setProposeOpen] = useState(false);
+  const [rotateSignersOpen, setRotateSignersOpen] = useState(false);
+  const [changeTimelockOpen, setChangeTimelockOpen] = useState(false);
 
   if (!multisigAddress) {
     return (
@@ -83,14 +87,36 @@ export default function MultisigPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setProposeOpen(true)}
-          className="flex-shrink-0 px-4 py-2 rounded-xl text-sm font-semibold"
-          style={{ background: 'var(--primary)', color: '#fff' }}
-        >
-          {t('multisig.btn.new_proposal')}
-        </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {info && (
+            <button
+              type="button"
+              onClick={() => setChangeTimelockOpen(true)}
+              className="px-4 py-2 rounded-xl text-sm font-semibold"
+              style={{ background: 'var(--card-mid)', color: 'var(--text)' }}
+            >
+              {t('multisig.btn.change_timelock')}
+            </button>
+          )}
+          {info && (
+            <button
+              type="button"
+              onClick={() => setRotateSignersOpen(true)}
+              className="px-4 py-2 rounded-xl text-sm font-semibold"
+              style={{ background: 'var(--card-mid)', color: 'var(--text)' }}
+            >
+              {t('multisig.btn.rotate_signers')}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setProposeOpen(true)}
+            className="px-4 py-2 rounded-xl text-sm font-semibold"
+            style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}
+          >
+            {t('multisig.btn.new_proposal')}
+          </button>
+        </div>
       </div>
 
       {/* Controller info */}
@@ -128,6 +154,11 @@ export default function MultisigPage() {
               </span>
             ))}
           </div>
+          {signerStatus === 'controller' && matchedControllers.length > 0 ? (
+            <p className="text-xs" style={{ color: 'var(--warning)' }}>
+              {t('multisig.summary.controller_signer_note').replace('{address}', matchedControllers[0])}
+            </p>
+          ) : null}
         </div>
       )}
 
@@ -163,8 +194,18 @@ export default function MultisigPage() {
         </div>
       )}
 
+      {/* Proposals loading / error */}
+      {!loading && proposalsLoading && (
+        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{t('multisig.page.loading_proposals')}</p>
+      )}
+      {!loading && proposalsError && (
+        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          {t('multisig.page.proposals_partial')}
+        </p>
+      )}
+
       {/* Empty state */}
-      {!loading && proposals.length === 0 && !error && (
+      {!loading && !proposalsLoading && proposals.length === 0 && !error && (
         <div
           className="rounded-2xl p-8 text-center"
           style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
@@ -177,10 +218,37 @@ export default function MultisigPage() {
       {proposeOpen && info && (
         <ProposeActionModal
           multisigAddress={info.address}
+          safeAddress={safeAddress}
           info={info}
           onClose={() => setProposeOpen(false)}
           onSuccess={() => {
             setProposeOpen(false);
+            reload();
+          }}
+        />
+      )}
+
+      {/* Change timelock modal */}
+      {changeTimelockOpen && info && (
+        <ChangeTimelockModal
+          multisigAddress={info.address}
+          info={info}
+          onClose={() => setChangeTimelockOpen(false)}
+          onSuccess={() => {
+            setChangeTimelockOpen(false);
+            reload();
+          }}
+        />
+      )}
+
+      {/* Rotate signers modal */}
+      {rotateSignersOpen && info && (
+        <RotateSignersModal
+          multisigAddress={info.address}
+          info={info}
+          onClose={() => setRotateSignersOpen(false)}
+          onSuccess={() => {
+            setRotateSignersOpen(false);
             reload();
           }}
         />

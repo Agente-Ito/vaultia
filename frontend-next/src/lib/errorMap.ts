@@ -162,6 +162,21 @@ export function decodeRevertReason(error: unknown): string {
 
   // require() reason buried in the error message string
   const msg = error.message ?? '';
+
+  const relayerInsufficientBalanceMatch = msg.match(/Insufficient balance\. Estimated gas cost: (\d+) exceeds balance: (\d+)/i);
+  if (relayerInsufficientBalanceMatch) {
+    const [, estimatedGasCost, relayerBalance] = relayerInsufficientBalanceMatch;
+    return `Relayer rejected the transaction before broadcast: the Universal Profile relayer reports insufficient balance for this operation. Estimated gas cost ${estimatedGasCost}, relayer balance ${relayerBalance}. This usually means the deployment is too heavy for the relayer path; try a simpler vault setup or a non-UP wallet for creation.`;
+  }
+
+  if (msg.includes('Relayer Error')) {
+    return `Relayer rejected the transaction before broadcast: ${compactMessage(msg.replace(/^.*Relayer Error:\s*/i, ''))}`;
+  }
+
+  if (msg.includes('could not decode result data')) {
+    return 'Transaction failed: the frontend could not decode the contract response. Refresh the app and retry; if it persists, the frontend ABI is out of sync with the deployed contract.';
+  }
+
   const requireMatch = msg.match(/reverted with reason string '([^']+)'/);
   if (requireMatch) {
     const reason = requireMatch[1];

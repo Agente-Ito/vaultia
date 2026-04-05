@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useId } from 'react';
+import { ethers } from 'ethers';
 import {
   Dialog,
   DialogContent,
@@ -13,6 +14,10 @@ import { Button } from '@/components/common/Button';
 import { type BudgetNode } from '@/components/dashboard/BudgetTreeView';
 import { cn } from '@/lib/utils/cn';
 import { useI18n } from '@/context/I18nContext';
+import { getSharedBudgetPoolContract } from '@/lib/web3/contracts';
+
+const SHARED_BUDGET_POOL_ADDRESS = process.env.NEXT_PUBLIC_SHARED_BUDGET_POOL_ADDRESS ?? '';
+const PERIOD_ENUM: Record<'daily' | 'weekly' | 'monthly', number> = { daily: 0, weekly: 1, monthly: 2 };
 
 const EMOJIS = ['💰', '🏠', '🛒', '📈', '🎯', '✈️', '🏥', '🎓', '🎵', '⚡', '🍔', '🎮'];
 
@@ -21,6 +26,7 @@ interface CreateBudgetModalProps {
   onClose: () => void;
   existingNodes: BudgetNode[];
   onSave: (parentId: string, node: BudgetNode) => void;
+  signer?: ethers.Signer | null;
 }
 
 function MiniTreePreview({ nodes, highlightId, newTag }: { nodes: BudgetNode[]; highlightId?: string; newTag: string }) {
@@ -61,7 +67,7 @@ function flattenForSelect(nodes: BudgetNode[], result: { id: string; label: stri
   return result;
 }
 
-export function CreateBudgetModal({ open, onClose, existingNodes, onSave }: CreateBudgetModalProps) {
+export function CreateBudgetModal({ open, onClose, existingNodes, onSave, signer }: CreateBudgetModalProps) {
   const uid = useId();
   const { t } = useI18n();
   const [name, setName] = useState('');
@@ -69,6 +75,8 @@ export function CreateBudgetModal({ open, onClose, existingNodes, onSave }: Crea
   const [amount, setAmount] = useState('');
   const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
   const [parentId, setParentId] = useState('root');
+  const [txPending, setTxPending] = useState(false);
+  const [txError, setTxError] = useState<string | null>(null);
 
   const flatOptions = flattenForSelect(existingNodes);
 
@@ -103,8 +111,10 @@ export function CreateBudgetModal({ open, onClose, existingNodes, onSave }: Crea
     ? insertPreview(existingNodes, parentId)
     : [...existingNodes, previewNode];
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim() || !amount) return;
+    setTxError(null);
+
     const newNode: BudgetNode = {
       id: `pool-${Date.now()}`,
       label: name.trim(),
@@ -113,8 +123,31 @@ export function CreateBudgetModal({ open, onClose, existingNodes, onSave }: Crea
       total: parseFloat(amount),
       period,
     };
+
+    // On-chain creation when SharedBudgetPool is configured and signer available
+    if (signer && SHARED_BUDGET_POOL_ADDRESS) {
+      setTxPending(true);
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const pool = getSharedBudgetPoolContract(SHARED_BUDGET_POOL_ADDRESS, signer) as any;
+        const poolId = ethers.id(name.trim());
+        // Use bytes32 parentId for on-chain pools; anything else maps to ZeroHash (root)
+        const validParent = /^0x[0-9a-fA-F]{64}$/.test(parentId) ? parentId : ethers.ZeroHash;
+        const budgetWei = ethers.parseEther(amount);
+        const periodEnum = PERIOD_ENUM[period];
+        await (await pool.createPool(poolId, validParent, budgetWei, periodEnum, [], [])).wait();
+        newNode.id = poolId; // Replace local id with on-chain pool ID
+      } catch (e: unknown) {
+        setTxError(e instanceof Error ? e.message : 'Transaction failed');
+        setTxPending(false);
+        return;
+      } finally {
+        setTxPending(false);
+      }
+    }
+
     onSave(parentId, newNode);
-    setName(''); setAmount(''); setEmoji('💰'); setParentId('root');
+    setName(''); setAmount(''); setEmoji('💰'); setParentId('root'); setTxError(null);
     onClose();
   };
 
@@ -223,11 +256,19 @@ export function CreateBudgetModal({ open, onClose, existingNodes, onSave }: Crea
           </div>
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t border-neutral-200 dark:border-neutral-700">
-          <Button variant="secondary" onClick={onClose}>{t('budget_modal.cancel_btn')}</Button>
-          <Button onClick={handleSave} disabled={!name.trim() || !amount}>
-            {t('budget_modal.create_btn')}
-          </Button>
+        <DialogFooter className="px-6 py-4 border-t border-neutral-200 dark:border-neutral-700 flex-col items-stretch gap-2">
+          {txError && (
+            <p className="text-xs text-red-500 w-full">{txError}</p>
+          )}
+          {signer && SHARED_BUDGET_POOL_ADDRESS && !txError && (
+            <p className="text-xs text-neutral-400 w-full">Pool will be created on-chain via SharedBudgetPool.</p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={onClose} disabled={txPending}>{t('budget_modal.cancel_btn')}</Button>
+            <Button onClick={handleSave} disabled={!name.trim() || !amount || txPending}>
+              {txPending ? 'Creating on-chain…' : t('budget_modal.create_btn')}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

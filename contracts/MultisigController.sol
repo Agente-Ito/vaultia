@@ -38,6 +38,7 @@ error InvalidThreshold();
 error DuplicateSigner();
 error ZeroAddress();
 error OnlySelf();
+error NotVault();
 error ProposalExists();
 error IntentHashMismatch();
 
@@ -54,12 +55,14 @@ error IntentHashMismatch();
 ///        and execution, the hash will not match and the call reverts.
 ///      - Status is set to EXECUTED before the external call (Checks-Effects-Interactions).
 ///      - nonReentrant guards execute() against re-entrant vault callbacks.
-///      - updateSigners/updateTimelock are only callable via execute() with an approved
-///        self-targeted proposal (onlySelf modifier).
-///      - No SUPER_* LSP6 permissions required: MultisigController is wired with
-///        CALL | TRANSFERVALUE (0x0A00) and explicit AllowedCalls entries.
-///      - EOAs and Universal Profile (LSP0) addresses are both supported as signers because
-///        approvals are on-chain transactions — isSigner[msg.sender] is sufficient.
+///      - updateSigners/updateTimelock are only callable via execute() + selfCall()
+///        with an approved self-targeted proposal (see selfCall() below).
+///      - selfCall() lets the MS call itself through the vault→KM→Vault chain:
+///        propose(msAddr, 0, updateSignersData) → approve → execute → selfCall → updateSigners.
+///        msg.sender inside selfCall = vault, which is the accepted caller; selfCall then
+///        does address(this).call(data) so msg.sender inside updateSigners = address(ms).
+///      - MultisigController is granted SUPER_CALL | SUPER_TRANSFERVALUE (PERM_POWER_USER
+///        = 0x500) in LSP6. The M-of-N flow + PolicyEngine enforce spend restrictions.
 contract MultisigController is ReentrancyGuard {
 
     // ─── Enums ────────────────────────────────────────────────────────────────
@@ -314,6 +317,30 @@ contract MultisigController is ReentrancyGuard {
     function updateTimelock(uint256 newDelay) external onlySelf {
         timeLock = newDelay;
         emit TimelockUpdated(newDelay);
+    }
+
+    /// @notice Bounce-call: lets the MS invoke onlySelf functions (updateSigners,
+    ///         updateTimelock) through an approved proposal that targets this contract.
+    ///
+    /// @dev    Call chain for signer rotation:
+    ///           propose(msAddr, 0, updateSignersCalldata)
+    ///           → approve (threshold reached)
+    ///           → execute()
+    ///             → KM.execute(Vault.execute(msAddr, selfCallData))
+    ///               → ms.selfCall(updateSignersCalldata)   ← msg.sender = vault ✓
+    ///                 → address(ms).call(updateSignersCalldata)
+    ///                   → ms.updateSigners(...)            ← msg.sender = address(ms) ✓
+    ///
+    ///         Only the vault can reach this entry point (enforced by NotVault guard).
+    ///         The outer execute() already enforces quorum + timelock + intentHash.
+    ///         nonReentrant is inherited from execute() — NOT re-applied here because
+    ///         selfCall is only reachable FROM execute(), which already holds the lock.
+    function selfCall(bytes calldata data) external {
+        if (msg.sender != vault) revert NotVault();
+        (bool ok, bytes memory ret) = address(this).call(data);
+        if (!ok) {
+            assembly { revert(add(ret, 32), mload(ret)) }
+        }
     }
 
     // ─── Views ────────────────────────────────────────────────────────────────

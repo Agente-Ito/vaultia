@@ -43,8 +43,14 @@ describe("AgentVaultRegistry — Integration", function () {
     const deployerC = await ethers.getContractFactory("AgentVaultDeployer");
     const vd = await deployerC.deploy() as AgentVaultDeployer;
 
+    const optC = await ethers.getContractFactory("AgentVaultOptionalPolicyDeployer");
+    const optionalDeployer = await optC.deploy();
+
     const kmC = await ethers.getContractFactory("AgentKMDeployer");
     const km = await kmC.deploy() as AgentKMDeployer;
+
+    const msC = await ethers.getContractFactory("MultisigControllerDeployer");
+    const msDeployer = await msC.deploy();
 
     const coordC = await ethers.getContractFactory("AgentCoordinator");
     const coord  = await coordC.deploy();
@@ -55,9 +61,11 @@ describe("AgentVaultRegistry — Integration", function () {
     registry = await RegistryFactory.deploy(
       await vdCore.getAddress(),
       await vd.getAddress(),
+      await optionalDeployer.getAddress(),
       await km.getAddress(),
       await coord.getAddress(),
       await pool.getAddress(),
+      await msDeployer.getAddress(),
     ) as AgentVaultRegistry;
   });
 
@@ -75,6 +83,9 @@ describe("AgentVaultRegistry — Integration", function () {
     allowSuperPermissions: boolean;
     customAgentPermissions: string;
     allowedCallsByAgent: Array<{ agent: string; allowedCalls: string }>;
+    multisigSigners: string[];
+    multisigThreshold: number;
+    multisigTimeLock: number;
   }>) {
     const p = {
       budget: BUDGET,
@@ -91,6 +102,9 @@ describe("AgentVaultRegistry — Integration", function () {
       allowSuperPermissions:  false,
       customAgentPermissions: ethers.ZeroHash,
       allowedCallsByAgent:    [],
+      multisigSigners:        [],
+      multisigThreshold:      0,
+      multisigTimeLock:       0,
       ...params,
     };
     return registry.connect(owner).deployVault(p);
@@ -380,6 +394,9 @@ describe("AgentVaultRegistry — Integration", function () {
         allowSuperPermissions:  false,
         customAgentPermissions: ethers.ZeroHash,
         allowedCallsByAgent:    [],
+        multisigSigners:        [],
+        multisigThreshold:      0,
+        multisigTimeLock:       0,
       });
       const receipt = await tx.wait();
       const event = receipt!.logs
@@ -443,6 +460,9 @@ describe("AgentVaultRegistry — Integration", function () {
         allowSuperPermissions:  false,
         customAgentPermissions: ethers.ZeroHash,
         allowedCallsByAgent:    [],
+        multisigSigners:        [],
+        multisigThreshold:      0,
+        multisigTimeLock:       0,
       });
       const receipt = await tx.wait();
       const event = receipt!.logs
@@ -466,5 +486,397 @@ describe("AgentVaultRegistry — Integration", function () {
       const elem0Raw  = await safe.getData(apArrayElementKey(0));
       expect(elem0Raw.toLowerCase()).to.not.equal(lengthRaw.toLowerCase());
     });
+  });
+
+  // ─── MultisigController deployment via registry ────────────────────────────
+  //
+  // Verifies that deploying a vault with multisigSigners properly:
+  //   (a) deploys the MultisigController and records it in mappings + VaultRecord
+  //   (b) writes AVP:MultisigController in ERC725Y storage
+  //   (c) grants the controller PERM_STRICT (CALL|TRANSFERVALUE) LSP6 permissions
+  //   (d) the controller can execute approved proposals end-to-end
+
+  describe("MultisigController deployment via registry", function () {
+    const AVP_MULTISIG = ethers.keccak256(ethers.toUtf8Bytes("AVP:MultisigController"));
+
+    let safeMs: AgentSafe;
+    let kmMs: LSP6KeyManager;
+    let multisigAddr: string;
+    let signer1: SignerWithAddress;
+    let signer2: SignerWithAddress;
+    let safeAddrMs: string;
+
+    beforeEach(async function () {
+      [, , , signer1, signer2] = await ethers.getSigners();
+
+      const tx = await deployVault({
+        agents: [],              // no standard agents — only multisig
+        multisigSigners: [signer1.address, signer2.address],
+        multisigThreshold: 1,  // threshold=1 lets a single signer propose + execute
+        multisigTimeLock: 0,
+      });
+      const receipt = await tx.wait();
+      const event = receipt!.logs
+        .map((log) => {
+          try { return registry.interface.parseLog(log as any); } catch { return null; }
+        })
+        .find((e) => e?.name === "VaultDeployed");
+
+      safeAddrMs = event!.args.safe;
+      const kmAddr = event!.args.keyManager;
+      safeMs = await ethers.getContractAt("AgentSafe", safeAddrMs) as AgentSafe;
+      kmMs   = await ethers.getContractAt("LSP6KeyManager", kmAddr) as LSP6KeyManager;
+      multisigAddr = await registry.safeToMultisigController(safeAddrMs);
+    });
+
+    it("safeToMultisigController mapping is populated", async function () {
+      expect(multisigAddr).to.not.equal(ethers.ZeroAddress);
+    });
+
+    it("VaultRecord.multisigController matches mapping", async function () {
+      const [record] = await registry.getVaults(owner.address);
+      expect(record.multisigController.toLowerCase()).to.equal(multisigAddr.toLowerCase());
+    });
+
+    it("AVP:MultisigController ERC725Y key stores the deployed address", async function () {
+      const raw = await safeMs.getData(AVP_MULTISIG);
+      const [decoded] = ethers.AbiCoder.defaultAbiCoder().decode(["address"], raw);
+      expect(decoded.toLowerCase()).to.equal(multisigAddr.toLowerCase());
+    });
+
+    it("MultisigController has PERM_POWER_USER (SUPER_CALL|SUPER_TRANSFERVALUE = 0x500) in AddressPermissions", async function () {
+      // LUKSO LSP6 blocks all calls when AllowedCalls is empty but CALL is set
+      // without SUPER_CALL (NoCallsAllowed). SUPER_* is required so the multisig
+      // can call any target; the M-of-N flow + PolicyEngine enforce spend limits.
+      const raw = await safeMs.getData(apPermissionsKey(multisigAddr));
+      expect(decodePermissions(raw)).to.equal(BigInt("0x500"));
+    });
+
+    it("AddressPermissions[] length is 2 (owner + multisig) when agents=[]", async function () {
+      const raw = await safeMs.getData(AP_ARRAY_KEY);
+      expect(decodeArrayLength(raw)).to.equal(2);
+    });
+
+    it("getPendingContracts does NOT include multisigController (it has no LSP14)", async function () {
+      const [contracts] = await registry.connect(owner).getPendingContracts(safeAddrMs);
+      const hasMs = contracts.some(
+        (c) => c.toLowerCase() === multisigAddr.toLowerCase()
+      );
+      expect(hasMs).to.equal(false);
+    });
+
+    it("multisig executes an approved proposal end-to-end", async function () {
+      // Finalize LSP14 ownership so safe is fully operational.
+      await safeMs.connect(owner).acceptOwnership();
+      const peAddr = await registry.safeToPolicyEngine(safeAddrMs);
+      const pe = await ethers.getContractAt("PolicyEngine", peAddr);
+      await pe.connect(owner).acceptOwnership();
+      // Accept BudgetPolicy ownership too
+      const policies = await pe.getPolicies();
+      for (const pAddr of policies) {
+        const p = await ethers.getContractAt("BudgetPolicy", pAddr);
+        await (p as any).connect(owner).acceptOwnership();
+      }
+
+      // Fund the safe
+      await owner.sendTransaction({ to: safeAddrMs, value: ethers.parseEther("10") });
+
+      const balBefore = await ethers.provider.getBalance(merchant.address);
+
+      const ms = await ethers.getContractAt("MultisigController", multisigAddr);
+
+      // Propose: signer1 want to send 1 ETH to merchant.
+      // target = merchant (direct ETH transfer), value = 1 ETH, data = "0x"
+      const proposeTx = await ms.connect(signer1).propose(
+        merchant.address,
+        ethers.parseEther("1"),
+        "0x",
+        0,  // no deadline
+        0,  // no per-proposal timelock
+        1,  // ANY_SIGNER executor mode
+      );
+      const propReceipt = await proposeTx.wait();
+      const propEvent = propReceipt!.logs
+        .map((l: any) => { try { return ms.interface.parseLog(l); } catch { return null; } })
+        .find((e: any) => e?.name === "Proposed");
+      const proposalId = propEvent!.args.id as string;
+
+      // threshold=1 so proposer auto-approval is sufficient — execute immediately.
+      await ms.connect(signer1).execute(proposalId);
+
+      const balAfter = await ethers.provider.getBalance(merchant.address);
+      expect(balAfter - balBefore).to.equal(ethers.parseEther("1"));
+    });
+  });
+
+  describe("enableMultisig", function () {
+    const AVP_MULTISIG = ethers.keccak256(ethers.toUtf8Bytes("AVP:MultisigController"));
+
+    let safeAddr: string;
+    let safe: AgentSafe;
+    let signer1: SignerWithAddress;
+    let signer2: SignerWithAddress;
+
+    beforeEach(async function () {
+      [, , , signer1, signer2] = await ethers.getSigners();
+
+      const tx = await deployVault({ agents: [] });
+      const receipt = await tx.wait();
+      const event = receipt!.logs
+        .map((log) => {
+          try { return registry.interface.parseLog(log as any); } catch { return null; }
+        })
+        .find((e) => e?.name === "VaultDeployed");
+
+      safeAddr = event!.args.safe;
+      safe = await ethers.getContractAt("AgentSafe", safeAddr) as AgentSafe;
+    });
+
+    it("installs multisig for a pending-owner vault and updates registry metadata", async function () {
+      await expect(
+        registry.connect(owner).enableMultisig(safeAddr, [signer1.address, signer2.address], 2, 3600)
+      ).to.emit(registry, "MultisigEnabled");
+
+      const multisigAddr = await registry.safeToMultisigController(safeAddr);
+      expect(multisigAddr).to.not.equal(ethers.ZeroAddress);
+
+      const [record] = await registry.getVaults(owner.address);
+      expect(record.multisigController.toLowerCase()).to.equal(multisigAddr.toLowerCase());
+
+      const raw = await safe.getData(AVP_MULTISIG);
+      const [decoded] = ethers.AbiCoder.defaultAbiCoder().decode(["address"], raw);
+      expect(decoded.toLowerCase()).to.equal(multisigAddr.toLowerCase());
+
+      const permsRaw = await safe.getData(apPermissionsKey(multisigAddr));
+      expect(decodePermissions(permsRaw)).to.equal(BigInt("0x500"));
+
+      const apLenRaw = await safe.getData(AP_ARRAY_KEY);
+      expect(decodeArrayLength(apLenRaw)).to.equal(2);
+    });
+
+    it("rejects callers other than the designated owner", async function () {
+      await expect(
+        registry.connect(agent).enableMultisig(safeAddr, [signer1.address], 1, 0)
+      ).to.be.revertedWith("Registry: not designated owner");
+    });
+
+    it("rejects installation after the safe ownership was already accepted", async function () {
+      await safe.connect(owner).acceptOwnership();
+
+      await expect(
+        registry.connect(owner).enableMultisig(safeAddr, [signer1.address], 1, 0)
+      ).to.be.revertedWith("Registry: safe already accepted");
+    });
+
+    it("rejects duplicate multisig installation", async function () {
+      await registry.connect(owner).enableMultisig(safeAddr, [signer1.address], 1, 0);
+
+      await expect(
+        registry.connect(owner).enableMultisig(safeAddr, [signer2.address], 1, 0)
+      ).to.be.revertedWith("Registry: multisig already set");
+    });
+  });
+
+  // ─── MultisigController — security invariants (registry-integrated) ──────────
+  //
+  // Since SUPER_CALL bypasses LSP6 AllowedCalls, the security boundary moved from
+  // LSP6 into the multisig's internal logic. These tests verify those invariants
+  // are actually enforced on-chain and cannot be bypassed.
+  //
+  // Inv-1: Quorum     — execute() is blocked below threshold (no quorum bypass)
+  // Inv-2: Timelock   — execute() is gated by the time delay (not eludible)
+  // Inv-3: PolicyEngine — budget ceiling applies even to multisig proposals
+  // Inv-4: Signer governance — signer rotation requires an approved selfCall proposal
+
+  describe("MultisigController — security invariants", function () {
+
+    // Deploys a registry-integrated multisig vault and returns {safeAddr, ms}.
+    async function deployMsVault(opts: {
+      inv_signer1: SignerWithAddress;
+      inv_signer2?: SignerWithAddress;
+      threshold: number;
+      timeLock?: number;
+      budget?: bigint;
+      withMerchant?: boolean;
+    }) {
+      const tx = await deployVault({
+        agents: [],
+        budget: opts.budget ?? BUDGET,
+        merchants: opts.withMerchant ? [merchant.address] : [],
+        multisigSigners: opts.inv_signer2
+          ? [opts.inv_signer1.address, opts.inv_signer2.address]
+          : [opts.inv_signer1.address],
+        multisigThreshold: opts.threshold,
+        multisigTimeLock: opts.timeLock ?? 0,
+      });
+      const receipt = await tx.wait();
+      const event = receipt!.logs
+        .map((l: any) => { try { return registry.interface.parseLog(l); } catch { return null; } })
+        .find((e: any) => e?.name === "VaultDeployed");
+      const safeAddr = event!.args.safe as string;
+      const msAddr = await registry.safeToMultisigController(safeAddr);
+      const ms = await ethers.getContractAt("MultisigController", msAddr);
+      return { safeAddr, ms };
+    }
+
+    // Accepts all pending LSP14 ownership transfers and funds the safe with ETH.
+    async function acceptAndFund(safeAddr: string, value = ethers.parseEther("10")) {
+      const safe = await ethers.getContractAt("AgentSafe", safeAddr);
+      await safe.connect(owner).acceptOwnership();
+      const peAddr = await registry.safeToPolicyEngine(safeAddr);
+      const pe = await ethers.getContractAt("PolicyEngine", peAddr);
+      await pe.connect(owner).acceptOwnership();
+      for (const pAddr of await pe.getPolicies()) {
+        const pol = await ethers.getContractAt("BudgetPolicy", pAddr);
+        await (pol as any).connect(owner).acceptOwnership();
+      }
+      await owner.sendTransaction({ to: safeAddr, value });
+    }
+
+    // Proposes a payment and returns the proposal id.
+    async function invPropose(
+      ms: any,
+      proposer: SignerWithAddress,
+      target: string,
+      value: bigint,
+      timelockOverride = 0,
+    ) {
+      const tx = await ms.connect(proposer).propose(
+        target, value, "0x",
+        0,              // no deadline
+        timelockOverride,
+        1,              // ANY_SIGNER executor mode
+      );
+      const receipt = await tx.wait();
+      const event = receipt!.logs
+        .map((l: any) => { try { return ms.interface.parseLog(l); } catch { return null; } })
+        .find((e: any) => e?.name === "Proposed");
+      return event!.args.id as string;
+    }
+
+    // ── Inv-1: Quorum ─────────────────────────────────────────────────────────
+
+    it("Inv-1: execute() reverts QuorumNotReached when approval count is below threshold", async function () {
+      const [, , , inv_signer1, inv_signer2] = await ethers.getSigners();
+      const { safeAddr, ms } = await deployMsVault({ inv_signer1, inv_signer2, threshold: 2 });
+      await acceptAndFund(safeAddr);
+      const proposalId = await invPropose(ms, inv_signer1, merchant.address, ethers.parseEther("0.1"));
+      // Only inv_signer1 has approved (auto-approval on propose). inv_signer2 has not.
+      await expect(ms.connect(inv_signer1).execute(proposalId))
+        .to.be.revertedWithCustomError(ms, "QuorumNotReached");
+    });
+
+    it("Inv-1b: execute() succeeds once second signer approves (quorum reached)", async function () {
+      const [, , , inv_signer1, inv_signer2] = await ethers.getSigners();
+      const { safeAddr, ms } = await deployMsVault({
+        inv_signer1, inv_signer2, threshold: 2, withMerchant: true,
+      });
+      await acceptAndFund(safeAddr);
+      const proposalId = await invPropose(ms, inv_signer1, merchant.address, ethers.parseEther("0.1"));
+      await ms.connect(inv_signer2).approve(proposalId);
+      const balBefore = await ethers.provider.getBalance(merchant.address);
+      await ms.connect(inv_signer1).execute(proposalId);
+      const balAfter = await ethers.provider.getBalance(merchant.address);
+      expect(balAfter - balBefore).to.equal(ethers.parseEther("0.1"));
+    });
+
+    // ── Inv-2: Timelock ───────────────────────────────────────────────────────
+
+    it("Inv-2: execute() reverts TimelockPending before the global timeLock elapses", async function () {
+      const [, , , inv_signer1] = await ethers.getSigners();
+      const { safeAddr, ms } = await deployMsVault({ inv_signer1, threshold: 1, timeLock: 3600 });
+      await acceptAndFund(safeAddr);
+      const proposalId = await invPropose(ms, inv_signer1, merchant.address, ethers.parseEther("0.1"));
+      // Quorum met (threshold=1), but timelock has not elapsed yet.
+      await expect(ms.connect(inv_signer1).execute(proposalId))
+        .to.be.revertedWithCustomError(ms, "TimelockPending");
+    });
+
+    it("Inv-2b: execute() succeeds after evm_increaseTime past the timeLock", async function () {
+      const [, , , inv_signer1] = await ethers.getSigners();
+      const { safeAddr, ms } = await deployMsVault({
+        inv_signer1, threshold: 1, timeLock: 3600, withMerchant: true,
+      });
+      await acceptAndFund(safeAddr);
+      const proposalId = await invPropose(ms, inv_signer1, merchant.address, ethers.parseEther("0.1"));
+      await ethers.provider.send("evm_increaseTime", [3601]);
+      await ethers.provider.send("evm_mine", []);
+      const balBefore = await ethers.provider.getBalance(merchant.address);
+      await ms.connect(inv_signer1).execute(proposalId);
+      const balAfter = await ethers.provider.getBalance(merchant.address);
+      expect(balAfter - balBefore).to.equal(ethers.parseEther("0.1"));
+    });
+
+    // ── Inv-3: PolicyEngine ───────────────────────────────────────────────────
+
+    it("Inv-3: execute() reverts when proposed amount exceeds PolicyEngine budget cap", async function () {
+      const [, , , inv_signer1] = await ethers.getSigners();
+      const { safeAddr, ms } = await deployMsVault({
+        inv_signer1, threshold: 1,
+        budget: ethers.parseEther("1"), withMerchant: true,
+      });
+      await acceptAndFund(safeAddr);
+      // 2 ETH — exceeds the 1 ETH budget cap.
+      const proposalId = await invPropose(ms, inv_signer1, merchant.address, ethers.parseEther("2"));
+      await expect(ms.connect(inv_signer1).execute(proposalId)).to.be.reverted;
+    });
+
+    it("Inv-3b: first payment within budget succeeds; second that exceeds cumulative cap reverts", async function () {
+      const [, , , inv_signer1] = await ethers.getSigners();
+      const { safeAddr, ms } = await deployMsVault({
+        inv_signer1, threshold: 1,
+        budget: ethers.parseEther("1"), withMerchant: true,
+      });
+      await acceptAndFund(safeAddr);
+      const id1 = await invPropose(ms, inv_signer1, merchant.address, ethers.parseEther("0.5"));
+      await ms.connect(inv_signer1).execute(id1); // 0.5 < 1 → passes
+      const id2 = await invPropose(ms, inv_signer1, merchant.address, ethers.parseEther("0.6"));
+      await expect(ms.connect(inv_signer1).execute(id2)).to.be.reverted; // 0.5+0.6=1.1 > 1 → fails
+    });
+
+    // ── Inv-4: Signer governance ──────────────────────────────────────────────
+
+    it("Inv-4: updateSigners() reverts OnlySelf when called directly", async function () {
+      const [, , , inv_signer1, inv_signer2] = await ethers.getSigners();
+      const { ms } = await deployMsVault({ inv_signer1, threshold: 1 });
+      await expect(
+        ms.connect(inv_signer1).updateSigners([inv_signer2.address], 1),
+      ).to.be.revertedWithCustomError(ms, "OnlySelf");
+    });
+
+    it("Inv-4b: signer rotation succeeds via selfCall proposal (threshold=1, no timelock)", async function () {
+      // Call chain: propose(msAddr, 0, selfCallData) → execute()
+      //   → Vault.execute(ms, selfCallData) → ms.selfCall(updateSignersData)
+      //     → address(ms).call(updateSignersData) → ms.updateSigners(...)
+      // This is the only valid path to rotate signers post-deployment.
+      const [, , , inv_signer1, inv_signer2] = await ethers.getSigners();
+      const { safeAddr, ms } = await deployMsVault({ inv_signer1, threshold: 1 });
+      await acceptAndFund(safeAddr);
+      const msAddr = await ms.getAddress();
+
+      const updateSignersCalldata = ms.interface.encodeFunctionData("updateSigners", [
+        [inv_signer2.address], 1,
+      ]);
+      const selfCallData = ms.interface.encodeFunctionData("selfCall", [updateSignersCalldata]);
+
+      // Propose targeting the MS with selfCall(updateSigners(...))
+      const tx = await ms.connect(inv_signer1).propose(
+        msAddr, 0n, selfCallData, 0, 0, 1,
+      );
+      const receipt = await tx.wait();
+      const event = receipt!.logs
+        .map((l: any) => { try { return ms.interface.parseLog(l); } catch { return null; } })
+        .find((e: any) => e?.name === "Proposed");
+      const proposalId = event!.args.id as string;
+
+      // Execute — quorum met (threshold=1, auto-approved), no timelock.
+      await ms.connect(inv_signer1).execute(proposalId);
+
+      // Signer set has been rotated: inv_signer2 is now the sole signer.
+      expect(await ms.isSigner(inv_signer2.address)).to.be.true;
+      expect(await ms.isSigner(inv_signer1.address)).to.be.false;
+      expect(await ms.threshold()).to.equal(1n);
+    });
+
   });
 });

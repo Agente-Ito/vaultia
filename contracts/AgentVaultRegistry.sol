@@ -5,6 +5,7 @@ import {AgentVaultDeployerCore} from "./AgentVaultDeployerCore.sol";
 import {AgentVaultDeployer} from "./AgentVaultDeployer.sol";
 import {AgentVaultOptionalPolicyDeployer} from "./AgentVaultOptionalPolicyDeployer.sol";
 import {AgentKMDeployer} from "./AgentKMDeployer.sol";
+import {MultisigControllerDeployer} from "./MultisigControllerDeployer.sol";
 import {BudgetPolicy} from "./policies/BudgetPolicy.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {LSP6KeyLib} from "./libraries/LSP6KeyLib.sol";
@@ -47,6 +48,14 @@ interface IAgentBudgetPolicy {
 interface IRecipientBudgetPolicy {
     function setRecipientLimit(address recipient, uint256 limit, BudgetPolicy.Period period) external;
     function transferOwnership(address newOwner) external;
+}
+
+interface IPendingOwnable {
+    function pendingOwner() external view returns (address);
+}
+
+interface IOwned {
+    function owner() external view returns (address);
 }
 
 // ─── Coordinator interface ────────────────────────────────────────────────────
@@ -116,6 +125,7 @@ contract AgentVaultRegistry is Ownable {
     AgentVaultDeployer            public immutable deployer;
     AgentVaultOptionalPolicyDeployer public immutable optionalDeployer;
     AgentKMDeployer               public immutable kmDeployer;
+    MultisigControllerDeployer    public immutable msDeployer;
 
     /// @notice The AgentCoordinator that tracks agent capabilities and delegation depth.
     ///         Required for deployForAgent() to validate and register agents atomically.
@@ -165,7 +175,8 @@ contract AgentVaultRegistry is Ownable {
         address _optionalDeployer,
         address _km,
         address _coordinator,
-        address _pool
+        address _pool,
+        address _multisigDeployer
     ) Ownable() {
         require(_core             != address(0), "Registry: zero core");
         require(_deployer         != address(0), "Registry: zero deployer");
@@ -173,12 +184,14 @@ contract AgentVaultRegistry is Ownable {
         require(_km               != address(0), "Registry: zero km");
         require(_coordinator      != address(0), "Registry: zero coordinator");
         require(_pool             != address(0), "Registry: zero pool");
+        require(_multisigDeployer != address(0), "Registry: zero ms deployer");
         core             = AgentVaultDeployerCore(_core);
         deployer         = AgentVaultDeployer(_deployer);
         optionalDeployer = AgentVaultOptionalPolicyDeployer(_optionalDeployer);
         kmDeployer       = AgentKMDeployer(_km);
         coordinator      = IAgentCoordinator(_coordinator);
         pool             = ISharedBudgetPool(_pool);
+        msDeployer       = MultisigControllerDeployer(_multisigDeployer);
     }
 
     /// @notice Grant or revoke permission to call deployVaultOnBehalf.
@@ -192,6 +205,12 @@ contract AgentVaultRegistry is Ownable {
         address safe;
         address keyManager;
         address policyEngine;
+        address budgetPolicy;
+        address multisigController;    // address(0) if not deployed
+        address merchantPolicy;        // address(0) if not deployed
+        address recipientBudgetPolicy; // address(0) if not deployed
+        address expirationPolicy;      // address(0) if not deployed
+        address agentBudgetPolicy;     // address(0) if not deployed
         string  label;
     }
 
@@ -201,6 +220,16 @@ contract AgentVaultRegistry is Ownable {
     /// @dev Reverse lookups for dApps and scripts
     mapping(address => address) public safeToKeyManager;
     mapping(address => address) public safeToPolicyEngine;
+    mapping(address => address) public safeToBudgetPolicy;
+    mapping(address => address) public safeToMultisigController;
+    mapping(address => address) public safeToMerchantPolicy;
+    mapping(address => address) public safeToRecipientBudgetPolicy;
+    mapping(address => address) public safeToExpirationPolicy;
+    mapping(address => address) public safeToAgentBudgetPolicy;
+    mapping(address => address) public safeToOwner;
+
+    /// @dev ERC725Y key for the deployed MultisigController address.
+    bytes32 private constant AVP_MULTISIG = keccak256("AVP:MultisigController");
 
     // ─── Agent-deployed vault metadata ───────────────────────────────────────────────
 
@@ -227,8 +256,19 @@ contract AgentVaultRegistry is Ownable {
         address indexed safe,
         address indexed keyManager,
         address policyEngine,
+        address budgetPolicy,
+        address multisigController,
         string  label,
         uint256 chainId
+    );
+
+    event MultisigEnabled(
+        address indexed owner,
+        address indexed safe,
+        address indexed multisig,
+        uint256 signerCount,
+        uint256 threshold,
+        uint256 timeLock
     );
 
     /// @notice Emitted when an agent with CAN_DEPLOY atomically deploys a child vault.
@@ -293,6 +333,13 @@ contract AgentVaultRegistry is Ownable {
         /// @dev Per-agent AllowedCalls entries. Required when resolved permissions include CALL (0x800)
         ///      and do NOT include any SUPER_* bits. Must be non-empty for each agent.
         AllowedCallsInput[] allowedCallsByAgent;
+        // ─── Multisig fields ────────────────────────────────────────────────
+        /// @dev Set of addresses allowed to approve vault proposals. Empty = no multisig deployed.
+        address[] multisigSigners;
+        /// @dev Required number of approvals for a proposal to execute.
+        uint256   multisigThreshold;
+        /// @dev Minimum seconds between approval and execution (0 = no delay).
+        uint256   multisigTimeLock;
     }
 
     // ─── Internal helpers ─────────────────────────────────────────────────────
@@ -318,6 +365,86 @@ contract AgentVaultRegistry is Ownable {
         bytes32 elementKey = bytes32(abi.encodePacked(AP_ARRAY_KEY_PREFIX, bytes16(index)));
         _setDataVerified(safe, elementKey, abi.encodePacked(bytes20(controller)));
         _setDataVerified(safe, AP_ARRAY_KEY, abi.encodePacked(uint128(index + 1)));
+    }
+
+    function _readAddressPermissionsLength(IAgentSafe safe) private view returns (uint128 len) {
+        bytes memory raw = safe.getData(AP_ARRAY_KEY);
+        require(raw.length == 16, "Registry: invalid AP array length");
+        assembly {
+            len := shr(128, mload(add(raw, 32)))
+        }
+    }
+
+    function _findOwnerVaultRecordIndex(address owner, address safe) private view returns (uint256 recordIdx) {
+        VaultRecord[] storage records = _ownerVaults[owner];
+        uint256 len = records.length;
+        recordIdx = type(uint256).max;
+        for (uint256 i = 0; i < len; i++) {
+            if (records[i].safe == safe) {
+                recordIdx = i;
+                break;
+            }
+        }
+    }
+
+    function _installMultisig(
+        IAgentSafe safe,
+        address km,
+        address[] memory signers,
+        uint256 threshold,
+        uint256 timeLock,
+        uint128 apIdx
+    ) private returns (address multisig, uint128 nextApIdx) {
+        multisig = msDeployer.newMultisigController(
+            address(safe), km, signers, threshold, timeLock
+        );
+        _setDataVerified(safe, AVP_MULTISIG, abi.encode(multisig));
+        _setDataVerified(
+            safe,
+            LSP6KeyLib.apPermissionsKey(multisig),
+            abi.encodePacked(LSP6KeyLib.PERM_POWER_USER)
+        );
+        _appendToAddressPermissionsArray(safe, multisig, apIdx);
+        nextApIdx = apIdx + 1;
+    }
+
+    function _registerVaultRecord(
+        address owner,
+        address safe,
+        address km,
+        address policyEngine,
+        address budgetPolicy,
+        address multisig,
+        address merchantPolicy,
+        address recipientBudgetPolicy,
+        address expirationPolicy,
+        address agentBudgetPolicy,
+        string memory label
+    ) private returns (VaultRecord memory record) {
+        record = VaultRecord(
+            safe,
+            km,
+            policyEngine,
+            budgetPolicy,
+            multisig,
+            merchantPolicy,
+            recipientBudgetPolicy,
+            expirationPolicy,
+            agentBudgetPolicy,
+            label
+        );
+        _ownerVaults[owner].push(record);
+        safeToKeyManager[safe]            = km;
+        safeToPolicyEngine[safe]          = policyEngine;
+        safeToBudgetPolicy[safe]          = budgetPolicy;
+        safeToMultisigController[safe]    = multisig;
+        safeToMerchantPolicy[safe]        = merchantPolicy;
+        safeToRecipientBudgetPolicy[safe] = recipientBudgetPolicy;
+        safeToExpirationPolicy[safe]      = expirationPolicy;
+        safeToAgentBudgetPolicy[safe]     = agentBudgetPolicy;
+        safeToOwner[safe]                 = owner;
+
+        emit VaultDeployed(owner, safe, km, policyEngine, budgetPolicy, multisig, label, block.chainid);
     }
 
     // ─── Deployment ───────────────────────────────────────────────────────────
@@ -576,12 +703,19 @@ contract AgentVaultRegistry is Ownable {
 
         // 8. Register vault in indexing structures
         string memory labelStr = string(abi.encodePacked(label));
-        VaultRecord memory record = VaultRecord(address(safe), km, address(pe), labelStr);
-        _ownerVaults[rootOwner].push(record);
-        safeToKeyManager[address(safe)]   = km;
-        safeToPolicyEngine[address(safe)] = address(pe);
-
-        emit VaultDeployed(rootOwner, address(safe), km, address(pe), labelStr, block.chainid);
+        _registerVaultRecord(
+            rootOwner,
+            address(safe),
+            km,
+            address(pe),
+            address(budgetPolicy),
+            address(0),
+            address(0),
+            address(0),
+            address(0),
+            address(0),
+            labelStr
+        );
 
         safeAddr = address(safe);
     }
@@ -675,19 +809,23 @@ contract AgentVaultRegistry is Ownable {
         pe.addPolicy(address(budgetPolicy));
 
         // 4. Optionally deploy MerchantPolicy
+        address merchantAddr = address(0);
         if (p.merchants.length > 0) {
             require(p.merchants.length <= 100, "Registry: too many merchants");
             IMerchantPolicy mp = IMerchantPolicy(optionalDeployer.newMerchantPolicy(address(this), address(pe)));
+            merchantAddr = address(mp);
             mp.addMerchants(p.merchants);
-            pe.addPolicy(address(mp));
+            pe.addPolicy(merchantAddr);
             mp.transferOwnership(owner);
         }
 
         // 4.5. Optionally deploy RecipientBudgetPolicy (per-recipient limits + whitelist)
+        address recipientBudgetAddr = address(0);
         if (p.recipientConfigs.length > 0) {
             IRecipientBudgetPolicy rbp = IRecipientBudgetPolicy(
                 optionalDeployer.newRecipientBudgetPolicy(address(this), address(pe), p.budgetToken)
             );
+            recipientBudgetAddr = address(rbp);
             for (uint256 i = 0; i < p.recipientConfigs.length; i++) {
                 rbp.setRecipientLimit(
                     p.recipientConfigs[i].recipient,
@@ -695,30 +833,34 @@ contract AgentVaultRegistry is Ownable {
                     p.recipientConfigs[i].period
                 );
             }
-            pe.addPolicy(address(rbp));
+            pe.addPolicy(recipientBudgetAddr);
             rbp.transferOwnership(owner);
         }
 
         // 5. Optionally deploy ExpirationPolicy
+        address expirationAddr = address(0);
         if (p.expiration > 0) {
             require(p.expiration > block.timestamp, "Registry: expiration in the past");
             IExpirationPolicy ep = IExpirationPolicy(
                 optionalDeployer.newExpirationPolicy(address(this), address(pe), p.expiration)
             );
-            pe.addPolicy(address(ep));
+            expirationAddr = address(ep);
+            pe.addPolicy(expirationAddr);
             ep.transferOwnership(owner);
         }
 
         // 6. Optionally deploy AgentBudgetPolicy (agent-level budgets)
+        address agentBudgetAddr = address(0);
         if (p.agentBudgets.length > 0) {
             IAgentBudgetPolicy agentBudgetPolicy = IAgentBudgetPolicy(
                 optionalDeployer.newAgentBudgetPolicy(address(this), address(pe), p.period, p.budgetToken)
             );
+            agentBudgetAddr = address(agentBudgetPolicy);
             for (uint256 i = 0; i < p.agents.length; i++) {
                 agentBudgetPolicy.setAgentBudget(p.agents[i], p.agentBudgets[i]);
             }
             agentBudgetPolicy.syncPeriodStart(budgetPolicy.periodStart());
-            pe.addPolicy(address(agentBudgetPolicy));
+            pe.addPolicy(agentBudgetAddr);
             agentBudgetPolicy.transferOwnership(owner);
         }
 
@@ -746,6 +888,26 @@ contract AgentVaultRegistry is Ownable {
         //     per-agent AllowedCalls to add a second enforcement layer on top of PolicyEngine.
         apIdx = _configureAgentPermissions(safe, p, apIdx);
 
+        // 11.5. Optionally deploy MultisigController (must happen after KM is deployed
+        //       and before transferOwnership — registry is still temp owner of the safe).
+        //       The controller is granted SUPER_CALL | SUPER_TRANSFERVALUE (PERM_POWER_USER
+        //       = 0x500) so it can forward approved proposals through the LSP6 KeyManager
+        //       to any target address. Using SUPER_* bits is required because LUKSO LSP6
+        //       reverts with NoCallsAllowed when AllowedCalls is empty but CALL is set
+        //       without SUPER_CALL. The M-of-N approval flow + PolicyEngine enforce the
+        //       actual spend restrictions instead of LSP6 AllowedCalls.
+        address msAddr = address(0);
+        if (p.multisigSigners.length > 0) {
+            (msAddr, apIdx) = _installMultisig(
+                safe,
+                km,
+                p.multisigSigners,
+                p.multisigThreshold,
+                p.multisigTimeLock,
+                apIdx
+            );
+        }
+
         // 12. Transfer ownership to user.
         //     AgentSafe, PolicyEngine, BudgetPolicy, and any optional policies all use
         //     LSP14 two-step ownership, so the user must call acceptOwnership() on each.
@@ -754,12 +916,19 @@ contract AgentVaultRegistry is Ownable {
         budgetPolicy.transferOwnership(owner);
 
         // 13. Register vault
-        record = VaultRecord(address(safe), km, address(pe), p.label);
-        _ownerVaults[owner].push(record);
-        safeToKeyManager[address(safe)] = km;
-        safeToPolicyEngine[address(safe)] = address(pe);
-
-        emit VaultDeployed(owner, address(safe), km, address(pe), p.label, block.chainid);
+        record = _registerVaultRecord(
+            owner,
+            address(safe),
+            km,
+            address(pe),
+            address(budgetPolicy),
+            msAddr,
+            merchantAddr,
+            recipientBudgetAddr,
+            expirationAddr,
+            agentBudgetAddr,
+            p.label
+        );
     }
 
     function getVaults(address owner) external view returns (VaultRecord[] memory) {
@@ -772,5 +941,114 @@ contract AgentVaultRegistry is Ownable {
 
     function getPolicyEngine(address safe) external view returns (address) {
         return safeToPolicyEngine[safe];
+    }
+
+    /// @notice Register a MultisigController that was deployed outside the registry
+    ///         (e.g. post-deploy, or via a custom deployer).
+    ///         Only the vault owner can register. Updates both the reverse-lookup
+    ///         mapping and the VaultRecord so widgets always see a consistent state.
+    function registerMultisigController(address safe, address multisig) external {
+        require(safeToOwner[safe] == msg.sender, "Registry: not vault owner");
+        require(multisig != address(0), "Registry: zero multisig");
+        safeToMultisigController[safe] = multisig;
+        VaultRecord[] storage records = _ownerVaults[msg.sender];
+        for (uint256 i = 0; i < records.length; i++) {
+            if (records[i].safe == safe) {
+                records[i].multisigController = multisig;
+                break;
+            }
+        }
+    }
+
+    /// @notice Enables multisig protection on a vault that was already deployed without it,
+    ///         before the designated owner has accepted ownership. This is intended for
+    ///         widget-safe staged activation flows where deploy and multisig installation
+    ///         are split into separate transactions.
+    function enableMultisig(
+        address safeAddr,
+        address[] calldata signers,
+        uint256 threshold,
+        uint256 timeLock
+    ) external returns (address multisig) {
+        require(safeAddr != address(0), "Registry: zero safe");
+
+        address designatedOwner = safeToOwner[safeAddr];
+        require(designatedOwner != address(0), "Registry: unknown safe");
+        require(designatedOwner == msg.sender, "Registry: not designated owner");
+        require(safeToMultisigController[safeAddr] == address(0), "Registry: multisig already set");
+        require(IOwned(safeAddr).owner() == address(this), "Registry: safe already accepted");
+        require(IPendingOwnable(safeAddr).pendingOwner() == msg.sender, "Registry: safe not pending to caller");
+
+        uint256 recordIdx = _findOwnerVaultRecordIndex(msg.sender, safeAddr);
+        require(recordIdx != type(uint256).max, "Registry: safe not in owner records");
+
+        address km = safeToKeyManager[safeAddr];
+        require(km != address(0), "Registry: missing key manager");
+
+        IAgentSafe safe = IAgentSafe(safeAddr);
+        uint128 apIdx = _readAddressPermissionsLength(safe);
+
+        (multisig, ) = _installMultisig(safe, km, signers, threshold, timeLock, apIdx);
+
+        safeToMultisigController[safeAddr] = multisig;
+        _ownerVaults[msg.sender][recordIdx].multisigController = multisig;
+
+        emit MultisigEnabled(msg.sender, safeAddr, multisig, signers.length, threshold, timeLock);
+    }
+
+    /// @notice Returns every contract in the vault stack that still has a pending
+    ///         LSP14 ownership transfer, paired with a flag indicating whether
+    ///         msg.sender is the pending owner.
+    ///         Widgets call this to drive the acceptOwnership() UX without needing
+    ///         to know the full contract list.
+    ///
+    /// @param safe  The AgentSafe address to inspect.
+    /// @return contracts  Non-zero addresses from the vault stack (KeyManager excluded
+    ///                    — it is a delegate, not an owner).
+    /// @return pending    True when msg.sender is pendingOwner() for the corresponding
+    ///                    address in `contracts`.
+    function getPendingContracts(address safe)
+        external
+        view
+        returns (address[] memory contracts, bool[] memory pending)
+    {
+        address owner = safeToOwner[safe];
+        require(owner != address(0), "Registry: unknown safe");
+
+        VaultRecord[] storage records = _ownerVaults[owner];
+        uint256 recordIdx = _findOwnerVaultRecordIndex(owner, safe);
+        require(recordIdx != type(uint256).max, "Registry: safe not in owner records");
+        VaultRecord storage r = records[recordIdx];
+
+        // Build candidate list (skip keyManager — it uses a delegate model, not LSP14;
+        // skip multisigController — it uses ReentrancyGuard, not LSP14/Ownable).
+        address[7] memory candidates = [
+            r.safe,
+            r.policyEngine,
+            r.budgetPolicy,
+            r.merchantPolicy,
+            r.recipientBudgetPolicy,
+            r.expirationPolicy,
+            r.agentBudgetPolicy
+        ];
+
+        uint256 count;
+        for (uint256 i = 0; i < 7; i++) {
+            if (candidates[i] != address(0)) count++;
+        }
+
+        contracts = new address[](count);
+        pending   = new bool[](count);
+        uint256 idx;
+        for (uint256 i = 0; i < 7; i++) {
+            if (candidates[i] == address(0)) continue;
+            contracts[idx] = candidates[i];
+            try IPendingOwnable(candidates[i]).pendingOwner() returns (address po) {
+                pending[idx] = (po == msg.sender);
+            } catch {
+                pending[idx] = false;
+            }
+            idx++;
+        }
     }
 }

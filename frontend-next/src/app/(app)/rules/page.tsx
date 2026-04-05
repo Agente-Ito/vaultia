@@ -1,18 +1,24 @@
 'use client';
 export const dynamic = 'force-dynamic';
 
-import { useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { ethers } from 'ethers';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/common/Card';
 import { Badge } from '@/components/common/Badge';
 import { useWeb3 } from '@/context/Web3Context';
 import { useVaults } from '@/hooks/useVaults';
 import { useVault } from '@/hooks/useVault';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Skeleton } from '@/components/common/Skeleton';
 import { Button } from '@/components/common/Button';
 import { Alert, AlertDescription } from '@/components/common/Alert';
 import { useI18n } from '@/context/I18nContext';
 import { useContacts } from '@/hooks/useContacts';
+import { getMerchantRegistryContract, getPolicyEngineContract } from '@/lib/web3/contracts';
+import { getReadOnlyProvider } from '@/lib/web3/provider';
+
+const MERCHANT_REGISTRY_ADDRESS = process.env.NEXT_PUBLIC_MERCHANT_REGISTRY_ADDRESS ?? '';
 
 function PolicyCard({ title, badge, children }: { title: string; badge?: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -46,10 +52,105 @@ function BudgetBar({ pct }: { pct: number }) {
   );
 }
 
+function EmergencyPanel({ paused, policyEngineAddr, signer }: {
+  paused: boolean;
+  policyEngineAddr: string;
+  signer: ethers.Signer | null;
+}) {
+  const { t } = useI18n();
+  const [pending, setPending] = useState(false);
+  const [localPaused, setLocalPaused] = useState(paused);
+  const [err, setErr] = useState<string | null>(null);
+
+  const toggle = async () => {
+    if (!signer) return;
+    setPending(true);
+    setErr(null);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pe = getPolicyEngineContract(policyEngineAddr, signer) as any;
+      await (await pe.setPaused(!localPaused)).wait();
+      setLocalPaused((p) => !p);
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : 'Transaction failed');
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <PolicyCard
+      title={t('rules.emergency.title')}
+      badge={
+        <Badge variant={localPaused ? 'warning' : 'neutral'}>
+          {localPaused ? '⏸ Paused' : '✅ Active'}
+        </Badge>
+      }
+    >
+      <p className="text-sm mb-md" style={{ color: localPaused ? 'var(--blocked)' : 'var(--success)' }}>
+        {localPaused ? t('rules.emergency.paused_state') : t('rules.emergency.active_state')}
+      </p>
+      <p className="text-xs mb-md" style={{ color: 'var(--text-muted)' }}>{t('rules.emergency.owner_note')}</p>
+      {err && <p className="text-xs mb-xs" style={{ color: 'var(--blocked)' }}>{err}</p>}
+      <Button
+        variant={localPaused ? 'primary' : 'secondary'}
+        onClick={toggle}
+        disabled={pending || !signer}
+      >
+        {pending
+          ? t('rules.emergency.pending')
+          : localPaused
+          ? t('rules.emergency.btn_resume')
+          : t('rules.emergency.btn_pause')}
+      </Button>
+    </PolicyCard>
+  );
+}
+
 function VaultPolicies({ safeAddress }: { safeAddress: string }) {
   const { detail, loading, error } = useVault(safeAddress);
   const { t } = useI18n();
   const { findContact } = useContacts();
+  const { account, signer } = useWeb3();
+  const [merchantNames, setMerchantNames] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const merchants = detail?.policySummary.merchants ?? [];
+    if (!MERCHANT_REGISTRY_ADDRESS || merchants.length === 0) {
+      setMerchantNames({});
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadMerchantNames = async () => {
+      try {
+        const registry = getMerchantRegistryContract(MERCHANT_REGISTRY_ADDRESS, getReadOnlyProvider());
+        const pairs = await Promise.all(merchants.map(async (merchant) => {
+          try {
+            const name = await registry.getName(merchant) as string;
+            return [merchant.toLowerCase(), name] as const;
+          } catch {
+            return [merchant.toLowerCase(), ''] as const;
+          }
+        }));
+
+        if (!cancelled) {
+          setMerchantNames(Object.fromEntries(pairs.filter(([, name]) => Boolean(name))));
+        }
+      } catch {
+        if (!cancelled) {
+          setMerchantNames({});
+        }
+      }
+    };
+
+    void loadMerchantNames();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [detail?.policySummary.merchants]);
 
   if (loading) return (
     <div className="space-y-md">
@@ -79,6 +180,14 @@ function VaultPolicies({ safeAddress }: { safeAddress: string }) {
         <Alert variant="warning"><AlertDescription>{policySummary.warnings.join(' ')}</AlertDescription></Alert>
       )}
 
+      {detail.policyEngineOwner.toLowerCase() === (account ?? '').toLowerCase() && (
+        <EmergencyPanel
+          paused={detail.policyEnginePaused}
+          policyEngineAddr={detail.policyEngine}
+          signer={signer}
+        />
+      )}
+
       {hasBudget && (
         <PolicyCard title={t('rules.budget.title')} badge={<Badge variant="primary">{t('rules.budget.active')}</Badge>}>
           <Row label={t('rules.budget.max')} value={`${policySummary.budget} LYX`} />
@@ -103,15 +212,23 @@ function VaultPolicies({ safeAddress }: { safeAddress: string }) {
             <div className="space-y-xs">
               {policySummary.merchants!.map((m) => {
                 const contact = findContact(m);
+                const registryName = merchantNames[m.toLowerCase()];
                 return (
-                  <div key={m} className="flex items-center gap-2">
-                    {contact?.name && (
-                      <span className="text-xs font-medium flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
-                        <span>{contact.avatarUrl ? '🖼️' : '👤'}</span>
-                        {contact.name}
-                      </span>
-                    )}
-                    <p className="font-mono text-xs break-all" style={{ color: 'var(--text-muted)' }}>{m}</p>
+                  <div key={m} className="rounded-xl px-3 py-2" style={{ background: 'var(--card-mid)', border: '1px solid var(--border)' }}>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {registryName && (
+                        <span className="text-xs font-semibold rounded-full px-2 py-0.5" style={{ background: 'rgba(16,185,129,0.1)', color: 'var(--success)' }}>
+                          {registryName}
+                        </span>
+                      )}
+                      {contact?.name && (
+                        <span className="text-xs font-medium flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                          <span>{contact.avatarUrl ? '🖼️' : '👤'}</span>
+                          {contact.name}
+                        </span>
+                      )}
+                    </div>
+                    <p className="font-mono text-xs break-all mt-1" style={{ color: 'var(--text-muted)' }}>{m}</p>
                   </div>
                 );
               })}
@@ -138,11 +255,20 @@ function VaultPolicies({ safeAddress }: { safeAddress: string }) {
   );
 }
 
-export default function RulesPage() {
+function RulesPageContent() {
   const { registry, account, isConnected } = useWeb3();
+  const searchParams = useSearchParams();
   const { vaults, loading: vaultsLoading } = useVaults(registry, account);
   const [selectedSafe, setSelectedSafe]    = useState<string>('');
   const { t } = useI18n();
+  const preselectedSafe = searchParams.get('safe') ?? '';
+
+  useEffect(() => {
+    if (!preselectedSafe || selectedSafe) return;
+    if (vaults.some((vault) => vault.safe.toLowerCase() === preselectedSafe.toLowerCase())) {
+      setSelectedSafe(preselectedSafe);
+    }
+  }, [preselectedSafe, selectedSafe, vaults]);
 
   return (
     <div className="space-y-lg">
@@ -186,5 +312,13 @@ export default function RulesPage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function RulesPage() {
+  return (
+    <Suspense fallback={<div className="space-y-lg" />}>
+      <RulesPageContent />
+    </Suspense>
   );
 }

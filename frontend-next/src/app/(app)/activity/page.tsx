@@ -261,14 +261,34 @@ export default function ActivityPage() {
             vaultLabel: vault?.label || short(entry.vaultSafe),
           };
         });
+        const matchedKeeperTxHashes = new Set<string>();
         const onChainEvents = perVault.flatMap((r) => r.events).map((event) => {
           if (event.status === 'approved' && event.txHash && keeperSuccessTxHashes.has(event.txHash.toLowerCase())) {
+            matchedKeeperTxHashes.add(event.txHash.toLowerCase());
             return { ...event, source: 'keeper' as const };
           }
 
           return event;
         });
-        const allEvents = [...keeperEvents, ...localEvents, ...onChainEvents].sort(sortActivity).slice(0, 100);
+        const unmatchedKeeperApproved = keeperActivity
+          .filter((entry) => entry.status === 'approved' && !!entry.txHash && !matchedKeeperTxHashes.has(entry.txHash!.toLowerCase()))
+          .map((entry) => {
+            const vault = vaults.find((item) => item.safe.toLowerCase() === entry.vaultSafe.toLowerCase());
+            return {
+              status: entry.status,
+              source: 'keeper' as const,
+              type: entry.type,
+              to: entry.to,
+              token: entry.token,
+              amount: entry.amount,
+              txHash: entry.txHash,
+              blockNumber: entry.blockNumber ?? 0,
+              reason: entry.reason,
+              createdAt: entry.createdAt,
+              vaultLabel: vault?.label || short(entry.vaultSafe),
+            };
+          });
+        const allEvents = [...keeperEvents, ...unmatchedKeeperApproved, ...localEvents, ...onChainEvents].sort(sortActivity).slice(0, 100);
         const anyFailed = perVault.some((r) => r.failed);
         const failedCount = perVault.filter((r) => r.failed).length;
         if (anyFailed && allEvents.length === 0) {

@@ -108,15 +108,23 @@ async function main() {
   console.log("✅ AgentVaultOptionalPolicyDeployer:", optionalDeployerAddr);
 
   // 4. Deploy AgentKMDeployer
-  console.log("\n[5/7] Deploying AgentKMDeployer...");
+  console.log("\n[5/8] Deploying AgentKMDeployer...");
   const KMFactory = await ethers.getContractFactory("AgentKMDeployer");
   const km = await KMFactory.deploy({ nonce: nonce++ });
   await km.waitForDeployment();
   const kmDeployerAddr = await km.getAddress();
   console.log("✅ AgentKMDeployer:", kmDeployerAddr);
 
+  // 5. Deploy MultisigControllerDeployer
+  console.log("\n[6/9] Deploying MultisigControllerDeployer...");
+  const MsDeployerFactory = await ethers.getContractFactory("MultisigControllerDeployer");
+  const msDeployer = await MsDeployerFactory.deploy({ nonce: nonce++ });
+  await msDeployer.waitForDeployment();
+  const msDeployerAddr = await msDeployer.getAddress();
+  console.log("✅ MultisigControllerDeployer:", msDeployerAddr);
+
   // 5. Deploy TaskScheduler
-  console.log("\n[6/7] Deploying TaskScheduler...");
+  console.log("\n[7/9] Deploying TaskScheduler...");
   const TaskSchedulerFactory = await ethers.getContractFactory("TaskScheduler");
   const taskScheduler = await TaskSchedulerFactory.deploy({ nonce: nonce++ });
   await taskScheduler.waitForDeployment();
@@ -124,7 +132,7 @@ async function main() {
   console.log("✅ TaskScheduler:", taskSchedulerAddr);
 
   // 6. Deploy AgentCoordinator
-  console.log("\n[6/8] Deploying AgentCoordinator...");
+  console.log("\n[8/9] Deploying AgentCoordinator...");
   const AgentCoordinatorFactory = await ethers.getContractFactory("AgentCoordinator");
   const coordinator = await AgentCoordinatorFactory.deploy({ nonce: nonce++ });
   await coordinator.waitForDeployment();
@@ -133,18 +141,18 @@ async function main() {
 
   // 7. Deploy SharedBudgetPool (authorizedPolicy set to deployer as placeholder;
   //    update via setAuthorizedPolicy() once a SharedBudgetPolicy is deployed)
-  console.log("\n[7/8] Deploying SharedBudgetPool...");
+  console.log("\n[9/9] Deploying SharedBudgetPool...");
   const SharedBudgetPoolFactory = await ethers.getContractFactory("SharedBudgetPool");
   const sharedBudgetPool = await SharedBudgetPoolFactory.deploy(deployer.address, { nonce: nonce++ });
   await sharedBudgetPool.waitForDeployment();
   const sharedBudgetPoolAddr = await sharedBudgetPool.getAddress();
   console.log("✅ SharedBudgetPool:", sharedBudgetPoolAddr);
 
-  // 8. Deploy AgentVaultRegistry (now requires coordinator + pool)
-  console.log("\n[8/8] Deploying AgentVaultRegistry...");
+  // 8. Deploy AgentVaultRegistry (now requires coordinator + pool + msDeployer)
+  console.log("\n[9/9] Deploying AgentVaultRegistry...");
   const AgentVaultRegistryFactory = await ethers.getContractFactory("AgentVaultRegistry");
   const registry = await AgentVaultRegistryFactory.deploy(
-    coreAddr, vdAddr, optionalDeployerAddr, kmDeployerAddr, coordinatorAddr, sharedBudgetPoolAddr,
+    coreAddr, vdAddr, optionalDeployerAddr, kmDeployerAddr, coordinatorAddr, sharedBudgetPoolAddr, msDeployerAddr,
     { nonce: nonce++ }
   );
   const registryAddr = await registry.getAddress();
@@ -188,6 +196,9 @@ async function main() {
     allowedCallsByAgent: [
       { agent: agentWallet.address, allowedCalls: encodeAllowedCalls([deployer.address]) },
     ],
+    multisigSigners: [],
+    multisigThreshold: 0,
+    multisigTimeLock: 0,
   };
 
   const estimatedGas = await registry.deployVault.estimateGas(deployParams);
