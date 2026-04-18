@@ -141,7 +141,22 @@ contract AgentVaultRegistry is Ownable {
     ///      Only the registry owner can grant/revoke authorization.
     mapping(address => bool) public authorizedCallers;
 
+    /// @dev Inverse index: role address → vault addresses where they have a role.
+    ///      Populated during deployment and via AgentCoordinator/MultisigController callbacks.
+    mapping(address => address[]) internal _agentVaults;
+    mapping(address => address[]) internal _signerVaults;
+
+    /// @dev Addresses authorized to call registerAgentForVault / registerSignerForVault.
+    ///      Includes the coordinator (set in constructor) and each deployed MultisigController
+    ///      (added automatically in _installMultisig).
+    mapping(address => bool) public registryOperators;
+
+    /// @dev LSP3 standard profile key — makes vaults searchable by name in the LUKSO ecosystem.
+    bytes32 private constant LSP3_PROFILE_KEY =
+        0x5ef83ad9559033e6e941db7d7c495acdce616347d28e90c7ce47cbfcfcad3bc5;
+
     event CallerAuthorizationChanged(address indexed caller, bool authorized);
+    event RegistryOperatorChanged(address indexed op, bool enabled);
 
     /// @notice Emitted after every ERC725Y setData call for forensics and sync verification.
     ///         Allows off-chain tools and support to detect storage mismatches.
@@ -192,6 +207,9 @@ contract AgentVaultRegistry is Ownable {
         coordinator      = IAgentCoordinator(_coordinator);
         pool             = ISharedBudgetPool(_pool);
         msDeployer       = MultisigControllerDeployer(_multisigDeployer);
+        // Authorize coordinator to update the inverse agent index
+        registryOperators[_coordinator] = true;
+        emit RegistryOperatorChanged(_coordinator, true);
     }
 
     /// @notice Grant or revoke permission to call deployVaultOnBehalf.
@@ -199,6 +217,80 @@ contract AgentVaultRegistry is Ownable {
         require(caller != address(0), "Registry: zero caller");
         authorizedCallers[caller] = authorized;
         emit CallerAuthorizationChanged(caller, authorized);
+    }
+
+    /// @notice Grant or revoke registry operator status.
+    ///         Operators can call registerAgentForVault / registerSignerForVault etc.
+    ///         The coordinator is pre-authorized in the constructor; deployed MultisigControllers
+    ///         are authorized automatically in _installMultisig.
+    function setRegistryOperator(address op, bool enabled) external onlyOwner {
+        require(op != address(0), "Registry: zero operator");
+        registryOperators[op] = enabled;
+        emit RegistryOperatorChanged(op, enabled);
+    }
+
+    modifier onlyRegistryOperator() {
+        require(registryOperators[msg.sender], "Registry: not a registry operator");
+        _;
+    }
+
+    // ─── Inverse-index write hooks (called by AgentCoordinator and MultisigController) ──
+
+    function registerAgentForVault(address vault, address agent) external onlyRegistryOperator {
+        _agentVaults[agent].push(vault);
+    }
+
+    function unregisterAgentForVault(address vault, address agent) external onlyRegistryOperator {
+        _removeFromArray(_agentVaults[agent], vault);
+    }
+
+    function registerSignerForVault(address vault, address signer) external onlyRegistryOperator {
+        _signerVaults[signer].push(vault);
+    }
+
+    function unregisterSignerForVault(address vault, address signer) external onlyRegistryOperator {
+        _removeFromArray(_signerVaults[signer], vault);
+    }
+
+    function _removeFromArray(address[] storage arr, address val) private {
+        uint256 len = arr.length;
+        for (uint256 i = 0; i < len; i++) {
+            if (arr[i] == val) {
+                arr[i] = arr[len - 1];
+                arr.pop();
+                return;
+            }
+        }
+    }
+
+    // ─── Inverse-index view queries ───────────────────────────────────────────
+
+    /// @notice Returns all vault records where `agent` has been registered as an agent.
+    function getVaultsForAgent(address agent) external view returns (VaultRecord[] memory) {
+        return _resolveVaultRecords(_agentVaults[agent]);
+    }
+
+    /// @notice Returns all vault records where `signer` is a multisig signer.
+    function getVaultsForSigner(address signer) external view returns (VaultRecord[] memory) {
+        return _resolveVaultRecords(_signerVaults[signer]);
+    }
+
+    function _resolveVaultRecords(address[] storage addrs)
+        private view returns (VaultRecord[] memory result)
+    {
+        uint256 len = addrs.length;
+        result = new VaultRecord[](len);
+        for (uint256 i = 0; i < len; i++) {
+            address safe = addrs[i];
+            address owner = safeToOwner[safe];
+            VaultRecord[] storage records = _ownerVaults[owner];
+            for (uint256 j = 0; j < records.length; j++) {
+                if (records[j].safe == safe) {
+                    result[i] = records[j];
+                    break;
+                }
+            }
+        }
     }
 
     struct VaultRecord {
@@ -396,7 +488,7 @@ contract AgentVaultRegistry is Ownable {
         uint128 apIdx
     ) private returns (address multisig, uint128 nextApIdx) {
         multisig = msDeployer.newMultisigController(
-            address(safe), km, signers, threshold, timeLock
+            address(safe), km, signers, threshold, timeLock, address(this)
         );
         _setDataVerified(safe, AVP_MULTISIG, abi.encode(multisig));
         _setDataVerified(
@@ -405,6 +497,17 @@ contract AgentVaultRegistry is Ownable {
             abi.encodePacked(LSP6KeyLib.PERM_POWER_USER)
         );
         _appendToAddressPermissionsArray(safe, multisig, apIdx);
+
+        // Authorize this MultisigController to call register/unregisterSignerForVault
+        // so addSigner/removeSigner can update the inverse index autonomously.
+        registryOperators[multisig] = true;
+        emit RegistryOperatorChanged(multisig, true);
+
+        // Populate inverse signer index for all initial signers
+        for (uint256 i = 0; i < signers.length; i++) {
+            _signerVaults[signers[i]].push(address(safe));
+        }
+
         nextApIdx = apIdx + 1;
     }
 
@@ -614,6 +717,9 @@ contract AgentVaultRegistry is Ownable {
         vaultRootOwner[newVault]                    = rootOwner;
         vaultOperator[newVault]                     = msg.sender;
         _agentDeployedVaults[msg.sender].push(newVault);
+        // Inverse agent index — populated here because assignedAgent isn't known until Step 8
+        // (we pre-register to keep the index consistent with the assignment below)
+        _agentVaults[assignedAgent].push(newVault);
 
         // Step 7 \u2014 Create child budget pool carved from deployer's pool.
         //   The deploying agent cannot allocate more than it has remaining \u2014 enforced above.
@@ -701,8 +807,16 @@ contract AgentVaultRegistry is Ownable {
         pe.transferOwnership(rootOwner);
         budgetPolicy.transferOwnership(rootOwner);
 
-        // 8. Register vault in indexing structures
+        // 8. Write LSP3 profile for LUKSO ecosystem discoverability
         string memory labelStr = string(abi.encodePacked(label));
+        bytes memory profileJson = abi.encodePacked(
+            'data:application/json,{"LSP3Profile":{"name":"',
+            labelStr,
+            '","description":"Vaultia Vault"}}'
+        );
+        _setDataVerified(safe, LSP3_PROFILE_KEY, profileJson);
+
+        // 9. Register vault in indexing structures
         _registerVaultRecord(
             rootOwner,
             address(safe),
@@ -888,6 +1002,11 @@ contract AgentVaultRegistry is Ownable {
         //     per-agent AllowedCalls to add a second enforcement layer on top of PolicyEngine.
         apIdx = _configureAgentPermissions(safe, p, apIdx);
 
+        // Populate inverse agent index so agents can discover this vault without knowing its address.
+        for (uint256 i = 0; i < p.agents.length; i++) {
+            _agentVaults[p.agents[i]].push(address(safe));
+        }
+
         // 11.5. Optionally deploy MultisigController (must happen after KM is deployed
         //       and before transferOwnership — registry is still temp owner of the safe).
         //       The controller is granted SUPER_CALL | SUPER_TRANSFERVALUE (PERM_POWER_USER
@@ -915,7 +1034,16 @@ contract AgentVaultRegistry is Ownable {
         pe.transferOwnership(owner);
         budgetPolicy.transferOwnership(owner);
 
-        // 13. Register vault
+        // 13. Write LSP3 profile so the vault appears with its name in the LUKSO ecosystem
+        //     (UP explorer, universaleverything.io, etc.)
+        bytes memory profileJson = abi.encodePacked(
+            'data:application/json,{"LSP3Profile":{"name":"',
+            p.label,
+            '","description":"Vaultia Vault"}}'
+        );
+        _setDataVerified(safe, LSP3_PROFILE_KEY, profileJson);
+
+        // 14. Register vault
         record = _registerVaultRecord(
             owner,
             address(safe),

@@ -3,6 +3,21 @@ pragma solidity ^0.8.20;
 
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
+interface ILSP26MS {
+    function follow(address addr) external;
+    function unfollow(address addr) external;
+}
+
+interface ILSP1MS {
+    function universalReceiver(bytes32 typeId, bytes calldata data)
+        external payable returns (bytes memory);
+}
+
+interface IVaultRegistryMS {
+    function registerSignerForVault(address vault, address signer) external;
+    function unregisterSignerForVault(address vault, address signer) external;
+}
+
 /// @dev Minimal LSP6 KeyManager interface.
 interface ILSP6KeyManager {
     function execute(bytes calldata payload) external payable returns (bytes memory);
@@ -97,8 +112,15 @@ contract MultisigController is ReentrancyGuard {
 
     // ─── State ────────────────────────────────────────────────────────────────
 
+    bytes32 private constant VAULTIA_SIGNER_ADDED   = keccak256("VaultiaSignerAdded(address)");
+    bytes32 private constant VAULTIA_SIGNER_REMOVED = keccak256("VaultiaSignerRemoved(address)");
+    address private constant LSP26_ADDRESS = 0xf01103E5a9909Fc0DBe8166dA7085e0285daDDcA;
+
     address public vault;
     address public keyManager;
+
+    /// @notice AgentVaultRegistry — set at construction. address(0) disables registry callbacks.
+    address public registry;
 
     address[] public signers;
     mapping(address => bool) public isSigner;
@@ -133,6 +155,8 @@ contract MultisigController is ReentrancyGuard {
     event SignersUpdated(address[] newSigners);
     event ThresholdUpdated(uint256 newThreshold);
     event TimelockUpdated(uint256 newDelay);
+    event SignerAdded(address indexed vault, address indexed signer);
+    event SignerRemoved(address indexed vault, address indexed signer);
 
     // ─── Modifiers ────────────────────────────────────────────────────────────
 
@@ -148,18 +172,22 @@ contract MultisigController is ReentrancyGuard {
     /// @param _signers    Initial list of signers (no duplicates, no zero addresses).
     /// @param _threshold  Minimum approvals required (1 <= threshold <= signers.length).
     /// @param _timeLock   Global default timelock delay in seconds (0 = no delay).
+    /// @param _registry   AgentVaultRegistry address for inverse signer index callbacks.
+    ///                    Pass address(0) to disable registry integration.
     constructor(
         address _vault,
         address _keyManager,
         address[] memory _signers,
         uint256 _threshold,
-        uint256 _timeLock
+        uint256 _timeLock,
+        address _registry
     ) {
         if (_vault == address(0) || _keyManager == address(0)) revert ZeroAddress();
         _validateAndSetSigners(_signers, _threshold);
         vault      = _vault;
         keyManager = _keyManager;
         timeLock   = _timeLock;
+        registry   = _registry;
         emit TimelockUpdated(_timeLock);
     }
 
@@ -317,6 +345,57 @@ contract MultisigController is ReentrancyGuard {
     function updateTimelock(uint256 newDelay) external onlySelf {
         timeLock = newDelay;
         emit TimelockUpdated(newDelay);
+    }
+
+    /// @notice Add a single signer. Must go through a multisig proposal (onlySelf).
+    ///         Updates the registry inverse index, follows the signer in LSP26,
+    ///         and notifies their Universal Profile via LSP1.
+    function addSigner(address signer) external onlySelf {
+        if (signer == address(0)) revert ZeroAddress();
+        if (isSigner[signer]) revert DuplicateSigner();
+
+        isSigner[signer] = true;
+        signers.push(signer);
+
+        // Update registry inverse signer index
+        if (registry != address(0)) {
+            try IVaultRegistryMS(registry).registerSignerForVault(vault, signer) {} catch {}
+        }
+        // Follow signer in LSP26 (visible in LUKSO social graph)
+        try ILSP26MS(LSP26_ADDRESS).follow(signer) {} catch {}
+        // Notify signer's Universal Profile via LSP1
+        try ILSP1MS(signer).universalReceiver(VAULTIA_SIGNER_ADDED, abi.encode(vault)) {} catch {}
+
+        emit SignerAdded(vault, signer);
+        emit SignersUpdated(signers);
+    }
+
+    /// @notice Remove a single signer. Must go through a multisig proposal (onlySelf).
+    ///         Reverts if removal would make threshold unreachable.
+    function removeSigner(address signer) external onlySelf {
+        if (!isSigner[signer]) revert NotSigner();
+        if (threshold > signers.length - 1) revert InvalidThreshold();
+
+        isSigner[signer] = false;
+        for (uint256 i = 0; i < signers.length; i++) {
+            if (signers[i] == signer) {
+                signers[i] = signers[signers.length - 1];
+                signers.pop();
+                break;
+            }
+        }
+
+        // Update registry inverse signer index
+        if (registry != address(0)) {
+            try IVaultRegistryMS(registry).unregisterSignerForVault(vault, signer) {} catch {}
+        }
+        // Unfollow in LSP26
+        try ILSP26MS(LSP26_ADDRESS).unfollow(signer) {} catch {}
+        // Notify signer's Universal Profile via LSP1
+        try ILSP1MS(signer).universalReceiver(VAULTIA_SIGNER_REMOVED, abi.encode(vault)) {} catch {}
+
+        emit SignerRemoved(vault, signer);
+        emit SignersUpdated(signers);
     }
 
     /// @notice Bounce-call: lets the MS invoke onlySelf functions (updateSigners,

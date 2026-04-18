@@ -66,6 +66,7 @@ async function deployStack(
     signers,
     threshold,
     timeLock,
+    ethers.ZeroAddress,
   ) as MultisigController;
 
   return { safe, km, ms, safeAddr, kmAddr, msAddr: await ms.getAddress(), deployer };
@@ -135,7 +136,7 @@ describe("MultisigController", function () {
       const safe = await (await ethers.getContractFactory("AgentSafe")).deploy(s0.address);
       const km   = await (await ethers.getContractFactory("LSP6KeyManager")).deploy(await safe.getAddress());
       await expect(
-        f.deploy(await safe.getAddress(), await km.getAddress(), [s0.address], 0, 0),
+        f.deploy(await safe.getAddress(), await km.getAddress(), [s0.address], 0, 0, ethers.ZeroAddress),
       ).to.be.revertedWithCustomError(f, "InvalidThreshold");
     });
 
@@ -145,7 +146,7 @@ describe("MultisigController", function () {
       const safe = await (await ethers.getContractFactory("AgentSafe")).deploy(s0.address);
       const km   = await (await ethers.getContractFactory("LSP6KeyManager")).deploy(await safe.getAddress());
       await expect(
-        f.deploy(await safe.getAddress(), await km.getAddress(), [s0.address], 2, 0),
+        f.deploy(await safe.getAddress(), await km.getAddress(), [s0.address], 2, 0, ethers.ZeroAddress),
       ).to.be.revertedWithCustomError(f, "InvalidThreshold");
     });
 
@@ -155,7 +156,7 @@ describe("MultisigController", function () {
       const safe = await (await ethers.getContractFactory("AgentSafe")).deploy(s0.address);
       const km   = await (await ethers.getContractFactory("LSP6KeyManager")).deploy(await safe.getAddress());
       await expect(
-        f.deploy(await safe.getAddress(), await km.getAddress(), [s0.address, s0.address], 1, 0),
+        f.deploy(await safe.getAddress(), await km.getAddress(), [s0.address, s0.address], 1, 0, ethers.ZeroAddress),
       ).to.be.revertedWithCustomError(f, "DuplicateSigner");
     });
   });
@@ -319,7 +320,7 @@ describe("MultisigController", function () {
       await safe.connect(alice).setKeyManager(await km.getAddress());
       const ms = await msFactory.deploy(
         await safe.getAddress(), await km.getAddress(),
-        [alice.address, bob.address], 2, 0,
+        [alice.address, bob.address], 2, 0, ethers.ZeroAddress,
       ) as MultisigController;
 
       const id = await makePendingProposal(ms, alice, recipient.address, "0x", { executorMode: 0 }); // ONLY_OWNER
@@ -381,7 +382,7 @@ describe("MultisigController", function () {
 
       const ms = await msFactory.deploy(
         await safe.getAddress(), await km.getAddress(),
-        [alice.address, bob.address], 2, 0,
+        [alice.address, bob.address], 2, 0, ethers.ZeroAddress,
       ) as MultisigController;
 
       const id = await makePendingProposal(ms, alice, recipient.address);
@@ -437,7 +438,7 @@ describe("MultisigController", function () {
       const safe = await (await ethers.getContractFactory("AgentSafe")).deploy(alice.address);
       const km   = await (await ethers.getContractFactory("LSP6KeyManager")).deploy(await safe.getAddress());
       await expect(
-        f.deploy(await safe.getAddress(), await km.getAddress(), [alice.address], 3, 0),
+        f.deploy(await safe.getAddress(), await km.getAddress(), [alice.address], 3, 0, ethers.ZeroAddress),
       ).to.be.revertedWithCustomError(f, "InvalidThreshold");
     });
   });

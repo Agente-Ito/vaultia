@@ -87,7 +87,7 @@ async function deployE2EStack(
   await safe.connect(deployer).setPolicyEngine(await pe.getAddress());
 
   // ── MultisigController ────────────────────────────────────────────────────
-  const ms     = await MSF.deploy(safeAddr, kmAddr, signerAddrs, threshold, timeLock) as MultisigController;
+  const ms     = await MSF.deploy(safeAddr, kmAddr, signerAddrs, threshold, timeLock, ethers.ZeroAddress) as MultisigController;
   const msAddr = await ms.getAddress();
 
   // ── Wire LSP6 permissions ─────────────────────────────────────────────────

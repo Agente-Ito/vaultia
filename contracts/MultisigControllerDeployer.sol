@@ -14,8 +14,9 @@ contract MultisigControllerDeployer {
         address keyManager,
         address[] memory signers,
         uint256 threshold,
-        uint256 timeLock
+        uint256 timeLock,
+        address registry
     ) external returns (address) {
-        return address(new MultisigController(vault, keyManager, signers, threshold, timeLock));
+        return address(new MultisigController(vault, keyManager, signers, threshold, timeLock, registry));
     }
 }

@@ -3,6 +3,21 @@ pragma solidity ^0.8.20;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
+interface ILSP26 {
+    function follow(address addr) external;
+    function unfollow(address addr) external;
+}
+
+interface ILSP1Receiver {
+    function universalReceiver(bytes32 typeId, bytes calldata data)
+        external payable returns (bytes memory);
+}
+
+interface IVaultRegistryIndex {
+    function registerAgentForVault(address vault, address agent) external;
+    function unregisterAgentForVault(address vault, address agent) external;
+}
+
 /// @title AgentCoordinator
 /// @notice Manages agent roles, capabilities, and metadata for the AI Financial OS.
 /// Supports both EOAs and smart contract agents with fine-grained permission control.
@@ -26,6 +41,14 @@ contract AgentCoordinator is Ownable {
     ///      An agent at depth N can deploy sub-agents at depth N+1.
     ///      At MAX_DELEGATION_DEPTH, the chain is sealed: no further deployments allowed.
     uint256 public constant MAX_DELEGATION_DEPTH = 3;
+
+    /// @dev LSP1 typeIds for vault-agent relationship notifications.
+    ///      Received by Universal Profiles as native UP Extension notifications.
+    bytes32 public constant VAULTIA_AGENT_ADDED   = keccak256("VaultiaAgentAdded(address)");
+    bytes32 public constant VAULTIA_AGENT_REMOVED = keccak256("VaultiaAgentRemoved(address)");
+
+    /// @dev LSP26 Follower System on LUKSO testnet (chainId 4201).
+    address public constant LSP26_ADDRESS = 0xf01103E5a9909Fc0DBe8166dA7085e0285daDDcA;
 
     struct AgentConfig {
         bool isContract;           // true if agent.code.length > 0 at registration
@@ -67,6 +90,10 @@ contract AgentCoordinator is Ownable {
     /// @notice Role admin (default: owner, can be changed)
     address public roleAdmin;
 
+    /// @notice AgentVaultRegistry — updated via setRegistry() by owner.
+    ///         When set, addAgent/removeAgent update the registry's inverse index.
+    address public registry;
+
     // ═════════════════════════════════════════════════════════════════════
     // EVENTS
     // ═════════════════════════════════════════════════════════════════════
@@ -92,6 +119,9 @@ contract AgentCoordinator is Ownable {
 
     event RoleAdminChanged(address indexed oldAdmin, address indexed newAdmin);
     event AuthorizedCallerChanged(address indexed caller, bool enabled);
+    event RegistrySet(address indexed registry);
+    event AgentAdded(address indexed vault, address indexed agent);
+    event AgentRemoved(address indexed vault, address indexed agent);
 
     // ═════════════════════════════════════════════════════════════════════
     // INITIALIZATION
@@ -118,6 +148,65 @@ contract AgentCoordinator is Ownable {
         address oldAdmin = roleAdmin;
         roleAdmin = newAdmin;
         emit RoleAdminChanged(oldAdmin, newAdmin);
+    }
+
+    /// @notice Point the coordinator at the AgentVaultRegistry so addAgent/removeAgent
+    ///         can update the inverse vault index. Call once after both contracts are deployed.
+    function setRegistry(address _registry) external onlyOwner {
+        registry = _registry;
+        emit RegistrySet(_registry);
+    }
+
+    // ═════════════════════════════════════════════════════════════════════
+    // PER-VAULT AGENT MANAGEMENT
+    // ═════════════════════════════════════════════════════════════════════
+
+    /// @notice Register `agent` as an active agent for `vault`.
+    ///         Updates the registry's inverse index, follows the agent in LSP26 (visibility
+    ///         in the LUKSO social graph), and notifies the agent's Universal Profile via LSP1.
+    ///         All external calls are wrapped in try/catch — addAgent never reverts due to
+    ///         agents that don't implement LSP1 or are already followed in LSP26.
+    function addAgent(address vault, address agent) external onlyRoleAdmin {
+        require(vault  != address(0), "AC: invalid vault");
+        require(agent  != address(0), "AC: invalid agent");
+
+        // 1. Update registry inverse index
+        if (registry != address(0)) {
+            try IVaultRegistryIndex(registry).registerAgentForVault(vault, agent) {} catch {}
+        }
+
+        // 2. The coordinator follows the agent in LSP26 (makes relationship visible in LUKSO ecosystem)
+        try ILSP26(LSP26_ADDRESS).follow(agent) {} catch {}
+
+        // 3. Notify the agent's Universal Profile — appears in UP Extension and universaleverything.io
+        try ILSP1Receiver(agent).universalReceiver(
+            VAULTIA_AGENT_ADDED,
+            abi.encode(vault)
+        ) {} catch {}
+
+        emit AgentAdded(vault, agent);
+    }
+
+    /// @notice Remove `agent` from `vault`, reversing all side-effects of addAgent.
+    function removeAgent(address vault, address agent) external onlyRoleAdmin {
+        require(vault  != address(0), "AC: invalid vault");
+        require(agent  != address(0), "AC: invalid agent");
+
+        // 1. Update registry inverse index
+        if (registry != address(0)) {
+            try IVaultRegistryIndex(registry).unregisterAgentForVault(vault, agent) {} catch {}
+        }
+
+        // 2. Unfollow in LSP26
+        try ILSP26(LSP26_ADDRESS).unfollow(agent) {} catch {}
+
+        // 3. Notify the agent's Universal Profile
+        try ILSP1Receiver(agent).universalReceiver(
+            VAULTIA_AGENT_REMOVED,
+            abi.encode(vault)
+        ) {} catch {}
+
+        emit AgentRemoved(vault, agent);
     }
 
     /// @notice Grant or revoke protocol-level caller authorization.
